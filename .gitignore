@@ -54,3 +54,10 @@ node_modules/
 *.temp
 *.swp
 *.bak
+
+
+.codex
+
+doc
+
+.claude
