@@ -252,7 +252,7 @@ fun EmptyStateRoute(
     ) {
         Card(
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -313,18 +313,15 @@ fun ExcerptCard(
     onOpenNode: (String) -> Unit = {},
     onPreviewExcerpt: (String) -> Unit = {},
 ) {
-    androidx.compose.material3.OutlinedCard(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongPress),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        colors = CardDefaults.cardColors(
+            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         ),
-        border = androidx.compose.foundation.BorderStroke(
-            1.dp,
-            if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -345,8 +342,8 @@ fun ExcerptCard(
                     } else {
                         StatusBadge(
                             text = excerpt.archivedNodeTitle,
-                            bg = MaterialTheme.colorScheme.surfaceVariant,
-                            fg = MaterialTheme.colorScheme.onSurfaceVariant
+                            bg = MaterialTheme.colorScheme.secondaryContainer,
+                            fg = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                     }
                     excerpt.tags.take(3).forEach { tag ->
@@ -375,6 +372,8 @@ fun ExcerptCard(
                         targetId
                     )
                 },
+                onClick = onClick,
+                onLongClick = onLongPress,
             )
             if (excerpt.thought.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
@@ -391,6 +390,8 @@ fun ExcerptCard(
                                     targetId
                                 )
                             },
+                            onClick = onClick,
+                            onLongClick = onLongPress,
                         )
                     }
                 }

@@ -45,6 +45,10 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import com.gleanread.android.data.model.LinkSuggestion
 import com.gleanread.android.data.model.buildInlineAnnotatedString
 import com.gleanread.android.data.model.currentInlineQuery
@@ -54,20 +58,42 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun LinkAwareText(rawText: String, onLinkClick: (String) -> Unit) {
+fun LinkAwareText(
+    rawText: String,
+    onLinkClick: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+) {
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
-    ClickableText(
+    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    Text(
         text = annotated,
         style = MaterialTheme.typography.bodyLarge.copy(
             color = MaterialTheme.colorScheme.onSurface,
             lineHeight = 22.sp
         ),
-        onClick = { offset ->
-            annotated.getStringAnnotations("inline-link", offset, offset).firstOrNull()?.let {
-                onLinkClick(it.item)
-            }
-        },
+        onTextLayout = { layoutResult = it },
+        modifier = modifier.pointerInput(annotated) {
+            detectTapGestures(
+                onTap = { offset: Offset ->
+                    val annotation = layoutResult?.let { lr ->
+                        val pos = lr.getOffsetForPosition(offset)
+                        annotated.getStringAnnotations("inline-link", pos, pos).firstOrNull()
+                    }
+                    if (annotation != null) {
+                        onLinkClick(annotation.item)
+                    } else {
+                        onClick?.invoke()
+                    }
+                },
+                onLongPress = {
+                    onLongClick?.invoke()
+                }
+            )
+        }
     )
 }
 
