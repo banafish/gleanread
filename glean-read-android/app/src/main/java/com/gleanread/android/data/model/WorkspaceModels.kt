@@ -6,7 +6,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.sp
-import com.gleanread.android.ui.CaptureUI
+
 
 const val LOCAL_USER_ID = "local-user"
 
@@ -175,7 +175,7 @@ fun toDisplayInlineText(text: String): String {
     }
 }
 
-fun buildInlineAnnotatedString(rawText: String): AnnotatedString {
+fun buildInlineAnnotatedString(rawText: String, linkColor: androidx.compose.ui.graphics.Color = androidx.compose.ui.graphics.Color.Unspecified): AnnotatedString {
     val structuredLinks = extractStructuredLinks(rawText)
     val display = toDisplayInlineText(rawText)
     val builder = AnnotatedString.Builder(display)
@@ -188,7 +188,7 @@ fun buildInlineAnnotatedString(rawText: String): AnnotatedString {
             val end = start + token.length
             builder.addStyle(
                 SpanStyle(
-                    color = CaptureUI.Indigo600,
+                    color = linkColor,
                     fontWeight = FontWeight.Medium,
                     textDecoration = TextDecoration.Underline,
                     fontSize = 15.sp,
@@ -204,7 +204,7 @@ fun buildInlineAnnotatedString(rawText: String): AnnotatedString {
     displayLinkRegex.findAll(display).forEach { match ->
         builder.addStyle(
             SpanStyle(
-                color = CaptureUI.Indigo600,
+                color = linkColor,
                 fontWeight = FontWeight.Medium,
                 textDecoration = TextDecoration.Underline,
                 fontSize = 15.sp,

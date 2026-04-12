@@ -15,20 +15,26 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.TagGroupUiModel
-import com.gleanread.android.ui.CaptureUI
 
 @Composable
 fun TagsRoute(tagGroups: List<TagGroupUiModel>) {
@@ -44,24 +50,36 @@ fun TagsRoute(tagGroups: List<TagGroupUiModel>) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("🏷️ 标签库", fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                Button(onClick = {}) { Text("＋ 新建") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Label, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onBackground)
+                    Spacer(Modifier.width(8.dp))
+                    Text("标签库", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onBackground)
+                }
+                Button(onClick = {}) { 
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("新建")
+                }
             }
             Spacer(Modifier.height(16.dp))
         }
         items(tagGroups) { group ->
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text("📂 ${group.folder} (${group.count})", fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        Spacer(Modifier.width(6.dp))
+                        Text("${group.folder} (${group.count})", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    }
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         group.items.forEach { tag ->
                             Surface(
                                 shape = RoundedCornerShape(16.dp),
-                                color = CaptureUI.Indigo50,
+                                color = MaterialTheme.colorScheme.primaryContainer,
                             ) {
                                 Text(
                                     "#${tag.displayName} ${tag.heatWeight}",
@@ -69,7 +87,7 @@ fun TagsRoute(tagGroups: List<TagGroupUiModel>) {
                                         horizontal = 12.dp,
                                         vertical = 8.dp
                                     ),
-                                    color = CaptureUI.Indigo600,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium,
                                 )

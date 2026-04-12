@@ -11,15 +11,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -44,7 +56,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.gleanread.android.ui.CaptureUI
 
 object WorkspaceRoutes {
     const val Feed = "feed"
@@ -79,7 +90,7 @@ fun WorkspaceApp(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = CaptureUI.Slate50,
+        color = MaterialTheme.colorScheme.background,
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
@@ -172,14 +183,19 @@ fun WorkspaceApp(
                 Button(
                     onClick = workspaceViewModel::openQuickCapture,
                     shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = CaptureUI.Indigo600),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 24.dp, bottom = 86.dp)
                         .size(58.dp),
                     contentPadding = PaddingValues(0.dp),
                 ) {
-                    Text("＋", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add",
+                        modifier = Modifier.size(28.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
 
@@ -250,23 +266,23 @@ fun BottomNavigationBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White.copy(alpha = 0.95f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             .navigationBarsPadding()
             .padding(horizontal = 24.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BottomNavItem("🏠", "摘录", currentRoute == WorkspaceRoutes.Feed) {
+        BottomNavItem(Icons.Default.Home, "摘录", currentRoute == WorkspaceRoutes.Feed) {
             onNavigate(
                 WorkspaceRoutes.Feed
             )
         }
-        BottomNavItem("🌲", "知识树", currentRoute == WorkspaceRoutes.Tree) {
+        BottomNavItem(Icons.Default.AccountTree, "知识树", currentRoute == WorkspaceRoutes.Tree) {
             onNavigate(
                 WorkspaceRoutes.Tree
             )
         }
-        BottomNavItem("🏷️", "标签", currentRoute == WorkspaceRoutes.Tags) {
+        BottomNavItem(Icons.Default.Label, "标签", currentRoute == WorkspaceRoutes.Tags) {
             onNavigate(
                 WorkspaceRoutes.Tags
             )
@@ -275,17 +291,17 @@ fun BottomNavigationBar(
 }
 
 @Composable
-fun BottomNavItem(icon: String, label: String, active: Boolean, onClick: () -> Unit) {
-    val color = if (active) CaptureUI.Indigo600 else CaptureUI.Slate400
+fun BottomNavItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(if (active) CaptureUI.Indigo50 else Color.Transparent)
+            .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
             .combinedClickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(icon, fontSize = 20.sp)
+        Icon(imageVector = icon, contentDescription = label, tint = color, modifier = Modifier.size(24.dp))
         Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Medium)
     }
 }
@@ -300,17 +316,19 @@ fun SelectionActionBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("已选 $selectedCount 项", color = CaptureUI.Slate600, fontWeight = FontWeight.Medium)
+        Text("已选 $selectedCount 项", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TextButton(onClick = onCancel) { Text("取消") }
             Button(onClick = onOpenAiSummary, enabled = selectedCount > 0) {
-                Text("✨ AI提炼并归档")
+                Icon(Icons.Default.AutoAwesome, contentDescription = "AI提炼并归档", modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text("AI提炼并归档")
             }
         }
     }

@@ -1,10 +1,8 @@
 package com.gleanread.android.ui
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,17 +28,14 @@ fun RichExcerptCard(
     url: String,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) CaptureUI.OledCard else CaptureUI.Indigo50
-    val borderColor = if (isDark) CaptureUI.OledBorder else Color.Transparent
-    val quoteTint = if (isDark) CaptureUI.OledTextSecondary else CaptureUI.Slate400.copy(alpha = 0.8f)
-    val textColor = if (isDark) CaptureUI.OledTextPrimary else Color(0xFF2D3748)
+    val bgColor = MaterialTheme.colorScheme.surfaceContainer
+    val quoteTint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+    val textColor = MaterialTheme.colorScheme.onSurface
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(bgColor, RoundedCornerShape(20.dp))
-            .border(1.dp, borderColor, RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.Top
     ) {
@@ -61,7 +56,7 @@ fun RichExcerptCard(
                 lineHeight = 22.sp,
                 letterSpacing = 0.5.sp,
                 fontWeight = FontWeight.Medium,
-                maxLines = 3, // 多行截断
+                maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -76,26 +71,9 @@ fun TagPill(
     isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-
-    val bgColor = when {
-        isSelected && !isDark -> CaptureUI.Indigo600
-        isSelected && isDark -> CaptureUI.OledIconTint
-        !isSelected && !isDark -> CaptureUI.Slate50
-        else -> CaptureUI.OledCard // !isSelected && isDark
-    }
-
-    val borderColor = when {
-        isSelected -> Color.Transparent
-        !isDark -> CaptureUI.Slate200
-        else -> CaptureUI.OledBorder
-    }
-
-    val textColor = when {
-        isSelected -> Color.White
-        !isDark -> CaptureUI.Slate600
-        else -> CaptureUI.OledTextSecondary
-    }
+    val bgColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val borderColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant
+    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = Modifier
@@ -125,11 +103,8 @@ fun CaptureBottomSheet(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-
-    // OLED 模式下采用极深灰纯色底
-    val sheetColor = if (isDark) CaptureUI.OledSheet else Color.White
-    val handleColor = if (isDark) CaptureUI.OledHandle else CaptureUI.Slate200
+    val sheetColor = MaterialTheme.colorScheme.surfaceContainerLow
+    val handleColor = MaterialTheme.colorScheme.outlineVariant
 
     Surface(
         modifier = modifier
@@ -137,8 +112,7 @@ fun CaptureBottomSheet(
             .imePadding(),
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
         color = sheetColor,
-        // OLED 版通常不需要阴影，因为底层 overlay 已经是黑色了
-        shadowElevation = if (isDark) 0.dp else 24.dp
+        shadowElevation = 8.dp
     ) {
         Column(
             modifier = Modifier.padding(top = 16.dp),
@@ -159,8 +133,7 @@ fun CaptureBottomSheet(
 
 @Composable
 fun SourceBadge(url: String) {
-    val isDark = isSystemInDarkTheme()
-    val tintColor = if (isDark) CaptureUI.OledTextSecondary else CaptureUI.Slate400
+    val tintColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     val host = remember(url) {
         try { URL(url).host.ifEmpty { url } } catch (e: Exception) { url }

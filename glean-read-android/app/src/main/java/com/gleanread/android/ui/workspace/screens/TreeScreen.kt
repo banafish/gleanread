@@ -14,13 +14,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -33,13 +42,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.TreeNodeUiModel
 import com.gleanread.android.data.model.WorkspaceSnapshot
-import com.gleanread.android.ui.CaptureUI
 
 @Composable
 fun TreeRoute(
@@ -65,13 +72,21 @@ fun TreeRoute(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("🌲 知识体系", fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                Button(onClick = { showAddDialog = true }) { Text("＋ 根节点") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.AccountTree, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onBackground)
+                    Spacer(Modifier.width(8.dp))
+                    Text("知识体系", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onBackground)
+                }
+                Button(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("根节点")
+                }
             }
             Spacer(Modifier.height(16.dp))
             Card(
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(8.dp)) {
                     snapshot.treeRoots.forEach { node ->
@@ -130,16 +145,26 @@ fun TreeNodeRow(
                     .fillMaxWidth()
                     .padding(start = (level * 18).dp, top = 4.dp, bottom = 4.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFFF8FAFC))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
                     .padding(horizontal = 10.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    if (node.children.isNotEmpty()) if (isExpanded) "▼" else "▶" else "•",
-                    modifier = Modifier.combinedClickable {
-                        if (node.children.isNotEmpty()) onToggle(node.id)
-                    },
-                    color = CaptureUI.Slate400,
+                val icon = if (node.children.isNotEmpty()) {
+                    if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight
+                } else {
+                    Icons.Default.FiberManualRecord
+                }
+                val iconSize = if (node.children.isNotEmpty()) 20.dp else 10.dp
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(20.dp)
+                        .padding(if (node.children.isNotEmpty()) 0.dp else 5.dp) // center the smaller dot
+                        .combinedClickable {
+                            if (node.children.isNotEmpty()) onToggle(node.id)
+                        },
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.width(8.dp))
                 Text(
@@ -147,10 +172,10 @@ fun TreeNodeRow(
                     modifier = Modifier
                         .weight(1f)
                         .combinedClickable { onOpen(node.id) },
-                    color = CaptureUI.Slate800,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = if (level == 0) FontWeight.Bold else FontWeight.Medium,
                 )
-                Text("${node.count} 条", color = CaptureUI.Slate400, fontSize = 12.sp)
+                Text("${node.count} 条", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             if (isExpanded) {
                 node.children.forEach { child ->

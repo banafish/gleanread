@@ -100,7 +100,6 @@ import com.gleanread.android.data.model.buildInlineAnnotatedString
 import com.gleanread.android.data.model.currentInlineQuery
 import com.gleanread.android.data.model.insertStructuredLink
 import com.gleanread.android.ui.CaptureBottomSheet
-import com.gleanread.android.ui.CaptureUI
 import com.gleanread.android.ui.TagPill
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -111,12 +110,18 @@ import kotlin.math.sin
 import androidx.activity.compose.BackHandler
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material3.Icon
+
 @Composable
 fun LinkAwareText(rawText: String, onLinkClick: (String) -> Unit) {
-    val annotated = remember(rawText) { buildInlineAnnotatedString(rawText) }
+    val linkColor = MaterialTheme.colorScheme.primary
+    val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
     ClickableText(
         text = annotated,
-        style = MaterialTheme.typography.bodyLarge.copy(color = CaptureUI.Slate800, lineHeight = 22.sp),
+        style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface, lineHeight = 22.sp),
         onClick = { offset ->
             annotated.getStringAnnotations("inline-link", offset, offset).firstOrNull()?.let {
                 onLinkClick(it.item)
@@ -187,13 +192,13 @@ fun InlineLinkEditor(
             Card(
                 modifier = Modifier.clickable(enabled = false) {},
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
             ) {
                 Column(modifier = Modifier.padding(vertical = 6.dp)) {
                     Text(
                         "联想结果",
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                        color = CaptureUI.Slate400,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
                     suggestions.forEach { suggestion ->
@@ -204,14 +209,23 @@ fun InlineLinkEditor(
                             suggestions = emptyList()
                         }) {
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                Text(
-                                    text = if (suggestion.type.name == "NODE") "🌲 ${suggestion.title}" else "📎 ${suggestion.title}",
-                                    color = CaptureUI.Slate800,
-                                    fontWeight = FontWeight.Medium,
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (suggestion.type.name == "NODE") Icons.Default.AccountTree else Icons.Default.AttachFile,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = suggestion.title,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.Medium,
+                                    )
+                                }
                                 Text(
                                     suggestion.preview,
-                                    color = CaptureUI.Slate400,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 12.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,

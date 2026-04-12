@@ -100,7 +100,6 @@ import com.gleanread.android.data.model.buildInlineAnnotatedString
 import com.gleanread.android.data.model.currentInlineQuery
 import com.gleanread.android.data.model.insertStructuredLink
 import com.gleanread.android.ui.CaptureBottomSheet
-import com.gleanread.android.ui.CaptureUI
 import com.gleanread.android.ui.TagPill
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -109,8 +108,17 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 import androidx.activity.compose.BackHandler
-import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.Icon
+import kotlinx.coroutines.delay
+
 @Composable
 fun NodePickerOverlay(
     snapshot: WorkspaceSnapshot,
@@ -136,7 +144,7 @@ fun NodePickerOverlay(
         CaptureBottomSheet(onDismiss = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp)) {
             Column(modifier = Modifier.padding(horizontal = 16.dp).imePadding()) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Text("选择目标节点", fontWeight = FontWeight.Bold)
+                    Text("选择目标节点", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     TextButton(onClick = onToggleCreate) { Text(if (createNewNode) "选择现有节点" else "新建子节点") }
                 }
                 if (createNewNode) {
@@ -149,7 +157,7 @@ fun NodePickerOverlay(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         if (selectedParentNodeId == null) "从下方选择父节点" else "父节点：${snapshot.flatNodes[selectedParentNodeId]?.title}",
-                        color = CaptureUI.Slate500,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp,
                     )
                 }
@@ -194,16 +202,16 @@ fun NodePickerTreeRow(
                 .fillMaxWidth()
                 .padding(start = (level * 16).dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (selected) CaptureUI.Indigo50 else Color.Transparent)
+                .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
                 .combinedClickable {
                     if (createNewNode) onSelectParent(node.id) else onSelectTarget(node.id)
                 }
                 .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(if (selected) "✅" else "🌿")
+            Icon(if (selected) Icons.Default.CheckCircle else Icons.Default.AccountTree, contentDescription = null, tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text(node.title, modifier = Modifier.weight(1f), color = CaptureUI.Slate700)
+            Text(node.title, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
         }
         node.children.forEach {
             NodePickerTreeRow(
@@ -246,7 +254,7 @@ fun QuickCaptureOverlay(
     ) {
         CaptureBottomSheet(onDismiss = onDismiss, modifier = Modifier.fillMaxWidth().heightIn(max = 640.dp)) {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text("极速记录", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text("极速记录", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface)
                 Spacer(Modifier.height(12.dp))
                 InlineLinkEditor(
                     rawText = draft.content,
@@ -258,7 +266,11 @@ fun QuickCaptureOverlay(
                     autoFocus = true,
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("💡 提示：输入 [[ 触发双向链接", color = CaptureUI.Slate400, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lightbulb, contentDescription = null, modifier = Modifier.size(12.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.width(4.dp))
+                    Text("提示：输入 [[ 触发双向链接", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                }
                 Spacer(Modifier.height(12.dp))
                 InlineLinkEditor(
                     rawText = draft.thought,
@@ -273,11 +285,17 @@ fun QuickCaptureOverlay(
                     value = draft.url,
                     onValueChange = onUrlChange,
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("🔗 添加来源 URL（选填）") },
+                    placeholder = { 
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(Modifier.width(4.dp))
+                            Text("添加来源 URL（选填）")
+                        }
+                    },
                     singleLine = true,
                 )
                 Spacer(Modifier.height(12.dp))
-                Text("推荐标签", color = CaptureUI.Slate600, fontWeight = FontWeight.Medium)
+                Text("推荐标签", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     snapshot.suggestedTags.forEach { tag ->
@@ -289,13 +307,16 @@ fun QuickCaptureOverlay(
                 Button(
                     onClick = { showArchivePicker = true },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = CaptureUI.Slate50, contentColor = CaptureUI.Slate700),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurfaceVariant),
                 ) {
-                    Text(
-                        draft.archiveNodeId?.let { "📍 ${snapshot.flatNodes[it]?.title ?: "未归档 (Inbox)"}" } ?: "📍 未归档 (Inbox)",
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Left,
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            draft.archiveNodeId?.let { "${snapshot.flatNodes[it]?.title ?: "未归档 (Inbox)"}" } ?: "未归档 (Inbox)",
+                            textAlign = TextAlign.Left,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(14.dp))
                 Button(
@@ -339,7 +360,11 @@ fun ArchivePickerDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.verticalScroll(rememberScrollState())) {
                 TextButton(onClick = { onSelect(null) }) {
-                    Text(if (selectedNodeId == null) "✅ 未归档 (Inbox)" else "未归档 (Inbox)")
+                    if (selectedNodeId == null) {
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Text("未归档 (Inbox)")
                 }
                 snapshot.treeRoots.forEach { node ->
                     ArchiveNodeRow(node, selectedNodeId, onSelect)
@@ -354,7 +379,11 @@ fun ArchivePickerDialog(
 fun ArchiveNodeRow(node: TreeNodeUiModel, selectedNodeId: String?, onSelect: (String?) -> Unit, level: Int = 0) {
     Column {
         TextButton(onClick = { onSelect(node.id) }, modifier = Modifier.padding(start = (level * 16).dp)) {
-            Text(if (selectedNodeId == node.id) "✅ ${node.title}" else node.title)
+            if (selectedNodeId == node.id) {
+                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(node.title, color = MaterialTheme.colorScheme.onSurface)
         }
         node.children.forEach { ArchiveNodeRow(it, selectedNodeId, onSelect, level + 1) }
     }
@@ -368,7 +397,7 @@ fun ExcerptPreviewDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(excerpt.sourceTitle ?: "摘录预览") },
+        title = { Text(excerpt.sourceTitle ?: "摘录预览", color = MaterialTheme.colorScheme.onSurface) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LinkAwareText(rawText = excerpt.content, onLinkClick = {})
@@ -376,7 +405,7 @@ fun ExcerptPreviewDialog(
                     LinkAwareText(rawText = excerpt.thought, onLinkClick = {})
                 }
                 if (excerpt.archivedNodeTitle != null) {
-                    Text("已归档到 ${excerpt.archivedNodeTitle}", color = CaptureUI.Indigo600)
+                    Text("已归档到 ${excerpt.archivedNodeTitle}", color = MaterialTheme.colorScheme.primary)
                 }
             }
         },

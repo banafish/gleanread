@@ -16,10 +16,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.GraphNodeKind
 import com.gleanread.android.data.model.GraphUiModel
 import com.gleanread.android.data.model.WorkspaceSnapshot
-import com.gleanread.android.ui.CaptureUI
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -63,7 +70,7 @@ fun GraphRoute(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(
@@ -71,15 +78,19 @@ fun GraphRoute(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("← 返回") }
-            Text(currentNode.title, fontWeight = FontWeight.Bold)
-            Text("局部图谱")
+            TextButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("返回")
+            }
+            Text(currentNode.title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text("局部图谱", color = MaterialTheme.colorScheme.onBackground)
         }
         Spacer(Modifier.height(12.dp))
         Card(
             modifier = Modifier.fillMaxSize(),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = CaptureUI.Slate50),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             GraphCanvas(
                 graph = graph,
@@ -101,6 +112,7 @@ fun GraphCanvas(
     var scale by remember { mutableFloatStateOf(1f) }
     var panX by remember { mutableFloatStateOf(0f) }
     var panY by remember { mutableFloatStateOf(0f) }
+    val colors = MaterialTheme.colorScheme
 
     BoxWithConstraints(
         modifier = modifier.pointerInput(graph) {
@@ -139,12 +151,12 @@ fun GraphCanvas(
             graph.edges.forEach { edge ->
                 val from = nodePositions[edge.fromId] ?: return@forEach
                 val to = nodePositions[edge.toId] ?: return@forEach
-                drawLine(color = CaptureUI.Slate300(), start = from, end = to, strokeWidth = 4f)
+                drawLine(color = colors.outlineVariant, start = from, end = to, strokeWidth = 4f)
             }
             graph.nodes.forEach { node ->
                 val position = nodePositions[node.id] ?: return@forEach
                 drawCircle(
-                    color = graphColor(node.kind),
+                    color = graphColor(node.kind, colors),
                     radius = if (node.kind == GraphNodeKind.CURRENT_NODE) 44f else 34f,
                     center = position
                 )
@@ -161,7 +173,7 @@ fun GraphCanvas(
                     .graphicsLayer(translationX = x, translationY = y)
                     .widthIn(min = 96.dp, max = 120.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(graphColor(node.kind))
+                    .background(graphColor(node.kind, colors))
                     .combinedClickable {
                         when (node.kind) {
                             GraphNodeKind.EXCERPT -> onPreviewExcerpt(node.id)
@@ -172,7 +184,7 @@ fun GraphCanvas(
                     .padding(horizontal = 10.dp, vertical = 8.dp)) {
                 Text(
                     node.title,
-                    color = Color.White,
+                    color = colors.surface,
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center,
                     maxLines = 2,
@@ -184,13 +196,11 @@ fun GraphCanvas(
     }
 }
 
-fun CaptureUI.Slate300(): Color = Color(0xFFCBD5E1)
-
-fun graphColor(kind: GraphNodeKind): Color {
+fun graphColor(kind: GraphNodeKind, colors: ColorScheme): Color {
     return when (kind) {
-        GraphNodeKind.CURRENT_NODE -> CaptureUI.Indigo600
-        GraphNodeKind.LINKED_NODE -> CaptureUI.Purple500
-        GraphNodeKind.BACKLINK_NODE -> Color(0xFF2563EB)
-        GraphNodeKind.EXCERPT -> Color(0xFF0EA5E9)
+        GraphNodeKind.CURRENT_NODE -> colors.primary
+        GraphNodeKind.LINKED_NODE -> colors.tertiary
+        GraphNodeKind.BACKLINK_NODE -> colors.secondary
+        GraphNodeKind.EXCERPT -> colors.primaryContainer
     }
 }

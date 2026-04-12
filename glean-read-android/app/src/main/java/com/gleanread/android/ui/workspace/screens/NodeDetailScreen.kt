@@ -15,12 +15,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,7 +40,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -37,7 +47,6 @@ import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.BacklinkType
 import com.gleanread.android.data.model.LinkSuggestion
 import com.gleanread.android.data.model.WorkspaceSnapshot
-import com.gleanread.android.ui.CaptureUI
 
 @Composable
 fun NodeDetailRoute(
@@ -63,7 +72,7 @@ fun NodeDetailRoute(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
@@ -72,15 +81,24 @@ fun NodeDetailRoute(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("← 返回") }
+            TextButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("返回")
+            }
             Text(
                 node.title,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
-                maxLines = 1
+                maxLines = 1,
+                color = MaterialTheme.colorScheme.onBackground
             )
-            TextButton(onClick = onOpenGraph) { Text("🕸️局部图谱") }
+            TextButton(onClick = onOpenGraph) {
+                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("局部图谱")
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -89,7 +107,9 @@ fun NodeDetailRoute(
                 if (editing) onUpdateOutline(nodeId, localOutline)
                 editing = !editing
             }) {
-                Text(if (editing) "保存大纲" else "📝 编辑大纲")
+                Icon(if (editing) Icons.Default.Save else Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(if (editing) "保存大纲" else "编辑大纲")
             }
         }
 
@@ -113,7 +133,7 @@ fun NodeDetailRoute(
         }
 
         Spacer(Modifier.height(20.dp))
-        HorizontalDivider(color = CaptureUI.Slate100)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Spacer(Modifier.height(20.dp))
 
         Row(
@@ -121,7 +141,11 @@ fun NodeDetailRoute(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("📎 节点摘录 (${nodeExcerpts.size})", fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AttachFile, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onBackground)
+                Spacer(Modifier.width(6.dp))
+                Text("节点摘录 (${nodeExcerpts.size})", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            }
             TextButton(onClick = onAddExcerpt) { Text("添加摘录") }
         }
         Spacer(Modifier.height(8.dp))
@@ -129,7 +153,7 @@ fun NodeDetailRoute(
             nodeExcerpts.forEach { excerpt ->
                 Card(
                     shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = CaptureUI.Slate50)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         LinkAwareText(
@@ -150,7 +174,7 @@ fun NodeDetailRoute(
                                 excerpt.tags.forEach { tag ->
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = CaptureUI.Slate200
+                                        color = MaterialTheme.colorScheme.secondaryContainer
                                     ) {
                                         Text(
                                             "#$tag",
@@ -158,7 +182,8 @@ fun NodeDetailRoute(
                                                 horizontal = 8.dp,
                                                 vertical = 4.dp
                                             ),
-                                            fontSize = 11.sp
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
                                         )
                                     }
                                 }
@@ -172,17 +197,21 @@ fun NodeDetailRoute(
         Spacer(Modifier.height(20.dp))
         Card(
             shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF))
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "🔄 被提及 (Backlinks)",
-                    color = Color(0xFF1D4ED8),
-                    fontWeight = FontWeight.Bold
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.secondary)
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "被提及 (Backlinks)",
+                        color = MaterialTheme.colorScheme.secondary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 Spacer(Modifier.height(10.dp))
                 if (backlinks.isEmpty()) {
-                    Text("暂无反向链接", color = CaptureUI.Slate500)
+                    Text("暂无反向链接", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     backlinks.forEach { backlink ->
                         TextButton(onClick = {
@@ -192,7 +221,7 @@ fun NodeDetailRoute(
                         }) {
                             Text(
                                 "• ${if (backlink.sourceType == BacklinkType.NODE) "在节点" else "在摘录"} ${backlink.title} 中被引用",
-                                color = Color(0xFF1E3A8A),
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
                             )
                         }
                     }
