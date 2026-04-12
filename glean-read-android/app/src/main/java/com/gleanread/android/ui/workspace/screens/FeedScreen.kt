@@ -43,6 +43,19 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.ExcerptUiModel
 import com.gleanread.android.ui.CaptureUI
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 
 @Composable
 fun FeedRoute(
@@ -93,20 +106,62 @@ fun FeedRoute(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("🔍 搜索摘录、标签或想法...") },
+                    modifier = Modifier.weight(1f).height(56.dp),
+                    placeholder = { Text("搜索摘录、标签或想法...", color = CaptureUI.Slate400) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Rounded.Search,
+                            contentDescription = "Search",
+                            tint = CaptureUI.Slate400
+                        )
+                    },
                     singleLine = true,
-                    shape = RoundedCornerShape(24.dp),
+                    shape = RoundedCornerShape(percent = 50),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White,
+                        unfocusedBorderColor = CaptureUI.Slate100,
+                        focusedBorderColor = CaptureUI.Indigo200,
+                    )
                 )
-                Button(
-                    onClick = { showInboxOnly = !showInboxOnly },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (showInboxOnly) CaptureUI.Indigo50 else Color.White,
-                        contentColor = if (showInboxOnly) CaptureUI.Indigo600 else CaptureUI.Slate600,
-                    ),
-                    shape = RoundedCornerShape(16.dp),
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (showInboxOnly) CaptureUI.Indigo50 else Color.White)
+                        .border(
+                            1.dp,
+                            if (showInboxOnly) CaptureUI.Indigo200 else CaptureUI.Slate100,
+                            RoundedCornerShape(16.dp)
+                        )
+                        .clickable { showInboxOnly = !showInboxOnly },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("漏斗")
+                    Icon(
+                        painter = rememberVectorPainter(
+                            ImageVector.Builder(
+                                name = "Funnel", defaultWidth = 24.dp, defaultHeight = 24.dp,
+                                viewportWidth = 24f, viewportHeight = 24f
+                            ).apply {
+                                path(
+                                    stroke = SolidColor(if (showInboxOnly) CaptureUI.Indigo600 else CaptureUI.Slate500),
+                                    strokeLineWidth = 1.5f,
+                                    strokeLineCap = StrokeCap.Round,
+                                    strokeLineJoin = StrokeJoin.Round
+                                ) {
+                                    moveTo(4f, 6f)
+                                    lineTo(20f, 6f)
+                                    lineTo(14f, 13f)
+                                    lineTo(14f, 19f)
+                                    lineTo(10f, 21f)
+                                    lineTo(10f, 13f)
+                                    close()
+                                }
+                            }.build()
+                        ),
+                        contentDescription = "Filter",
+                        tint = Color.Unspecified
+                    )
                 }
             }
 
