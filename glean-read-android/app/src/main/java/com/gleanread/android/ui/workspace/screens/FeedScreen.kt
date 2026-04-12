@@ -316,6 +316,7 @@ fun ExcerptCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongPress),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
