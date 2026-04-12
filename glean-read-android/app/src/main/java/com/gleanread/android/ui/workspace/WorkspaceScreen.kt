@@ -5,11 +5,8 @@ package com.gleanread.android.ui.workspace
 import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,11 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
@@ -29,10 +21,12 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -43,12 +37,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -88,17 +79,64 @@ fun WorkspaceApp(
     val showBottomNav = isMainRoute && !uiState.isSelectionMode && !showEmptyGuide
     val showSelectionBar = route == WorkspaceRoutes.Feed && uiState.isSelectionMode
 
-    Surface(
+    Scaffold(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        containerColor = MaterialTheme.colorScheme.background,
+        floatingActionButton = {
+            if (showFab) {
+                FloatingActionButton(
+                    onClick = workspaceViewModel::openQuickCapture,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add",
+                    )
+                }
+            }
+        },
+        bottomBar = {
+            if (showBottomNav) {
+                BottomNavigationBar(
+                    currentRoute = route,
+                    onNavigate = { destination ->
+                        if (destination != route) {
+                            navController.navigate(destination) {
+                                popUpTo(WorkspaceRoutes.Feed)
+                                launchSingleTop = true
+                            }
+                        }
+                    },
+                )
+            } else if (showSelectionBar) {
+                SelectionActionBar(
+                    selectedCount = uiState.selectedExcerptIds.size,
+                    onCancel = workspaceViewModel::clearSelection,
+                    onOpenAiSummary = {
+                        workspaceViewModel.prepareAiSummary()
+                        navController.navigate(WorkspaceRoutes.AiSummary)
+                    },
+                )
+            }
+        }) { innerPadding ->
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(innerPadding)) {
             NavHost(
                 navController = navController,
                 startDestination = WorkspaceRoutes.Feed,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(bottom = if (showBottomNav || showSelectionBar) 92.dp else 0.dp),
+                modifier = Modifier.fillMaxSize(),
+                enterTransition = {
+                    androidx.compose.animation.fadeIn(
+                        androidx.compose.animation.core.tween(300)
+                    )
+                },
+                exitTransition = {
+                    androidx.compose.animation.fadeOut(
+                        androidx.compose.animation.core.tween(300)
+                    )
+                },
             ) {
                 composable(WorkspaceRoutes.Feed) {
                     FeedRoute(
@@ -179,52 +217,7 @@ fun WorkspaceApp(
                 }
             }
 
-            if (showFab) {
-                Button(
-                    onClick = workspaceViewModel::openQuickCapture,
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 24.dp, bottom = 86.dp)
-                        .size(58.dp),
-                    contentPadding = PaddingValues(0.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add",
-                        modifier = Modifier.size(28.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-            }
-
-            if (showBottomNav) {
-                BottomNavigationBar(
-                    currentRoute = route,
-                    onNavigate = { destination ->
-                        if (destination != route) {
-                            navController.navigate(destination) {
-                                popUpTo(WorkspaceRoutes.Feed)
-                                launchSingleTop = true
-                            }
-                        }
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-            }
-
-            if (showSelectionBar) {
-                SelectionActionBar(
-                    selectedCount = uiState.selectedExcerptIds.size,
-                    onCancel = workspaceViewModel::clearSelection,
-                    onOpenAiSummary = {
-                        workspaceViewModel.prepareAiSummary()
-                        navController.navigate(WorkspaceRoutes.AiSummary)
-                    },
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                )
-            }
+            // FAB and BottomNav are now handled by Scaffold
 
             if (uiState.isQuickCaptureOpen) {
                 QuickCaptureOverlay(
@@ -263,46 +256,22 @@ fun BottomNavigationBar(
     onNavigate: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
-            .navigationBarsPadding()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BottomNavItem(Icons.Default.Home, "摘录", currentRoute == WorkspaceRoutes.Feed) {
-            onNavigate(
-                WorkspaceRoutes.Feed
-            )
-        }
-        BottomNavItem(Icons.Default.AccountTree, "知识树", currentRoute == WorkspaceRoutes.Tree) {
-            onNavigate(
-                WorkspaceRoutes.Tree
-            )
-        }
-        BottomNavItem(Icons.Default.Label, "标签", currentRoute == WorkspaceRoutes.Tags) {
-            onNavigate(
-                WorkspaceRoutes.Tags
-            )
-        }
-    }
-}
-
-@Composable
-fun BottomNavItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
-    val color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(16.dp))
-            .background(if (active) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-            .combinedClickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(imageVector = icon, contentDescription = label, tint = color, modifier = Modifier.size(24.dp))
-        Text(label, color = color, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+    NavigationBar(modifier = modifier) {
+        NavigationBarItem(
+            selected = currentRoute == WorkspaceRoutes.Feed,
+            onClick = { onNavigate(WorkspaceRoutes.Feed) },
+            icon = { Icon(Icons.Default.Home, contentDescription = "摘录") },
+            label = { Text("摘录") })
+        NavigationBarItem(
+            selected = currentRoute == WorkspaceRoutes.Tree,
+            onClick = { onNavigate(WorkspaceRoutes.Tree) },
+            icon = { Icon(Icons.Default.AccountTree, contentDescription = "知识树") },
+            label = { Text("知识树") })
+        NavigationBarItem(
+            selected = currentRoute == WorkspaceRoutes.Tags,
+            onClick = { onNavigate(WorkspaceRoutes.Tags) },
+            icon = { Icon(Icons.Default.Label, contentDescription = "标签") },
+            label = { Text("标签") })
     }
 }
 
@@ -322,11 +291,19 @@ fun SelectionActionBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("已选 $selectedCount 项", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+        Text(
+            "已选 $selectedCount 项",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TextButton(onClick = onCancel) { Text("取消") }
             Button(onClick = onOpenAiSummary, enabled = selectedCount > 0) {
-                Icon(Icons.Default.AutoAwesome, contentDescription = "AI提炼并归档", modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = "AI提炼并归档",
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.size(8.dp))
                 Text("AI提炼并归档")
             }

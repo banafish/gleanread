@@ -1,4 +1,7 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 
 package com.gleanread.android.ui.workspace
 
@@ -9,9 +12,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,10 +31,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,23 +48,31 @@ fun TagsRoute(tagGroups: List<TagGroupUiModel>) {
         contentPadding = PaddingValues(vertical = 18.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            androidx.compose.material3.TopAppBar(
+                title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Label, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onBackground)
+                    Icon(
+                        Icons.Default.Label,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text("标签库", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onBackground)
+                    Text("标签库", style = MaterialTheme.typography.headlineSmall)
                 }
-                Button(onClick = {}) { 
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("新建")
-                }
-            }
-            Spacer(Modifier.height(16.dp))
+            },
+                actions = {
+                    Button(onClick = {}) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("新建")
+                    }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
         }
         items(tagGroups) { group ->
             Card(
@@ -70,9 +81,18 @@ fun TagsRoute(tagGroups: List<TagGroupUiModel>) {
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Folder, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
+                        Icon(
+                            Icons.Default.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                         Spacer(Modifier.width(6.dp))
-                        Text("${group.folder} (${group.count})", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            "${group.folder} (${group.count})",
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -84,8 +104,7 @@ fun TagsRoute(tagGroups: List<TagGroupUiModel>) {
                                 Text(
                                     "#${tag.displayName} ${tag.heatWeight}",
                                     modifier = Modifier.padding(
-                                        horizontal = 12.dp,
-                                        vertical = 8.dp
+                                        horizontal = 12.dp, vertical = 8.dp
                                     ),
                                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                                     fontSize = 13.sp,

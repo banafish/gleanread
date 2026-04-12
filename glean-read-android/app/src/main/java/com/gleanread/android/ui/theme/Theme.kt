@@ -1,6 +1,5 @@
 package com.gleanread.android.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -9,11 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
 
 private val LightColors = lightColorScheme(
     primary = md_theme_light_primary,
@@ -43,6 +38,15 @@ private val LightColors = lightColorScheme(
     inverseSurface = md_theme_light_inverseSurface,
     inversePrimary = md_theme_light_inversePrimary,
     surfaceTint = md_theme_light_surfaceTint,
+    outlineVariant = md_theme_light_outlineVariant,
+    scrim = md_theme_light_scrim,
+    surfaceBright = md_theme_light_surfaceBright,
+    surfaceContainer = md_theme_light_surfaceContainer,
+    surfaceContainerHigh = md_theme_light_surfaceContainerHigh,
+    surfaceContainerHighest = md_theme_light_surfaceContainerHighest,
+    surfaceContainerLow = md_theme_light_surfaceContainerLow,
+    surfaceContainerLowest = md_theme_light_surfaceContainerLowest,
+    surfaceDim = md_theme_light_surfaceDim
 )
 
 
@@ -74,6 +78,15 @@ private val DarkColors = darkColorScheme(
     inverseSurface = md_theme_dark_inverseSurface,
     inversePrimary = md_theme_dark_inversePrimary,
     surfaceTint = md_theme_dark_surfaceTint,
+    outlineVariant = md_theme_dark_outlineVariant,
+    scrim = md_theme_dark_scrim,
+    surfaceBright = md_theme_dark_surfaceBright,
+    surfaceContainer = md_theme_dark_surfaceContainer,
+    surfaceContainerHigh = md_theme_dark_surfaceContainerHigh,
+    surfaceContainerHighest = md_theme_dark_surfaceContainerHighest,
+    surfaceContainerLow = md_theme_dark_surfaceContainerLow,
+    surfaceContainerLowest = md_theme_dark_surfaceContainerLowest,
+    surfaceDim = md_theme_dark_surfaceDim
 )
 
 @Composable
@@ -87,24 +100,15 @@ fun GleanReadTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+
         darkTheme -> DarkColors
         else -> LightColors
     }
-    
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        val currentWindow = (view.context as? Activity)?.window
-        SideEffect {
-            currentWindow?.let { window ->
-                window.statusBarColor = colorScheme.background.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-            }
-        }
-    }
+
+    // With edge-to-edge enabled in MainActivity/FastCaptureActivity, 
+    // we no longer explicitly set statusBarColor here.
 
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        colorScheme = colorScheme, typography = Typography, content = content
     )
 }

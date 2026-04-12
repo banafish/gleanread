@@ -1,4 +1,7 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 
 package com.gleanread.android.ui.workspace
 
@@ -12,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -30,8 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,8 +43,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.BacklinkType
@@ -65,8 +68,7 @@ fun NodeDetailRoute(
     val backlinks = snapshot.backlinksByNodeId[nodeId].orEmpty()
     var editing by rememberSaveable(nodeId) { mutableStateOf(false) }
     var localOutline by remember(
-        nodeId,
-        node.outlineMarkdown
+        nodeId, node.outlineMarkdown
     ) { mutableStateOf(node.outlineMarkdown) }
 
     Column(
@@ -76,30 +78,31 @@ fun NodeDetailRoute(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("返回")
-            }
+        androidx.compose.material3.CenterAlignedTopAppBar(
+            title = {
             Text(
                 node.title,
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
                 maxLines = 1,
-                color = MaterialTheme.colorScheme.onBackground
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
+        }, navigationIcon = {
+            androidx.compose.material3.IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+        }, actions = {
             TextButton(onClick = onOpenGraph) {
-                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Default.Share,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.width(4.dp))
                 Text("局部图谱")
             }
-        }
+        }, colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.Transparent
+        )
+        )
 
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
@@ -107,7 +110,11 @@ fun NodeDetailRoute(
                 if (editing) onUpdateOutline(nodeId, localOutline)
                 editing = !editing
             }) {
-                Icon(if (editing) Icons.Default.Save else Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(
+                    if (editing) Icons.Default.Save else Icons.Default.Edit,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.width(4.dp))
                 Text(if (editing) "保存大纲" else "编辑大纲")
             }
@@ -142,9 +149,18 @@ fun NodeDetailRoute(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.AttachFile, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onBackground)
+                Icon(
+                    Icons.Default.AttachFile,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
                 Spacer(Modifier.width(6.dp))
-                Text("节点摘录 (${nodeExcerpts.size})", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+                Text(
+                    "节点摘录 (${nodeExcerpts.size})",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             }
             TextButton(onClick = onAddExcerpt) { Text("添加摘录") }
         }
@@ -179,8 +195,7 @@ fun NodeDetailRoute(
                                         Text(
                                             "#$tag",
                                             modifier = Modifier.padding(
-                                                horizontal = 8.dp,
-                                                vertical = 4.dp
+                                                horizontal = 8.dp, vertical = 4.dp
                                             ),
                                             fontSize = 11.sp,
                                             color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -201,7 +216,12 @@ fun NodeDetailRoute(
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Sync, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.secondary)
+                    Icon(
+                        Icons.Default.Sync,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         "被提及 (Backlinks)",

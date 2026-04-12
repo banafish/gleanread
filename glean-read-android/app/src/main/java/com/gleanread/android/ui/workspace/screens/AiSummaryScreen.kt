@@ -1,4 +1,7 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 
 package com.gleanread.android.ui.workspace
 
@@ -13,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
@@ -28,9 +33,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,11 +40,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.gleanread.android.data.model.LinkSuggestion
 
 @Composable
@@ -68,27 +70,38 @@ fun AiSummaryRoute(
             .background(MaterialTheme.colorScheme.background)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("取消")
+        androidx.compose.material3.CenterAlignedTopAppBar(
+            title = {
+            Text(
+                "AI 整理助手", maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+        }, navigationIcon = {
+            androidx.compose.material3.IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "Close")
             }
-            Text("AI 整理助手", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        }, actions = {
             Button(
                 onClick = onSave,
-                enabled = draft.markdown.isNotBlank() && (draft.targetNodeId != null || draft.newNodeTitle.isNotBlank()),
+                enabled = draft.markdown.isNotBlank() && (draft.targetNodeId != null || draft.newNodeTitle.isNotBlank())
             ) { Text("保存") }
-        }
+        }, colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+            containerColor = Color.Transparent
+        )
+        )
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AutoAwesome, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onBackground)
+            Icon(
+                Icons.Default.AutoAwesome,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.width(6.dp))
-            Text("总结大纲", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "总结大纲",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
         Spacer(Modifier.height(8.dp))
         if (draft.isGenerating) {
@@ -112,9 +125,18 @@ fun AiSummaryRoute(
         }
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AccountTree, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onBackground)
+            Icon(
+                Icons.Default.AccountTree,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.width(6.dp))
-            Text("挂载到知识树", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "挂载到知识树",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
         Spacer(Modifier.height(8.dp))
         Button(
@@ -126,9 +148,16 @@ fun AiSummaryRoute(
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant
             ),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 if (selectedNodeTitle == null && draft.newNodeTitle.isBlank()) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(6.dp))
                 }
                 Text(
@@ -140,9 +169,18 @@ fun AiSummaryRoute(
         }
         Spacer(Modifier.height(18.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.AttachFile, contentDescription = null, modifier = Modifier.size(20.dp), tint = MaterialTheme.colorScheme.onBackground)
+            Icon(
+                Icons.Default.AttachFile,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onBackground
+            )
             Spacer(Modifier.width(6.dp))
-            Text("关联的知识摘录 (${selectedExcerpts.size}项)", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            Text(
+                "关联的知识摘录 (${selectedExcerpts.size}项)",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
         }
         Spacer(Modifier.height(8.dp))
         Card(
@@ -150,8 +188,7 @@ fun AiSummaryRoute(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
         ) {
             Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 selectedExcerpts.forEach { excerpt ->
                     Text(
@@ -159,7 +196,7 @@ fun AiSummaryRoute(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 13.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }

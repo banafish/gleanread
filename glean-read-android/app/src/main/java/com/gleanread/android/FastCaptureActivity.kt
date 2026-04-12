@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
@@ -62,6 +63,7 @@ import java.net.URL
 class FastCaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
         var sharedText = ""
         var sharedUrl = ""
 
@@ -79,22 +81,11 @@ class FastCaptureActivity : ComponentActivity() {
                 }
             }
             GleanReadTheme {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { finish() },
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    CaptureDialogV2(
-                        initialSharedContent = sharedText,
-                        initialUrl = sharedUrl,
-                        onDismiss = { finish() }
-                    )
-                }
+                CaptureDialogV2(
+                    initialSharedContent = sharedText,
+                    initialUrl = sharedUrl,
+                    onDismiss = { finish() }
+                )
             }
         }
     }

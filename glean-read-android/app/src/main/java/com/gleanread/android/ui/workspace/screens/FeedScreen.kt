@@ -4,6 +4,8 @@ package com.gleanread.android.ui.workspace
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,23 +13,32 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,30 +49,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.gleanread.android.data.model.ExcerptUiModel
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.RadioButtonUnchecked
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.gleanread.android.data.model.ExcerptUiModel
 
 @Composable
 fun FeedRoute(
@@ -87,11 +85,9 @@ fun FeedRoute(
     val filtered = remember(uiState.snapshot.excerpts, searchQuery, showInboxOnly) {
         uiState.snapshot.excerpts.filter { excerpt ->
             val matchesQuery = searchQuery.isBlank() || excerpt.content.contains(
-                searchQuery,
-                ignoreCase = true
+                searchQuery, ignoreCase = true
             ) || excerpt.thought.contains(
-                searchQuery,
-                ignoreCase = true
+                searchQuery, ignoreCase = true
             ) || excerpt.tags.any { it.contains(searchQuery, ignoreCase = true) }
             val matchesFilter = !showInboxOnly || excerpt.archivedNodeId == null
             matchesQuery && matchesFilter
@@ -112,8 +108,15 @@ fun FeedRoute(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    modifier = Modifier.weight(1f).height(56.dp),
-                    placeholder = { Text("搜索摘录、标签或想法...", color = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp),
+                    placeholder = {
+                        Text(
+                            "搜索摘录、标签或想法...",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Rounded.Search,
@@ -137,7 +140,7 @@ fun FeedRoute(
                         .background(if (showInboxOnly) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
                         .border(
                             1.dp,
-                            if (showInboxOnly) MaterialTheme.colorScheme.primary.copy(alpha=0.5f) else MaterialTheme.colorScheme.outlineVariant,
+                            if (showInboxOnly) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant,
                             RoundedCornerShape(16.dp)
                         )
                         .clickable { showInboxOnly = !showInboxOnly },
@@ -146,8 +149,11 @@ fun FeedRoute(
                     Icon(
                         painter = rememberVectorPainter(
                             ImageVector.Builder(
-                                name = "Funnel", defaultWidth = 24.dp, defaultHeight = 24.dp,
-                                viewportWidth = 24f, viewportHeight = 24f
+                                name = "Funnel",
+                                defaultWidth = 24.dp,
+                                defaultHeight = 24.dp,
+                                viewportWidth = 24f,
+                                viewportHeight = 24f
                             ).apply {
                                 path(
                                     stroke = SolidColor(if (showInboxOnly) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant),
@@ -164,9 +170,7 @@ fun FeedRoute(
                                     close()
                                 }
                             }.build()
-                        ),
-                        contentDescription = "Filter",
-                        tint = Color.Unspecified
+                        ), contentDescription = "Filter", tint = Color.Unspecified
                     )
                 }
             }
@@ -174,7 +178,7 @@ fun FeedRoute(
             Spacer(Modifier.height(12.dp))
             Text(
                 "长按卡片进入多选并触发 AI 整理",
-                fontSize = 12.sp,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp),
             )
@@ -203,20 +207,25 @@ fun FeedRoute(
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.AutoAwesome, contentDescription = "AI推荐", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.tertiary)
+                        Icon(
+                            Icons.Default.AutoAwesome,
+                            contentDescription = "AI推荐",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.tertiary
+                        )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             "AI推荐",
                             color = MaterialTheme.colorScheme.tertiary,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.labelMedium
                         )
                     }
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "你最近收集了 5 篇关于个人知识管理的摘录，是否需要 AI 为你生成总结并创建节点？",
                         color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        fontSize = 14.sp,
+                        style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(10.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -249,9 +258,19 @@ fun EmptyStateRoute(
                 modifier = Modifier.padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Icon(Icons.Default.Book, contentDescription = null, modifier = Modifier.size(42.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(
+                    Icons.Default.Book,
+                    contentDescription = null,
+                    modifier = Modifier.size(42.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(Modifier.height(12.dp))
-                Text("欢迎来到 GleanRead", fontWeight = FontWeight.Bold, fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "欢迎来到 GleanRead",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     "先把摘录收进 Inbox，再用知识树和 AI 提炼把碎片整理成体系。",
@@ -260,9 +279,18 @@ fun EmptyStateRoute(
                 )
                 Spacer(Modifier.height(16.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("• 摘录流：收集、搜索与多选整理", color = MaterialTheme.colorScheme.onSurface)
-                    Text("• 知识树：分层组织你的主题节点", color = MaterialTheme.colorScheme.onSurface)
-                    Text("• FAB：随时闪记，本地保存并标记待同步", color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        "• 摘录流：收集、搜索与多选整理",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "• 知识树：分层组织你的主题节点",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "• FAB：随时闪记，本地保存并标记待同步",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
                 Spacer(Modifier.height(20.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -285,12 +313,12 @@ fun ExcerptCard(
     onOpenNode: (String) -> Unit = {},
     onPreviewExcerpt: (String) -> Unit = {},
 ) {
-    Card(
+    androidx.compose.material3.OutlinedCard(
         modifier = Modifier
             .fillMaxWidth()
             .combinedClickable(onClick = onClick, onLongClick = onLongPress),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
+        colors = CardDefaults.outlinedCardColors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
         ),
         border = androidx.compose.foundation.BorderStroke(
@@ -309,7 +337,11 @@ fun ExcerptCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (excerpt.archivedNodeTitle == null) {
-                        StatusBadge(text = "未归档", bg = MaterialTheme.colorScheme.errorContainer, fg = MaterialTheme.colorScheme.onErrorContainer)
+                        StatusBadge(
+                            text = "未归档",
+                            bg = MaterialTheme.colorScheme.errorContainer,
+                            fg = MaterialTheme.colorScheme.onErrorContainer
+                        )
                     } else {
                         StatusBadge(
                             text = excerpt.archivedNodeTitle,
@@ -318,7 +350,11 @@ fun ExcerptCard(
                         )
                     }
                     excerpt.tags.take(3).forEach { tag ->
-                        Text("#$tag", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                        Text(
+                            "#$tag",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium
+                        )
                     }
                 }
                 if (isSelectionMode) {
@@ -342,7 +378,10 @@ fun ExcerptCard(
             )
             if (excerpt.thought.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
-                Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.secondaryContainer) {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
                     Box(modifier = Modifier.padding(12.dp)) {
                         LinkAwareText(
                             rawText = excerpt.thought,
@@ -359,12 +398,17 @@ fun ExcerptCard(
             if (!excerpt.sourceTitle.isNullOrBlank() || !excerpt.url.isNullOrBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Icon(
+                        Icons.Default.Link,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(Modifier.width(4.dp))
                     Text(
                         "${excerpt.sourceTitle ?: excerpt.url}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp,
+                        style = MaterialTheme.typography.labelMedium,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -382,6 +426,6 @@ fun StatusBadge(text: String, bg: Color, fg: Color) {
             .background(bg)
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        Text(text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        Text(text, color = fg, style = MaterialTheme.typography.labelMedium)
     }
 }

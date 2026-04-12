@@ -1,11 +1,13 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.material3.ExperimentalMaterial3Api::class
+)
 
 package com.gleanread.android.ui.workspace
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -42,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -67,23 +70,31 @@ fun TreeRoute(
         contentPadding = PaddingValues(vertical = 18.dp)
     ) {
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            androidx.compose.material3.TopAppBar(
+                title = {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.AccountTree, contentDescription = null, modifier = Modifier.size(24.dp), tint = MaterialTheme.colorScheme.onBackground)
+                    Icon(
+                        Icons.Default.AccountTree,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text("知识体系", fontWeight = FontWeight.Bold, fontSize = 24.sp, color = MaterialTheme.colorScheme.onBackground)
+                    Text("知识体系", style = MaterialTheme.typography.headlineSmall)
                 }
-                Button(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("根节点")
-                }
-            }
-            Spacer(Modifier.height(16.dp))
+            },
+                actions = {
+                    Button(onClick = { showAddDialog = true }) {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("根节点")
+                    }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+            )
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -132,61 +143,65 @@ fun TreeRoute(
 
 @Composable
 fun TreeNodeRow(
-        node: TreeNodeUiModel,
-        expandedIds: Set<String>,
-        onToggle: (String) -> Unit,
-        onOpen: (String) -> Unit,
-        level: Int = 0,
-    ) {
-        val isExpanded = expandedIds.contains(node.id)
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = (level * 18).dp, top = 4.dp, bottom = 4.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .padding(horizontal = 10.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val icon = if (node.children.isNotEmpty()) {
-                    if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight
-                } else {
-                    Icons.Default.FiberManualRecord
-                }
-                val iconSize = if (node.children.isNotEmpty()) 20.dp else 10.dp
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .padding(if (node.children.isNotEmpty()) 0.dp else 5.dp) // center the smaller dot
-                        .combinedClickable {
-                            if (node.children.isNotEmpty()) onToggle(node.id)
-                        },
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    node.title,
-                    modifier = Modifier
-                        .weight(1f)
-                        .combinedClickable { onOpen(node.id) },
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (level == 0) FontWeight.Bold else FontWeight.Medium,
-                )
-                Text("${node.count} 条", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+    node: TreeNodeUiModel,
+    expandedIds: Set<String>,
+    onToggle: (String) -> Unit,
+    onOpen: (String) -> Unit,
+    level: Int = 0,
+) {
+    val isExpanded = expandedIds.contains(node.id)
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = (level * 18).dp, top = 4.dp, bottom = 4.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .padding(horizontal = 10.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val icon = if (node.children.isNotEmpty()) {
+                if (isExpanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight
+            } else {
+                Icons.Default.FiberManualRecord
             }
-            if (isExpanded) {
-                node.children.forEach { child ->
-                    TreeNodeRow(
-                        node = child,
-                        expandedIds = expandedIds,
-                        onToggle = onToggle,
-                        onOpen = onOpen,
-                        level = level + 1,
-                    )
-                }
+            if (node.children.isNotEmpty()) 20.dp else 10.dp
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(20.dp)
+                    .padding(if (node.children.isNotEmpty()) 0.dp else 5.dp) // center the smaller dot
+                    .combinedClickable {
+                        if (node.children.isNotEmpty()) onToggle(node.id)
+                    },
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                node.title,
+                modifier = Modifier
+                    .weight(1f)
+                    .combinedClickable { onOpen(node.id) },
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (level == 0) FontWeight.Bold else FontWeight.Medium,
+            )
+            Text(
+                "${node.count} 条",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+        }
+        if (isExpanded) {
+            node.children.forEach { child ->
+                TreeNodeRow(
+                    node = child,
+                    expandedIds = expandedIds,
+                    onToggle = onToggle,
+                    onOpen = onOpen,
+                    level = level + 1,
+                )
             }
         }
     }
+}
