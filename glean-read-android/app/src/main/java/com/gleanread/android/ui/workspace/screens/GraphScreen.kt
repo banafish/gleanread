@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -25,6 +26,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -64,20 +68,21 @@ fun GraphRoute(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
     ) {
-        androidx.compose.material3.CenterAlignedTopAppBar(
+        CenterAlignedTopAppBar(
             title = {
             Text(
                 currentNode.title, maxLines = 1, overflow = TextOverflow.Ellipsis
             )
         }, navigationIcon = {
-            androidx.compose.material3.IconButton(onClick = onBack) {
+            IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
-        }, colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+        }, colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = Color.Transparent
-        )
+        ),
+            windowInsets = WindowInsets(0)
         )
         Spacer(Modifier.height(12.dp))
         Card(

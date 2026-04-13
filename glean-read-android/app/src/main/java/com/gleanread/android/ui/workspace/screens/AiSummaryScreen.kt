@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
@@ -32,6 +33,9 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -68,15 +72,15 @@ fun AiSummaryRoute(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
     ) {
-        androidx.compose.material3.CenterAlignedTopAppBar(
+        CenterAlignedTopAppBar(
             title = {
             Text(
                 "AI 整理助手", maxLines = 1, overflow = TextOverflow.Ellipsis
             )
         }, navigationIcon = {
-            androidx.compose.material3.IconButton(onClick = onClose) {
+            IconButton(onClick = onClose) {
                 Icon(Icons.Default.Close, contentDescription = "Close")
             }
         }, actions = {
@@ -84,9 +88,10 @@ fun AiSummaryRoute(
                 onClick = onSave,
                 enabled = draft.markdown.isNotBlank() && (draft.targetNodeId != null || draft.newNodeTitle.isNotBlank())
             ) { Text("保存") }
-        }, colors = androidx.compose.material3.TopAppBarDefaults.centerAlignedTopAppBarColors(
+        }, colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = Color.Transparent
-        )
+        ),
+            windowInsets = WindowInsets(0)
         )
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {

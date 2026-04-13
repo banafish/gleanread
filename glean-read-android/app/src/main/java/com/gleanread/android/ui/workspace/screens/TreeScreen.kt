@@ -1,6 +1,6 @@
 @file:OptIn(
     ExperimentalFoundationApi::class,
-    androidx.compose.material3.ExperimentalMaterial3Api::class
+    ExperimentalMaterial3Api::class,
 )
 
 package com.gleanread.android.ui.workspace
@@ -30,11 +30,14 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.WindowInsets
 import com.gleanread.android.data.model.TreeNodeUiModel
 import com.gleanread.android.data.model.WorkspaceSnapshot
 
@@ -67,21 +71,21 @@ fun TreeRoute(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(vertical = 18.dp)
+        contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
-            androidx.compose.material3.TopAppBar(
+            TopAppBar(
                 title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.AccountTree,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("知识体系", style = MaterialTheme.typography.headlineSmall)
-                }
-            },
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.AccountTree,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text("知识体系", style = MaterialTheme.typography.headlineSmall)
+                    }
+                },
                 actions = {
                     Button(onClick = { showAddDialog = true }) {
                         Icon(
@@ -93,7 +97,8 @@ fun TreeRoute(
                         Text("根节点")
                     }
                 },
-                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
+                windowInsets = WindowInsets(0),
             )
             Card(
                 shape = RoundedCornerShape(24.dp),
