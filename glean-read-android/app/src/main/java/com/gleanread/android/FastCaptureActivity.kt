@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,18 +48,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gleanread.android.network.ApiConstants
+import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.repository.WorkspaceRepository
 import com.gleanread.android.ui.CaptureBottomSheet
 import com.gleanread.android.ui.RichExcerptCard
 import com.gleanread.android.ui.theme.GleanReadTheme
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import org.json.JSONArray
-import org.json.JSONObject
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
+import kotlinx.coroutines.withContext
 
 class FastCaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,6 +91,11 @@ class FastCaptureActivity : ComponentActivity() {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val repository = remember(context) {
+        WorkspaceRepository(WorkspaceDatabase.get(context))
+    }
     var thought by remember { mutableStateOf("") }
     val availableTags = listOf("研究", "想法", "待读", "灵感", "摘录", "教程", "稍后阅读", "研究2", "想法2", "待读2", "灵感2", "摘录2", "教程2")
     var selectedTags by remember { mutableStateOf(setOf<String>()) }
@@ -288,9 +290,21 @@ fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss:
                                 onClick = {
                                     if (!isSaving) {
                                         isSaving = true
-                                        CoroutineScope(Dispatchers.IO).launch {
-                                            saveToGleanRead(initialSharedContent, currentUrl, thought, selectedTags)
-                                            onDismiss()
+                                        scope.launch {
+                                            try {
+                                                withContext(Dispatchers.IO) {
+                                                    repository.saveQuickExcerpt(
+                                                        content = initialSharedContent,
+                                                        thought = thought,
+                                                        url = currentUrl,
+                                                        tagNames = selectedTags.toList(),
+                                                        archiveNodeId = null,
+                                                    )
+                                                }
+                                                onDismiss()
+                                            } catch (_: Exception) {
+                                                isSaving = false
+                                            }
                                         }
                                     }
                                 },
@@ -558,28 +572,5 @@ private fun BoxScope.LinkMenuPopup(
                 }
             }
         }
-    }
-}
-
-private fun saveToGleanRead(content: String, url: String, thought: String, tags: Set<String>) {
-    try {
-        val apiUrl = URL(ApiConstants.CAPTURE_ENDPOINT)
-        val conn = apiUrl.openConnection() as HttpURLConnection
-        conn.requestMethod = "POST"
-        conn.setRequestProperty("Content-Type", "application/json")
-        conn.doOutput = true
-
-        val json = JSONObject()
-        json.put("content", content)
-        json.put("url", url)
-        json.put("userThought", thought)
-        val tagArray = JSONArray()
-        tags.forEach { tagArray.put(it) }
-        json.put("tags", tagArray)
-
-        OutputStreamWriter(conn.outputStream).use { it.write(json.toString()) }
-        val responseCode = conn.responseCode
-    } catch (e: Exception) {
-        e.printStackTrace()
     }
 }
