@@ -3,11 +3,14 @@ package com.gleanread.android.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,10 +20,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FormatQuote
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -36,7 +48,10 @@ import java.net.URL
 
 @Composable
 fun RichExcerptCard(
-    content: String, url: String, modifier: Modifier = Modifier
+    content: String,
+    url: String,
+    sourceTitle: String = "",
+    modifier: Modifier = Modifier,
 ) {
     val bgColor = MaterialTheme.colorScheme.surfaceContainer
     val quoteTint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
@@ -46,7 +61,8 @@ fun RichExcerptCard(
         modifier = modifier
             .fillMaxWidth()
             .background(bgColor, RoundedCornerShape(20.dp))
-            .padding(16.dp), verticalAlignment = Alignment.Top
+            .padding(16.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         Icon(
             imageVector = Icons.Outlined.FormatQuote,
@@ -54,7 +70,7 @@ fun RichExcerptCard(
             tint = quoteTint,
             modifier = Modifier
                 .size(24.dp)
-                .padding(top = 2.dp)
+                .padding(top = 2.dp),
         )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -63,20 +79,22 @@ fun RichExcerptCard(
                 color = textColor,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     lineHeight = 22.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
                 ),
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
             )
             Spacer(modifier = Modifier.height(8.dp))
-            SourceBadge(url = url)
+            SourceBadge(url = url, sourceTitle = sourceTitle)
         }
     }
 }
 
 @Composable
 fun TagPill(
-    label: String, isSelected: Boolean = false, onClick: () -> Unit
+    label: String,
+    isSelected: Boolean = false,
+    onClick: () -> Unit,
 ) {
     val bgColor =
         if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
@@ -90,40 +108,47 @@ fun TagPill(
             .clip(CircleShape)
             .background(bgColor)
             .border(
-                width = 1.dp, color = borderColor, shape = CircleShape
+                width = 1.dp,
+                color = borderColor,
+                shape = CircleShape,
             )
             .clickable { onClick() }
             .padding(horizontal = 14.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center) {
+        contentAlignment = Alignment.Center,
+    ) {
         Text(
-            text = label, style = MaterialTheme.typography.labelMedium, color = textColor
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = textColor,
         )
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    val sheetState =
-        androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    androidx.compose.material3.ModalBottomSheet(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = { androidx.compose.material3.BottomSheetDefaults.DragHandle() }) {
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+    ) {
         content()
     }
 }
 
 @Composable
-fun SourceBadge(url: String) {
+fun SourceBadge(
+    url: String,
+    sourceTitle: String = "",
+) {
     val tintColor = MaterialTheme.colorScheme.onSurfaceVariant
-
     val host = remember(url) {
         try {
             URL(url).host.ifEmpty { url }
@@ -131,8 +156,9 @@ fun SourceBadge(url: String) {
             url
         }
     }
+
     Row(
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Outlined.Link,
@@ -140,15 +166,65 @@ fun SourceBadge(url: String) {
             tint = tintColor,
             modifier = Modifier
                 .size(12.dp)
-                .rotate(-45f)
+                .rotate(-45f),
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = host.ifEmpty { "暂无来源链接" },
+            text = sourceTitle.ifBlank { host.ifEmpty { "暂无来源链接" } },
             color = tintColor,
-            style = MaterialTheme.typography.labelMedium,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = if (sourceTitle.isNotBlank()) FontWeight.SemiBold else FontWeight.Normal,
+            ),
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
+    }
+}
+
+@Composable
+fun ContextHintCard(
+    text: String,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onActionClick: (() -> Unit)? = null,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = text,
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (!actionLabel.isNullOrBlank() && onActionClick != null) {
+                TextButton(
+                    onClick = onActionClick,
+                    modifier = Modifier.defaultMinSize(minWidth = 1.dp, minHeight = 1.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                ) {
+                    Text(
+                        text = actionLabel,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                }
+            }
+        }
     }
 }

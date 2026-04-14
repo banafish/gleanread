@@ -2,6 +2,7 @@ package com.gleanread.android
 
 import android.content.Intent
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -48,6 +49,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.capture.PageContextAccessibilityState
+import com.gleanread.android.capture.PageContextSupport
+import com.gleanread.android.capture.CaptureSeedResolver
+import com.gleanread.android.capture.PageContextStore
+import com.gleanread.android.ui.ContextHintCard
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.repository.WorkspaceRepository
 import com.gleanread.android.ui.CaptureBottomSheet
@@ -61,15 +67,12 @@ class FastCaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        var sharedText = ""
-        var sharedUrl = ""
-
-        if (intent?.action == Intent.ACTION_SEND && intent.type == "text/plain") {
-            sharedText = intent.getStringExtra(Intent.EXTRA_TEXT) ?: ""
-            val subject = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
-            sharedUrl = UrlExtractor.extract(intent) ?: ""
-            if (sharedText == sharedUrl) sharedText = subject
-        }
+        val captureSeed = CaptureSeedResolver(
+            pageContextStore = PageContextStore(applicationContext),
+        ).resolve(
+            intent = intent,
+            referrer = referrer,
+        )
 
         setContent {
             SideEffect {
@@ -79,8 +82,12 @@ class FastCaptureActivity : ComponentActivity() {
             }
             GleanReadTheme {
                 CaptureDialogV2(
-                    initialSharedContent = sharedText,
-                    initialUrl = sharedUrl,
+                    initialSharedContent = captureSeed.content,
+                    initialUrl = captureSeed.url,
+                    initialSourceTitle = captureSeed.sourceTitle,
+                    sourcePackage = captureSeed.sourcePackage,
+                    usedCachedUrl = captureSeed.usedCachedUrl,
+                    usedCachedTitle = captureSeed.usedCachedTitle,
                     onDismiss = { finish() }
                 )
             }
@@ -90,7 +97,15 @@ class FastCaptureActivity : ComponentActivity() {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss: () -> Unit) {
+fun CaptureDialogV2(
+    initialSharedContent: String,
+    initialUrl: String,
+    initialSourceTitle: String,
+    sourcePackage: String,
+    usedCachedUrl: Boolean,
+    usedCachedTitle: Boolean,
+    onDismiss: () -> Unit,
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember(context) {
@@ -100,6 +115,15 @@ fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss:
     val availableTags = listOf("研究", "想法", "待读", "灵感", "摘录", "教程", "稍后阅读", "研究2", "想法2", "待读2", "灵感2", "摘录2", "教程2")
     var selectedTags by remember { mutableStateOf(setOf<String>()) }
     var currentUrl by remember { mutableStateOf(initialUrl) }
+    val isAccessibilityEnabled = remember(context) {
+        PageContextAccessibilityState.isEnabled(context)
+    }
+    val shouldShowBackfillPrompt = usedCachedTitle || usedCachedUrl
+    val shouldShowAccessibilityPrompt = !shouldShowBackfillPrompt &&
+        !isAccessibilityEnabled &&
+        (sourcePackage.isBlank() || PageContextSupport.isSupportedPackage(sourcePackage)) &&
+        (initialUrl.isBlank() || initialSourceTitle.isBlank())
+    val sheetHeightFraction = if (shouldShowBackfillPrompt || shouldShowAccessibilityPrompt) 0.64f else 0.54f
 
     // UI 交互状态
     var isSaving by remember { mutableStateOf(false) }
@@ -117,7 +141,7 @@ fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss:
 
     CaptureBottomSheet(
         onDismiss = onDismiss,
-        modifier = Modifier.fillMaxHeight(0.54f)
+        modifier = Modifier.fillMaxHeight(sheetHeightFraction)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -156,8 +180,32 @@ fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss:
                 }
 
                 // 2. 摘录源卡片
-                Box(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                    RichExcerptCard(content = initialSharedContent, url = currentUrl)
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    RichExcerptCard(
+                        content = initialSharedContent,
+                        url = currentUrl,
+                        sourceTitle = initialSourceTitle,
+                    )
+                    if (shouldShowBackfillPrompt) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        ContextHintCard(
+                            text = "已通过最近页面自动补齐来源信息，请确认标题和链接是否正确。",
+                        )
+                    }
+                    if (shouldShowAccessibilityPrompt) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        ContextHintCard(
+                            text = "当前分享缺少标题或链接。开启辅助识别后，下次可尝试从浏览器或公众号页面自动补齐来源。",
+                            actionLabel = "去开启",
+                            onActionClick = {
+                                context.startActivity(
+                                    Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(
+                                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                                    ),
+                                )
+                            },
+                        )
+                    }
                 }
 
                 // 3. 创新型无界思考输入区
@@ -165,7 +213,7 @@ fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss:
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 10.dp)
+                        .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 10.dp)
                 ) {
                     // 主体容器
                     Column(
@@ -297,6 +345,7 @@ fun CaptureDialogV2(initialSharedContent: String, initialUrl: String, onDismiss:
                                                         content = initialSharedContent,
                                                         thought = thought,
                                                         url = currentUrl,
+                                                        sourceTitle = initialSourceTitle,
                                                         tagNames = selectedTags.toList(),
                                                         archiveNodeId = null,
                                                     )

@@ -115,6 +115,7 @@ class WorkspaceRepository(
         content: String,
         thought: String,
         url: String?,
+        sourceTitle: String?,
         tagNames: List<String>,
         archiveNodeId: String?,
     ): String {
@@ -130,7 +131,7 @@ class WorkspaceRepository(
                     userId = LOCAL_USER_ID,
                     content = trimmedContent,
                     url = url?.trim()?.takeIf { it.isNotEmpty() },
-                    sourceTitle = null,
+                    sourceTitle = sourceTitle?.trim()?.takeIf { it.isNotEmpty() },
                     userThought = thought.trim().takeIf { it.isNotEmpty() },
                     treeNodeId = archiveNodeId,
                     createTime = now,

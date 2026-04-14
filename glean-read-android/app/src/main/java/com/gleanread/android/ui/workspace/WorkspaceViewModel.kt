@@ -131,6 +131,7 @@ class WorkspaceViewModel(
                 content = draft.content,
                 thought = draft.thought,
                 url = draft.url,
+                sourceTitle = null,
                 tagNames = draft.selectedTags.toList(),
                 archiveNodeId = draft.archiveNodeId,
             )
