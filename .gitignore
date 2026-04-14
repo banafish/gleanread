@@ -63,4 +63,9 @@ doc
 .claude
 CLAUDE.md
 
+AGENTS.md
+
 .agents
+
+.gradle
+.gradle-user
