@@ -37,11 +37,66 @@ class PageContextAccessibilityService : AccessibilityService() {
             event = safeEvent,
             sourcePackage = packageName,
         ) ?: return
-
-        pageContextStore.save(snapshot)
+        val mergedSnapshot = mergeWithRecentSnapshot(
+            previous = pageContextStore.readRecentSnapshot(
+                expectedSourcePackage = packageName,
+                now = snapshot.capturedAt,
+            ),
+            current = snapshot,
+        )
+        pageContextStore.save(mergedSnapshot)
     }
 
     override fun onInterrupt() = Unit
+
+    private fun mergeWithRecentSnapshot(
+        previous: PageContextSnapshot?,
+        current: PageContextSnapshot,
+    ): PageContextSnapshot {
+        if (previous == null) return current
+        if (current.capturedAt - previous.capturedAt > MERGE_WINDOW_MILLIS) return current
+
+        val mergedUrl = current.sourceUrl.ifBlank { previous.sourceUrl }
+        val mergedTitle = chooseBetterTitle(
+            currentTitle = current.sourceTitle,
+            previousTitle = previous.sourceTitle,
+        )
+        val mergedConfidence = when {
+            mergedTitle.isNotBlank() && mergedUrl.isNotBlank() -> 0.95f
+            mergedTitle.isNotBlank() || mergedUrl.isNotBlank() -> maxOf(current.confidence, previous.confidence, 0.7f)
+            else -> current.confidence
+        }
+
+        return if (mergedTitle == current.sourceTitle && mergedUrl == current.sourceUrl) {
+            current
+        } else {
+            current.copy(
+                sourceTitle = mergedTitle,
+                sourceUrl = mergedUrl,
+                confidence = mergedConfidence,
+            )
+        }
+    }
+
+    private fun chooseBetterTitle(
+        currentTitle: String,
+        previousTitle: String,
+    ): String {
+        if (currentTitle.isBlank()) return previousTitle
+        if (previousTitle.isBlank()) return currentTitle
+
+        val currentScore = currentTitle.titleQualityScore()
+        val previousScore = previousTitle.titleQualityScore()
+        return if (currentScore + 12 >= previousScore) {
+            currentTitle
+        } else {
+            previousTitle
+        }
+    }
+
+    private companion object {
+        const val MERGE_WINDOW_MILLIS = 15_000L
+    }
 }
 
 private object PageContextNodeExtractor {
@@ -55,9 +110,10 @@ private object PageContextNodeExtractor {
     ): PageContextSnapshot? {
         val nodes = mutableListOf<NodeText>()
         roots.forEach { root -> collectNodes(root, nodes) }
+        val relevantNodes = nodes.filterNot(NodeText::belongsToShareSheet)
 
-        val title = extractTitle(sourcePackage, event, nodes)
-        val url = extractUrl(sourcePackage, event, nodes)
+        val title = extractTitle(sourcePackage, event, relevantNodes.ifEmpty { nodes })
+        val url = extractUrl(sourcePackage, event, relevantNodes.ifEmpty { nodes })
         if (title.isBlank() && url.isBlank()) return null
 
         val confidence = when {
@@ -126,10 +182,19 @@ private object PageContextNodeExtractor {
             event.contentDescription?.toString()?.let(::add)
         }
 
-        return prioritized.firstNotNullOfOrNull { node ->
-            normalizeUrl(node.text).ifBlank { normalizeUrl(node.contentDescription) }
-        }.orEmpty().ifBlank {
-            eventCandidates.firstNotNullOfOrNull(::normalizeUrl).orEmpty()
+        val nodeUrl = prioritized.asSequence()
+            .mapNotNull { node ->
+                normalizeUrl(node.text)
+                    .ifBlank { normalizeUrl(node.contentDescription) }
+                    .takeIf { it.isNotBlank() }
+            }
+            .firstOrNull()
+
+        return nodeUrl.orEmpty().ifBlank {
+            eventCandidates.asSequence()
+                .map(::normalizeUrl)
+                .firstOrNull { it.isNotBlank() }
+                .orEmpty()
         }
     }
 
@@ -231,9 +296,13 @@ private data class NodeText(
         if (normalizedId.contains("header")) score += 80
         if (normalizedId.contains("toolbar")) score += 40
         if (normalizedClass.contains("textview")) score += 20
+        if (normalizedClass.contains("webview")) score += 60
         if (boundsTop in 120..320) score += 40 else if (boundsTop in 0..420) score += 20
-        if (text.length in 8..64) score += 20 else if (text.length in 5..100) score += 10
+        if (text.length in 12..96) score += 30 else if (text.length in 8..120) score += 20 else if (text.length in 5..140) score += 10
+        if (text.any(Char::isDigit)) score += 8
+        if (text.contains(' ') || text.contains('（') || text.contains('(') || text.contains('：') || text.contains(':') || text.contains('丨') || text.contains('|')) score += 8
         if (normalizedId.contains("url") || normalizedId.contains("address")) score -= 80
+        if (looksLikeNavigationLabel()) score -= 40
         if (sourcePackage == PageContextSupport.ChromePackage && boundsTop in 140..320) score += 20
         return score
     }
@@ -255,4 +324,44 @@ private data class NodeText(
             contentDescription.isNotBlank() &&
             text.isBlank()
     }
+
+    fun belongsToShareSheet(): Boolean {
+        val normalizedId = viewId.lowercase()
+        val normalizedText = text.lowercase()
+        val normalizedDesc = contentDescription.lowercase()
+        return normalizedId.contains("intentresolver") ||
+            normalizedId.contains("chooser") ||
+            normalizedId.contains("resolver_list") ||
+            normalizedText == "sharing text" ||
+            normalizedText == "including link:" ||
+            normalizedText == "copy without link" ||
+            normalizedDesc == "copy text"
+    }
+
+    private fun looksLikeNavigationLabel(): Boolean {
+        return text in navigationLabels || contentDescription in navigationLabels
+    }
+
+    private companion object {
+        val navigationLabels = setOf(
+            "首页",
+            "上一级",
+            "下一页",
+            "返回",
+            "菜单",
+            "home",
+            "back",
+            "next",
+            "menu",
+        )
+    }
+}
+
+private fun String.titleQualityScore(): Int {
+    if (isBlank()) return Int.MIN_VALUE
+    var score = length.coerceAtMost(80)
+    if (any(Char::isDigit)) score += 8
+    if (contains(' ') || contains('（') || contains('(') || contains('：') || contains(':') || contains('-')) score += 8
+    if (contains('.') || contains('/')) score -= 12
+    return score
 }

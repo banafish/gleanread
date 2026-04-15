@@ -94,11 +94,13 @@ class CaptureSeedResolver(
             intent?.getStringExtra(Intent.EXTRA_REFERRER_NAME)?.let(Uri::parse),
         )
 
-        return referrerCandidates
+        val referrerPackage = referrerCandidates
             .asSequence()
             .mapNotNull(::extractAndroidAppPackage)
             .map(String::trim)
             .firstOrNull { it.isNotEmpty() }
+
+        return referrerPackage ?: inferSourcePackageFromIntent(intent)
     }
 
     @Suppress("DEPRECATION")
@@ -110,5 +112,19 @@ class CaptureSeedResolver(
         return uri
             ?.takeIf { it.scheme == "android-app" }
             ?.host
+    }
+
+    private fun inferSourcePackageFromIntent(intent: Intent?): String? {
+        val safeIntent = intent ?: return null
+        val extras = safeIntent.extras
+        val keys = extras?.keySet().orEmpty()
+        return when {
+            keys.any { it.startsWith("org.chromium.chrome.") || it.startsWith("org.chromium.chrome.browser.") } -> {
+                PageContextSupport.ChromePackage
+            }
+
+            safeIntent.`package`?.isNotBlank() == true -> safeIntent.`package`
+            else -> null
+        }
     }
 }
