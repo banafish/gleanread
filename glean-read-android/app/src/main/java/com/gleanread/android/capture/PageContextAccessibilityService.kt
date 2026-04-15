@@ -15,35 +15,46 @@ class PageContextAccessibilityService : AccessibilityService() {
         serviceInfo = serviceInfo.apply {
             flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
             flags = flags or AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
-            flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+            flags = flags and AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS.inv()
+            notificationTimeout = PageContextAccessibilityPolicy.NotificationTimeoutMillis
         }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         val safeEvent = event ?: return
+        if (!PageContextAccessibilityPolicy.shouldProcessEvent(safeEvent.eventType, safeEvent.contentChangeTypes)) {
+            return
+        }
+
         val packageName = safeEvent.packageName?.toString().orEmpty()
         if (!PageContextSupport.isSupportedPackage(packageName)) return
 
-        val roots = linkedSetOf<AccessibilityNodeInfo>()
-        rootInActiveWindow?.let(roots::add)
-        safeEvent.source?.let(roots::add)
-        windows.orEmpty()
-            .mapNotNull { it.root }
-            .forEach(roots::add)
+        val roots = buildList {
+            safeEvent.source
+                ?.takeIf { it.packageName?.toString().orEmpty() == packageName }
+                ?.let(::add)
+            rootInActiveWindow
+                ?.takeIf { it.packageName?.toString().orEmpty() == packageName }
+                ?.let(::add)
+        }
         if (roots.isEmpty()) return
 
+        val previousSnapshot = pageContextStore.readRecentSnapshot(
+            expectedSourcePackage = packageName,
+            now = System.currentTimeMillis(),
+        )
         val snapshot = PageContextNodeExtractor.extract(
             roots = roots,
             event = safeEvent,
             sourcePackage = packageName,
         ) ?: return
         val mergedSnapshot = mergeWithRecentSnapshot(
-            previous = pageContextStore.readRecentSnapshot(
-                expectedSourcePackage = packageName,
-                now = snapshot.capturedAt,
-            ),
+            previous = previousSnapshot,
             current = snapshot,
         )
+        if (PageContextAccessibilityPolicy.shouldSkipStoreWrite(previousSnapshot, mergedSnapshot)) {
+            return
+        }
         pageContextStore.save(mergedSnapshot)
     }
 
@@ -102,6 +113,9 @@ class PageContextAccessibilityService : AccessibilityService() {
 private object PageContextNodeExtractor {
     private val urlRegex = Regex("""https?://[^\s]+""")
     private val hostRegex = Regex("""(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:/[^\s]*)?""")
+    private const val MAX_SCAN_DEPTH = 24
+    private const val MAX_VISITED_NODES = 400
+    private const val MAX_COLLECTED_NODES = 180
 
     fun extract(
         roots: Iterable<AccessibilityNodeInfo>,
@@ -227,22 +241,51 @@ private object PageContextNodeExtractor {
         node: AccessibilityNodeInfo,
         destination: MutableList<NodeText>,
     ) {
-        val bounds = Rect()
-        node.getBoundsInScreen(bounds)
-        destination += NodeText(
-            viewId = node.viewIdResourceName.orEmpty(),
-            text = node.text?.toString().orEmpty().trim(),
-            contentDescription = node.contentDescription?.toString().orEmpty().trim(),
-            className = node.className?.toString().orEmpty(),
-            boundsTop = bounds.top,
-        )
+        val pending = ArrayDeque<NodeVisit>()
+        pending.addLast(NodeVisit(node = node, depth = 0))
+        var visitedCount = 0
 
-        for (index in 0 until node.childCount) {
-            node.getChild(index)?.let { child ->
-                collectNodes(child, destination)
+        while (
+            pending.isNotEmpty() &&
+            visitedCount < MAX_VISITED_NODES &&
+            destination.size < MAX_COLLECTED_NODES
+        ) {
+            val current = pending.removeFirst()
+            visitedCount += 1
+
+            if (current.depth > MAX_SCAN_DEPTH) continue
+
+            val bounds = Rect()
+            current.node.getBoundsInScreen(bounds)
+
+            val viewId = current.node.viewIdResourceName.orEmpty()
+            val text = current.node.text?.toString().orEmpty().trim()
+            val contentDescription = current.node.contentDescription?.toString().orEmpty().trim()
+            if (viewId.isNotBlank() || text.isNotBlank() || contentDescription.isNotBlank()) {
+                destination += NodeText(
+                    viewId = viewId,
+                    text = text,
+                    contentDescription = contentDescription,
+                    className = current.node.className?.toString().orEmpty(),
+                    boundsTop = bounds.top,
+                )
+            }
+
+            if (current.depth == MAX_SCAN_DEPTH) continue
+
+            for (index in 0 until current.node.childCount) {
+                current.node.getChild(index)?.let { child ->
+                    pending.addLast(NodeVisit(node = child, depth = current.depth + 1))
+                }
             }
         }
     }
+
+    private data class NodeVisit(
+        val node: AccessibilityNodeInfo,
+        val depth: Int,
+    )
+
 }
 
 private data class NodeText(
