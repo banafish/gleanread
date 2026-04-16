@@ -53,7 +53,7 @@ fun RichExcerptCard(
     sourceTitle: String = "",
     modifier: Modifier = Modifier,
 ) {
-    val bgColor = MaterialTheme.colorScheme.surfaceContainer
+    val bgColor = MaterialTheme.colorScheme.surfaceContainerHigh
     val quoteTint = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
     val textColor = MaterialTheme.colorScheme.onSurface
 

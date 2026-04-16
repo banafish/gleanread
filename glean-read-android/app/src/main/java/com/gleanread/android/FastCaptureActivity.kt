@@ -383,8 +383,8 @@ fun CaptureDialogV2(
                             }
 
                             val thoughtNotEmpty = thought.isNotEmpty()
-                            val saveBtnBg = if (thoughtNotEmpty) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                            val saveBtnTextColor = if (thoughtNotEmpty) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            val saveBtnBg = MaterialTheme.colorScheme.primary
+                            val saveBtnTextColor = MaterialTheme.colorScheme.onPrimary
 
                             Surface(
                                 onClick = {
