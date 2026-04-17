@@ -59,6 +59,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -143,8 +144,9 @@ fun CaptureDialogV2(
     val repository = remember(context) {
         WorkspaceRepository(WorkspaceDatabase.get(context))
     }
+    val availableTagsFlow = remember(repository) { repository.observeAvailableTagNames() }
+    val availableTags by availableTagsFlow.collectAsState(initial = emptyList())
     var thought by remember { mutableStateOf("") }
-    val availableTags = listOf("研究", "想法", "待读", "灵感", "摘录", "教程", "稍后阅读", "研究2", "想法2", "待读2", "灵感2", "摘录2", "教程2")
     var selectedTags by remember { mutableStateOf(setOf<String>()) }
     var currentUrl by remember { mutableStateOf(initialUrl) }
     val density = LocalDensity.current
@@ -549,17 +551,26 @@ private fun BoxScope.TagMenuPopup(
                             .heightIn(max = 160.dp)
                             .verticalScroll(rememberScrollState()),
                     ) {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            availableTags.forEach { tag ->
-                                PopupTagPill(
-                                    label = tag,
-                                    isSelected = selectedTags.contains(tag),
-                                    onClick = { onTagSelected(tag) },
-                                )
+                        if (availableTags.isEmpty()) {
+                            Text(
+                                text = "本地标签库还是空的，先去工作区创建几个标签吧。",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 20.sp,
+                            )
+                        } else {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                availableTags.forEach { tag ->
+                                    PopupTagPill(
+                                        label = tag,
+                                        isSelected = selectedTags.contains(tag),
+                                        onClick = { onTagSelected(tag) },
+                                    )
+                                }
                             }
                         }
                     }

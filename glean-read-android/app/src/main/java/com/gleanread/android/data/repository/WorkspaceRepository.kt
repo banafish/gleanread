@@ -31,6 +31,7 @@ import com.gleanread.android.data.model.extractStructuredLinks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 class WorkspaceRepository(
     private val database: WorkspaceDatabase,
@@ -46,6 +47,10 @@ class WorkspaceRepository(
     ) { excerpts, nodes, tags, relations ->
         buildSnapshot(excerpts, nodes, tags, relations)
     }.distinctUntilChanged()
+
+    fun observeAvailableTagNames(): Flow<List<String>> {
+        return dao.observeTags().map { tags -> tags.map(TagEntity::tagName) }
+    }
 
     suspend fun seedSampleData() {
         val hasData = dao.countExcerpts() > 0 || dao.countNodes() > 0 || dao.countTags() > 0
