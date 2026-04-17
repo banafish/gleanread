@@ -9,11 +9,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,6 +27,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -48,13 +51,20 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -169,6 +179,8 @@ fun CaptureDialogV2(
     var isSaving by remember { mutableStateOf(false) }
     var isInputFocused by remember { mutableStateOf(false) }
     var showTagMenu by remember { mutableStateOf(false) }
+    var tagDraftSelection by remember { mutableStateOf(setOf<String>()) }
+    var tagSearchQuery by remember { mutableStateOf("") }
     var showLinkMenu by remember { mutableStateOf(false) }
     var tempLink by remember { mutableStateOf("") }
     val shouldCompactCaptureLayout = isImeVisible || isInputFocused
@@ -188,6 +200,26 @@ fun CaptureDialogV2(
 
     val containerBgColor by animateColorAsState(targetValue = targetBgColor, label = "bg_color")
     val containerBorderColor by animateColorAsState(targetValue = targetBorderColor, label = "border_color")
+    val selectedTagSummary = remember(selectedTags, availableTags) {
+        availableTags.firstOrNull { it in selectedTags } ?: selectedTags.firstOrNull().orEmpty()
+    }
+
+    val dismissTagMenu = {
+        showTagMenu = false
+        tagDraftSelection = selectedTags
+        tagSearchQuery = ""
+    }
+    val openTagMenu = {
+        tagDraftSelection = selectedTags
+        tagSearchQuery = ""
+        showTagMenu = true
+        showLinkMenu = false
+    }
+    val confirmTagMenu = {
+        selectedTags = tagDraftSelection
+        showTagMenu = false
+        tagSearchQuery = ""
+    }
 
     CaptureBottomSheet(
         onDismiss = onDismiss,
@@ -282,7 +314,7 @@ fun CaptureDialogV2(
                                 .onFocusChanged {
                                     isInputFocused = it.isFocused
                                     if (it.isFocused) {
-                                        showTagMenu = false
+                                        dismissTagMenu()
                                         showLinkMenu = false
                                     }
                                 },
@@ -328,8 +360,11 @@ fun CaptureDialogV2(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null,
                                     ) {
-                                        showTagMenu = !showTagMenu
-                                        showLinkMenu = false
+                                        if (showTagMenu) {
+                                            dismissTagMenu()
+                                        } else {
+                                            openTagMenu()
+                                        }
                                     },
                                 ) {
                                     Row(
@@ -344,7 +379,7 @@ fun CaptureDialogV2(
                                         )
                                         if (selectedTags.isNotEmpty()) {
                                             Spacer(modifier = Modifier.width(4.dp))
-                                            val tagText = if (selectedTags.size == 1) selectedTags.first() else "${selectedTags.first()}等"
+                                            val tagText = if (selectedTags.size == 1) selectedTagSummary else "${selectedTagSummary}等"
                                             Text(
                                                 text = tagText,
                                                 fontSize = 11.sp,
@@ -369,7 +404,7 @@ fun CaptureDialogV2(
                                         indication = null,
                                     ) {
                                         showLinkMenu = !showLinkMenu
-                                        showTagMenu = false
+                                        dismissTagMenu()
                                         if (showLinkMenu) tempLink = currentUrl
                                     },
                                 ) {
@@ -451,11 +486,12 @@ fun CaptureDialogV2(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.14f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                         ) {
-                            showTagMenu = false
+                            dismissTagMenu()
                             showLinkMenu = false
                         },
                 )
@@ -464,11 +500,19 @@ fun CaptureDialogV2(
             TagMenuPopup(
                 showTagMenu = showTagMenu,
                 availableTags = availableTags,
-                selectedTags = selectedTags,
+                selectedTags = tagDraftSelection,
+                tagQuery = tagSearchQuery,
+                onTagQueryChange = { tagSearchQuery = it },
                 onTagSelected = { tag ->
-                    selectedTags = if (selectedTags.contains(tag)) selectedTags - tag else selectedTags + tag
+                    tagDraftSelection =
+                        if (tagDraftSelection.contains(tag)) {
+                            tagDraftSelection - tag
+                        } else {
+                            tagDraftSelection + tag
+                        }
                 },
-                onClearTags = { selectedTags = emptySet() },
+                onDismiss = dismissTagMenu,
+                onConfirm = confirmTagMenu,
             )
 
             LinkMenuPopup(
@@ -485,34 +529,147 @@ fun CaptureDialogV2(
 }
 
 @Composable
-private fun PopupTagPill(
+private fun TagPickerChip(
     label: String,
     isSelected: Boolean,
     onClick: () -> Unit,
 ) {
-    val bgColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
-    val borderColor = if (isSelected) Color.Transparent else MaterialTheme.colorScheme.outlineVariant
-    val textColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val shape = RoundedCornerShape(22.dp)
+    val containerColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        }
+    val contentColor =
+        if (isSelected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    val borderColor =
+        if (isSelected) {
+            Color.Transparent
+        } else {
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+        }
 
-    Box(
+    Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(50.dp))
-            .background(bgColor)
+            .clip(shape)
+            .background(containerColor)
+            .border(width = 1.dp, color = borderColor, shape = shape)
             .clickable { onClick() }
-            .border(
-                width = 1.dp,
-                color = borderColor,
-                shape = RoundedCornerShape(50.dp),
-            )
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center,
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = label,
-            fontSize = 12.sp,
+            fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = textColor,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(16.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TagSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Search,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            decorationBox = { innerTextField ->
+                Box {
+                    if (query.isBlank()) {
+                        Text(
+                            text = "搜索标签...",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                            fontSize = 14.sp,
+                        )
+                    }
+                    innerTextField()
+                }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun TagSection(
+    title: String,
+    tags: List<String>,
+    selectedTags: Set<String>,
+    emptyText: String,
+    onTagSelected: (String) -> Unit,
+) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.bodyLarge.copy(
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 15.sp,
+        ),
+    )
+    Spacer(modifier = Modifier.height(14.dp))
+    if (tags.isEmpty()) {
+        Text(
+            text = emptyText,
+            style = MaterialTheme.typography.bodyMedium.copy(
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                lineHeight = 20.sp,
+            ),
+        )
+    } else {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            tags.forEach { tag ->
+                TagPickerChip(
+                    label = tag,
+                    isSelected = tag in selectedTags,
+                    onClick = { onTagSelected(tag) },
+                )
+            }
+        }
     }
 }
 
@@ -522,83 +679,181 @@ private fun BoxScope.TagMenuPopup(
     showTagMenu: Boolean,
     availableTags: List<String>,
     selectedTags: Set<String>,
+    tagQuery: String,
+    onTagQueryChange: (String) -> Unit,
     onTagSelected: (String) -> Unit,
-    onClearTags: () -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
 ) {
+    val orderedTags = remember(availableTags, selectedTags) {
+        val selectedInOrder = availableTags.filter { it in selectedTags }
+        val extraSelected = selectedTags.filterNot { it in availableTags }
+        val remainingTags = availableTags.filterNot { it in selectedTags }
+        selectedInOrder + extraSelected + remainingTags
+    }
+    val normalizedQuery = tagQuery.trim()
+    val filteredTags = remember(orderedTags, normalizedQuery) {
+        if (normalizedQuery.isBlank()) {
+            orderedTags
+        } else {
+            orderedTags.filter { it.contains(normalizedQuery, ignoreCase = true) }
+        }
+    }
+    val featuredTags = remember(availableTags) { availableTags.take(5) }
+    val emptyStateText =
+        if (orderedTags.isEmpty()) {
+            "本地标签库还是空的，先去工作区创建几个标签吧。"
+        } else {
+            "没有找到匹配的标签，试试其他关键词。"
+        }
+
     AnimatedVisibility(
         visible = showTagMenu,
-        enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.95f, animationSpec = tween(200), transformOrigin = TransformOrigin(0f, 1f)),
-        exit = fadeOut(tween(150)) + scaleOut(targetScale = 0.95f, animationSpec = tween(150), transformOrigin = TransformOrigin(0f, 1f)),
+        enter = fadeIn(tween(220)) + slideInVertically(animationSpec = tween(220)) { it / 3 },
+        exit = fadeOut(tween(180)) + slideOutVertically(animationSpec = tween(180)) { it / 4 },
         modifier = Modifier
-            .align(Alignment.BottomStart)
-            .padding(bottom = 52.dp)
-            .offset(x = (-12).dp)
-            .graphicsLayer { clip = false },
+            .align(Alignment.Center)
+            .fillMaxSize()
+            .imePadding(),
     ) {
-        Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 16.dp)) {
-            Surface(
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Column(
                 modifier = Modifier
-                    .width(280.dp)
-                    .graphicsLayer { clip = false },
-                shadowElevation = 12.dp,
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    .fillMaxSize(),
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Column(
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 8.dp, end = 8.dp, top = 0.dp, bottom = 2.dp),
+                ) {
+                    Box(
                         modifier = Modifier
-                            .heightIn(max = 160.dp)
-                            .verticalScroll(rememberScrollState()),
+                            .align(Alignment.CenterStart)
+                            .clip(CircleShape)
+                            .clickable { onDismiss() }
+                            .padding(12.dp),
                     ) {
-                        if (availableTags.isEmpty()) {
-                            Text(
-                                text = "本地标签库还是空的，先去工作区创建几个标签吧。",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                lineHeight = 20.sp,
-                            )
-                        } else {
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                availableTags.forEach { tag ->
-                                    PopupTagPill(
-                                        label = tag,
-                                        isSelected = selectedTags.contains(tag),
-                                        onClick = { onTagSelected(tag) },
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "选择分类标签",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "返回",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(24.dp),
                         )
-                        if (selectedTags.isNotEmpty()) {
-                            Text(
-                                text = "清空",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.primary,
+                    }
+                    Text(
+                        text = "选择分类标签",
+                        modifier = Modifier.align(Alignment.Center),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = 17.sp,
+                        ),
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                ) {
+                    TagSearchField(
+                        query = tagQuery,
+                        onQueryChange = onTagQueryChange,
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    if (normalizedQuery.isBlank()) {
+                        TagSection(
+                            title = "热门标签",
+                            tags = featuredTags,
+                            selectedTags = selectedTags,
+                            emptyText = emptyStateText,
+                            onTagSelected = onTagSelected,
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                        Spacer(modifier = Modifier.height(20.dp))
+                        TagSection(
+                            title = "所有标签",
+                            tags = orderedTags,
+                            selectedTags = selectedTags,
+                            emptyText = emptyStateText,
+                            onTagSelected = onTagSelected,
+                        )
+                    } else {
+                        TagSection(
+                            title = "搜索结果",
+                            tags = filteredTags,
+                            selectedTags = selectedTags,
+                            emptyText = emptyStateText,
+                            onTagSelected = onTagSelected,
+                        )
+                    }
+                }
+
+                Surface(
+                    color = MaterialTheme.colorScheme.background,
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 7.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            OutlinedButton(
+                                onClick = onDismiss,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(4.dp))
-                                    .clickable { onClearTags() }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                            )
+                                    .weight(1f),
+                                shape = CircleShape,
+                                border = BorderStroke(
+                                    width = 1.dp,
+                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.28f),
+                                ),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
+                                ),
+                                contentPadding = PaddingValues(
+                                    horizontal = 18.dp,
+                                    vertical = 10.dp,
+                                ),
+                            ) {
+                                Text(
+                                    text = "取消",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp,
+                                    ),
+                                )
+                            }
+                            Button(
+                                onClick = onConfirm,
+                                modifier = Modifier
+                                    .weight(1f),
+                                shape = CircleShape,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                ),
+                                contentPadding = PaddingValues(
+                                    horizontal = 18.dp,
+                                    vertical = 10.dp,
+                                ),
+                            ) {
+                                Text(
+                                    text = "完成",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 14.sp,
+                                    ),
+                                )
+                            }
                         }
                     }
                 }
@@ -671,7 +926,7 @@ private fun BoxScope.LinkMenuPopup(
                     Spacer(modifier = Modifier.width(8.dp))
                     Surface(
                         onClick = { onSaveLink() },
-                        shape = RoundedCornerShape(8.dp),
+                        shape = RoundedCornerShape(24.dp),
                         color = MaterialTheme.colorScheme.primary,
                     ) {
                         Text(
@@ -687,5 +942,3 @@ private fun BoxScope.LinkMenuPopup(
         }
     }
 }
-
-
