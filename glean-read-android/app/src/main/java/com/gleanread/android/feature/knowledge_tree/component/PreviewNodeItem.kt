@@ -1,25 +1,15 @@
 package com.gleanread.android.feature.knowledge_tree.component
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.FiberManualRecord
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
@@ -38,7 +28,7 @@ fun PreviewNodeItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = ((node.depth - 2) * 16).dp)
+            .padding(start = ((node.depth - 2) * 16).dp),
     ) {
         Row(
             modifier = Modifier
@@ -47,42 +37,29 @@ fun PreviewNodeItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            if (node.canExpand || node.showEnterBranch) {
-                Icon(
-                    imageVector = if (node.canExpand && node.isExpanded) {
-                        Icons.Default.KeyboardArrowDown
-                    } else {
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight
-                    },
-                    contentDescription = if (node.showEnterBranch) "进入面包屑页" else "展开节点",
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clickable {
-                            if (node.showEnterBranch) {
-                                onOpenBranch(node.nodeId)
-                            } else {
-                                onToggle(node.nodeId)
-                            }
-                        },
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.FiberManualRecord,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(8.dp)
-                        .padding(start = 10.dp, end = 10.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Text(
-                text = node.title,
+            KnowledgeTreeLeadingIndicator(
+                showActionIcon = node.canExpand || node.showEnterBranch,
+                isExpanded = node.canExpand && node.isExpanded,
+                contentDescription = if (node.showEnterBranch) "进入面包屑页" else "展开节点",
+                onClick = if (node.canExpand || node.showEnterBranch) {
+                    {
+                        if (node.showEnterBranch) {
+                            onOpenBranch(node.nodeId)
+                        } else {
+                            onToggle(node.nodeId)
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
+            KnowledgeTreeNodeTitle(
+                title = node.title,
+                onClick = { onOpenDetail(node.nodeId) },
+                style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .weight(1f)
-                    .clickable { onOpenDetail(node.nodeId) },
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
             )
             Text(
                 text = "${node.count}条",

@@ -1,7 +1,7 @@
 package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +20,7 @@ import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeTopBa
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.RootNodeCard
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_ROOT_TITLE
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeHomeUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
@@ -54,17 +55,22 @@ fun KnowledgeTreeHomeScreen(
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             KnowledgeTreeTopBar(
-                title = "知识体系",
+                title = KNOWLEDGE_TREE_ROOT_TITLE,
                 onToggleSearch = onToggleSearch,
                 onExpandAll = onExpandAll,
                 onCollapseAll = onCollapseAll,
+                showTreeIcon = true,
             )
         },
         floatingActionButton = {
             if (!isSearchVisible) {
-                KnowledgeTreeHomeFab(onClick = onOpenAddRootDialog)
+                KnowledgeTreeHomeFab(
+                    onClick = onOpenAddRootDialog,
+                    modifier = Modifier.padding(bottom = KnowledgeTreeFabBottomPadding),
+                )
             }
         },
     ) { innerPadding ->
@@ -87,7 +93,7 @@ fun KnowledgeTreeHomeScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                contentPadding = KnowledgeTreeListContentPadding,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 items(uiState.rootCards, key = { it.nodeId }) { card ->

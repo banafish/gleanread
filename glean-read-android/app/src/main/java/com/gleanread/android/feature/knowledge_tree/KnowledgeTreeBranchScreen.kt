@@ -1,7 +1,7 @@
 package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,6 +56,7 @@ fun KnowledgeTreeBranchScreen(
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             KnowledgeTreeTopBar(
                 title = uiState.title,
@@ -67,7 +68,10 @@ fun KnowledgeTreeBranchScreen(
         },
         floatingActionButton = {
             if (!isSearchVisible) {
-                KnowledgeTreeBranchFab(onClick = onOpenCurrentAddChildDialog)
+                KnowledgeTreeBranchFab(
+                    onClick = onOpenCurrentAddChildDialog,
+                    modifier = Modifier.padding(bottom = KnowledgeTreeFabBottomPadding),
+                )
             }
         },
     ) { innerPadding ->
@@ -85,7 +89,7 @@ fun KnowledgeTreeBranchScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                contentPadding = KnowledgeTreeListContentPadding,
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
