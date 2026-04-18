@@ -4,6 +4,8 @@ import com.gleanread.android.data.model.FlatNodeUiModel
 import com.gleanread.android.data.model.WorkspaceSnapshot
 
 const val KNOWLEDGE_TREE_ROOT_TITLE = "知识体系"
+const val KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH = 2
+const val KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH = 3
 
 fun buildKnowledgeTreeHomeUiState(
     snapshot: WorkspaceSnapshot,
@@ -33,7 +35,7 @@ fun buildKnowledgeTreeBranchUiState(
                 snapshot = snapshot,
                 nodeId = childId,
                 expandedIds = expandedIds,
-                remainingPreviewDepth = 2,
+                remainingPreviewDepth = KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH,
                 depth = 1,
             )
         },
@@ -83,7 +85,7 @@ private fun buildRootNodeCard(
                     snapshot = snapshot,
                     nodeId = childId,
                     expandedIds = expandedIds,
-                    remainingPreviewDepth = 2,
+                    remainingPreviewDepth = KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH,
                     depth = 2,
                 )
             }
@@ -106,6 +108,11 @@ private fun buildPreviewNode(
     val node = snapshot.flatNodes[nodeId] ?: return null
     val canExpand = remainingPreviewDepth > 1 && node.childNodeIds.isNotEmpty()
     val isExpanded = canExpand && expandedIds.contains(node.id)
+    val titleDestination = buildTitleDestination(
+        snapshot = snapshot,
+        node = node,
+        remainingPreviewDepth = remainingPreviewDepth,
+    )
     return PreviewNodeUiModel(
         nodeId = node.id,
         title = node.title,
@@ -127,6 +134,7 @@ private fun buildPreviewNode(
             emptyList()
         },
         showEnterBranch = node.childNodeIds.isNotEmpty() && !canExpand,
+        titleDestination = titleDestination,
         detailDestination = NodeDestination.Detail(node.id),
         branchDestination = if (node.childNodeIds.isNotEmpty()) {
             NodeDestination.Branch(node.id)
@@ -147,6 +155,11 @@ private fun buildBranchNode(
     val node = snapshot.flatNodes[nodeId] ?: return null
     val canExpand = remainingPreviewDepth > 1 && node.childNodeIds.isNotEmpty()
     val isExpanded = canExpand && expandedIds.contains(node.id)
+    val titleDestination = buildTitleDestination(
+        snapshot = snapshot,
+        node = node,
+        remainingPreviewDepth = remainingPreviewDepth,
+    )
     return BranchNodeUiModel(
         nodeId = node.id,
         title = node.title,
@@ -168,6 +181,7 @@ private fun buildBranchNode(
             emptyList()
         },
         showEnterBranch = node.childNodeIds.isNotEmpty() && !canExpand,
+        titleDestination = titleDestination,
         detailDestination = NodeDestination.Detail(node.id),
         branchDestination = if (node.childNodeIds.isNotEmpty()) {
             NodeDestination.Branch(node.id)
@@ -176,6 +190,36 @@ private fun buildBranchNode(
         },
         actionTarget = node.toActionTarget(),
     )
+}
+
+private fun buildTitleDestination(
+    snapshot: WorkspaceSnapshot,
+    node: FlatNodeUiModel,
+    remainingPreviewDepth: Int,
+): NodeDestination {
+    return if (hasHiddenDescendants(snapshot, node, remainingPreviewDepth)) {
+        NodeDestination.Branch(node.id)
+    } else {
+        NodeDestination.Detail(node.id)
+    }
+}
+
+private fun hasHiddenDescendants(
+    snapshot: WorkspaceSnapshot,
+    node: FlatNodeUiModel,
+    remainingPreviewDepth: Int,
+): Boolean {
+    if (node.childNodeIds.isEmpty()) {
+        return false
+    }
+    if (remainingPreviewDepth <= 1) {
+        return true
+    }
+    return node.childNodeIds.any { childId ->
+        snapshot.flatNodes[childId]?.let { child ->
+            hasHiddenDescendants(snapshot, child, remainingPreviewDepth - 1)
+        } ?: false
+    }
 }
 
 private fun FlatNodeUiModel.toActionTarget(): NodeActionTarget {

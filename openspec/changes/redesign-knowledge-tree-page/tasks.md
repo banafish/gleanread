@@ -13,7 +13,7 @@
 ## 3. 知识树首页与分支页界面
 
 - [x] 3.1 实现 `KnowledgeTreeTopBar`、`BreadcrumbBar`、`KnowledgeTreeHomeFab`、`KnowledgeTreeBranchFab`、`KnowledgeTreeEmptyState` 等通用页面组件
-- [x] 3.2 实现 `RootNodeCard`、`PreviewNodeItem`、`BranchNodeItem`，完成首页三层预览、分支页两层预览、展开/收起和 `进入 >` 行为
+- [x] 3.2 实现 `RootNodeCard`、`PreviewNodeItem`、`BranchNodeItem`，完成首页三层预览、分支页三层预览、展开/收起和 `进入 >` 行为
 - [x] 3.3 实现 `KnowledgeTreeHomeScreen` 与 `KnowledgeTreeBranchScreen`，接通页面状态、节点点击去详情/去分支的判定和空状态展示
 - [x] 3.4 实现 `KnowledgeTreeSearchContent` 与页面级“展开全部 / 收起全部”菜单交互
 

@@ -9,6 +9,7 @@ data class PreviewNodeUiModel(
     val canExpand: Boolean,
     val visibleChildren: List<PreviewNodeUiModel>,
     val showEnterBranch: Boolean,
+    val titleDestination: NodeDestination,
     val detailDestination: NodeDestination,
     val branchDestination: NodeDestination,
     val actionTarget: NodeActionTarget,

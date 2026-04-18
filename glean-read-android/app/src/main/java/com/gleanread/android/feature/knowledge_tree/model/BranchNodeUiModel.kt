@@ -9,6 +9,7 @@ data class BranchNodeUiModel(
     val canExpand: Boolean,
     val visibleChildren: List<BranchNodeUiModel>,
     val showEnterBranch: Boolean,
+    val titleDestination: NodeDestination,
     val detailDestination: NodeDestination,
     val branchDestination: NodeDestination,
     val actionTarget: NodeActionTarget,

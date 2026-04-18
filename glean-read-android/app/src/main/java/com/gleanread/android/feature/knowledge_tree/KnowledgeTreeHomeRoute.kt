@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.gleanread.android.data.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeHomeUiState
@@ -152,12 +153,13 @@ private fun collectExpandableIds(
             if (rootNode.childNodeIds.isNotEmpty()) {
                 add(rootNode.id)
             }
-            rootNode.childNodeIds.forEach { childId ->
-                val childNode = snapshot.flatNodes[childId] ?: return@forEach
-                if (childNode.childNodeIds.isNotEmpty()) {
-                    add(childNode.id)
-                }
-            }
+            addAll(
+                collectExpandablePreviewIds(
+                    snapshot = snapshot,
+                    nodeIds = rootNode.childNodeIds,
+                    remainingPreviewDepth = KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH,
+                ),
+            )
         }
     }
 }

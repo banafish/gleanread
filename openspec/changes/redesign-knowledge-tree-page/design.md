@@ -6,7 +6,7 @@
 
 - `WorkspaceRepository` 只支持新增根节点、AI 挂载创建新节点、更新节点大纲，不支持子节点创建、重命名、删除子树或面向分支页的专门转换。
 - `WorkspaceDao` 只有 `findNodeById()`、`observeNodes()` 等基础查询，没有按节点递归查找子树、批量软删除、重命名更新等专用接口。
-- `WorkspaceSnapshot.treeRoots` 只适合“把整棵树一次性递归渲染”，不适合首页显示 1~3 层、分支页显示“当前节点后两层”的局部预览。
+- `WorkspaceSnapshot.treeRoots` 只适合“把整棵树一次性递归渲染”，不适合首页显示 1~3 层、分支页显示“当前节点后三层”的局部预览。
 
 这次改版仍要遵守仓库约束：
 
@@ -151,7 +151,7 @@
 
 ## 风险 / 权衡
 
-- [局部预览规则比现有整树递归复杂] → 通过 `NodeDestination` 与专用 UI model 集中封装层级判断，避免把“首页看三层、分支页看两层”散落到多个 Composable。
+- [局部预览规则比现有整树递归复杂] → 通过 `NodeDestination` 与专用 UI model 集中封装层级判断，避免把“首页看三层、分支页看三层”散落到多个 Composable。
 - [新增 feature 包后，现有 workspace 包与知识树包之间可能出现双向依赖] → 让知识树 feature 只依赖 `WorkspaceViewModel` 暴露的数据和回调，不反向引用 workspace screen 组件。
 - [删除子树会影响已归档摘录，若处理不全会产生脏数据] → 在 Repository 中使用事务统一更新节点和摘录，并在 design 对应实现中增加删除确认文案与测试覆盖。
 - [搜索先用前端过滤，在节点和摘录数量变大时性能一般] → 首版限制结果数量并复用内存快照；若后续数据规模增长，再单独提案引入索引层。

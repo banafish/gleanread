@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
+import com.gleanread.android.feature.knowledge_tree.model.NodeDestination
 import com.gleanread.android.feature.knowledge_tree.model.PreviewNodeUiModel
 
 @Composable
@@ -28,7 +29,7 @@ fun PreviewNodeItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = ((node.depth - 2) * 16).dp),
+            .padding(start = ((node.depth - 1) * 16).dp),
     ) {
         Row(
             modifier = Modifier
@@ -55,7 +56,13 @@ fun PreviewNodeItem(
             )
             KnowledgeTreeNodeTitle(
                 title = node.title,
-                onClick = { onOpenDetail(node.nodeId) },
+                onClick = {
+                    when (val destination = node.titleDestination) {
+                        is NodeDestination.Branch -> onOpenBranch(destination.nodeId)
+                        is NodeDestination.Detail -> onOpenDetail(destination.nodeId)
+                        NodeDestination.None -> Unit
+                    }
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .weight(1f)

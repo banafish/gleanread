@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.gleanread.android.data.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeBranchUiState
@@ -32,7 +33,7 @@ fun KnowledgeTreeBranchRoute(
 
     val currentNode = snapshot.flatNodes[nodeId]
     LaunchedEffect(nodeId, currentNode?.childNodeIds) {
-        expandedIds = currentNode?.childNodeIds.orEmpty().toSet()
+        expandedIds = collectExpandableIds(snapshot, nodeId)
     }
     LaunchedEffect(snapshot.flatNodes.containsKey(nodeId)) {
         if (!snapshot.flatNodes.containsKey(nodeId)) {
@@ -145,14 +146,11 @@ private fun collectExpandableIds(
     snapshot: WorkspaceSnapshot,
     nodeId: String,
 ): Set<String> {
-    return buildSet {
-        snapshot.flatNodes[nodeId]?.childNodeIds.orEmpty().forEach { childId ->
-            val childNode = snapshot.flatNodes[childId] ?: return@forEach
-            if (childNode.childNodeIds.isNotEmpty()) {
-                add(childId)
-            }
-        }
-    }
+    return collectExpandablePreviewIds(
+        snapshot = snapshot,
+        nodeIds = snapshot.flatNodes[nodeId]?.childNodeIds.orEmpty(),
+        remainingPreviewDepth = KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH,
+    )
 }
 
 private fun countDescendants(
