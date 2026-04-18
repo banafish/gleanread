@@ -47,15 +47,19 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeBranchRoute
+import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeHomeRoute
 
 object WorkspaceRoutes {
     const val Feed = "feed"
     const val Tree = "tree"
     const val Tags = "tags"
     const val AiSummary = "ai-summary"
+    const val TreeBranchPattern = "tree/branch/{nodeId}"
     const val NodePattern = "node/{nodeId}"
     const val GraphPattern = "graph/{nodeId}"
 
+    fun treeBranch(nodeId: String) = "tree/branch/$nodeId"
     fun node(nodeId: String) = "node/$nodeId"
     fun graph(nodeId: String) = "graph/$nodeId"
 }
@@ -75,7 +79,8 @@ fun WorkspaceApp(
     val isMainRoute =
         route == WorkspaceRoutes.Feed || route == WorkspaceRoutes.Tree || route == WorkspaceRoutes.Tags
     val showEmptyGuide = route == WorkspaceRoutes.Feed && uiState.snapshot.isEmpty
-    val showFab = isMainRoute && !uiState.isSelectionMode && !showEmptyGuide
+    val showFab =
+        (route == WorkspaceRoutes.Feed || route == WorkspaceRoutes.Tags) && !uiState.isSelectionMode && !showEmptyGuide
     val showBottomNav = isMainRoute && !uiState.isSelectionMode && !showEmptyGuide
     val showSelectionBar = route == WorkspaceRoutes.Feed && uiState.isSelectionMode
 
@@ -154,10 +159,30 @@ fun WorkspaceApp(
                     )
                 }
                 composable(WorkspaceRoutes.Tree) {
-                    TreeRoute(
+                    KnowledgeTreeHomeRoute(
                         snapshot = uiState.snapshot,
-                        onNodeClick = { navController.navigate(WorkspaceRoutes.node(it)) },
+                        onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
+                        onOpenBranch = { navController.navigate(WorkspaceRoutes.treeBranch(it)) },
                         onCreateRootNode = workspaceViewModel::createRootNode,
+                        onCreateChildNode = workspaceViewModel::createChildNode,
+                        onRenameNode = workspaceViewModel::renameNode,
+                        onDeleteNode = workspaceViewModel::deleteNodeSubtree,
+                    )
+                }
+                composable(
+                    route = WorkspaceRoutes.TreeBranchPattern,
+                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
+                ) { backStackEntry ->
+                    val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
+                    KnowledgeTreeBranchRoute(
+                        snapshot = uiState.snapshot,
+                        nodeId = nodeId,
+                        onBack = { navController.popBackStack() },
+                        onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
+                        onOpenBranch = { navController.navigate(WorkspaceRoutes.treeBranch(it)) },
+                        onCreateChildNode = workspaceViewModel::createChildNode,
+                        onRenameNode = workspaceViewModel::renameNode,
+                        onDeleteNode = workspaceViewModel::deleteNodeSubtree,
                     )
                 }
                 composable(WorkspaceRoutes.Tags) {

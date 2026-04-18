@@ -225,6 +225,28 @@ class WorkspaceViewModel(
         }
     }
 
+    fun createChildNode(parentId: String, title: String, onCreated: (String) -> Unit = {}) {
+        if (title.isBlank()) return
+        viewModelScope.launch {
+            onCreated(repository.createChildNode(parentId, title))
+        }
+    }
+
+    fun renameNode(nodeId: String, title: String, onRenamed: () -> Unit = {}) {
+        if (title.isBlank()) return
+        viewModelScope.launch {
+            repository.renameNode(nodeId, title)
+            onRenamed()
+        }
+    }
+
+    fun deleteNodeSubtree(nodeId: String, onDeleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.deleteNodeSubtree(nodeId)
+            onDeleted()
+        }
+    }
+
     fun updateNodeOutline(nodeId: String, rawMarkdown: String) {
         viewModelScope.launch { repository.updateNodeOutline(nodeId, rawMarkdown) }
     }

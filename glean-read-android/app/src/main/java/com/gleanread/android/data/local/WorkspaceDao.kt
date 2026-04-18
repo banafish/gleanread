@@ -75,6 +75,9 @@ interface WorkspaceDao {
     @Query("SELECT * FROM knowledge_tree_node WHERE id = :nodeId LIMIT 1")
     suspend fun findNodeById(nodeId: String): KnowledgeTreeNodeEntity?
 
+    @Query("SELECT * FROM excerpts WHERE is_deleted = 0 AND tree_node_id IN (:nodeIds)")
+    suspend fun findExcerptsByNodeIds(nodeIds: List<String>): List<ExcerptEntity>
+
     @Query("SELECT COUNT(*) FROM excerpts WHERE is_deleted = 0")
     suspend fun countExcerpts(): Int
 

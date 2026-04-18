@@ -116,6 +116,83 @@ class WorkspaceRepository(
         return nodeId
     }
 
+    suspend fun createChildNode(parentId: String, title: String): String {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return ""
+        val parentNode = dao.findNodeById(parentId) ?: return ""
+        val now = System.currentTimeMillis()
+        val nodeId = WorkspaceSeedData.newNodeId()
+        dao.insertNode(
+            KnowledgeTreeNodeEntity(
+                id = nodeId,
+                userId = LOCAL_USER_ID,
+                parentId = parentNode.id,
+                nodeTitle = trimmed,
+                outlineMarkdown = "",
+                createTime = now,
+                updateTime = now,
+                syncStatus = SyncStatus.PENDING_CREATE.code,
+            )
+        )
+        return nodeId
+    }
+
+    suspend fun renameNode(nodeId: String, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        val node = dao.findNodeById(nodeId) ?: return
+        val now = System.currentTimeMillis()
+        dao.updateNode(
+            node.copy(
+                nodeTitle = trimmed,
+                updateTime = now,
+                syncStatus = SyncStatus.bump(node.syncStatus),
+            )
+        )
+    }
+
+    suspend fun deleteNodeSubtree(nodeId: String) {
+        val now = System.currentTimeMillis()
+        database.withTransaction {
+            val allNodes = dao.getNodesOnce()
+            val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
+            val childrenByParent = allNodes.groupBy { it.parentId }
+            val subtreeIds = buildList {
+                fun collect(currentId: String) {
+                    add(currentId)
+                    childrenByParent[currentId].orEmpty().forEach { child -> collect(child.id) }
+                }
+                collect(targetNode.id)
+            }
+            val subtreeNodes = allNodes.filter { subtreeIds.contains(it.id) }
+            if (subtreeNodes.isNotEmpty()) {
+                dao.updateNodes(
+                    subtreeNodes.map { node ->
+                        node.copy(
+                            isDeleted = true,
+                            updateTime = now,
+                            syncStatus = SyncStatus.markDeleted(node.syncStatus),
+                        )
+                    }
+                )
+            }
+            if (subtreeIds.isNotEmpty()) {
+                val affectedExcerpts = dao.findExcerptsByNodeIds(subtreeIds)
+                if (affectedExcerpts.isNotEmpty()) {
+                    dao.updateExcerpts(
+                        affectedExcerpts.map { excerpt ->
+                            excerpt.copy(
+                                treeNodeId = null,
+                                updateTime = now,
+                                syncStatus = SyncStatus.bump(excerpt.syncStatus),
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+
     suspend fun saveQuickExcerpt(
         content: String,
         thought: String,
@@ -290,6 +367,8 @@ class WorkspaceRepository(
 
         val excerptIdsByNodeId = excerpts.groupBy { it.treeNodeId }
             .mapValues { (_, value) -> value.map { it.id } }
+        val childNodeIdsByParent = nodes.groupBy { it.parentId }
+            .mapValues { (_, value) -> value.map(KnowledgeTreeNodeEntity::id) }
 
         val flatNodes = nodes.associate { node ->
             node.id to FlatNodeUiModel(
@@ -299,6 +378,7 @@ class WorkspaceRepository(
                 outlineMarkdown = node.outlineMarkdown.orEmpty(),
                 excerptIds = excerptIdsByNodeId[node.id].orEmpty(),
                 excerptCount = excerptIdsByNodeId[node.id].orEmpty().size,
+                childNodeIds = childNodeIdsByParent[node.id].orEmpty(),
             )
         }
 

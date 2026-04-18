@@ -20,6 +20,10 @@ enum class SyncStatus(val code: Int) {
         fun bump(current: Int): Int {
             return if (current == PENDING_CREATE.code) PENDING_CREATE.code else PENDING_UPDATE.code
         }
+
+        fun markDeleted(current: Int): Int {
+            return if (current == PENDING_CREATE.code) PENDING_CREATE.code else PENDING_DELETE.code
+        }
     }
 }
 
@@ -59,6 +63,7 @@ data class FlatNodeUiModel(
     val outlineMarkdown: String,
     val excerptIds: List<String>,
     val excerptCount: Int,
+    val childNodeIds: List<String>,
 )
 
 data class TreeNodeUiModel(
