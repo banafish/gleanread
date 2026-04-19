@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -28,6 +27,7 @@ import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreePath
 
 @Composable
 fun KnowledgeTreeSearchContent(
+    modifier: Modifier = Modifier,
     snapshot: WorkspaceSnapshot,
     query: String,
     recentQueries: List<String>,
@@ -57,16 +57,7 @@ fun KnowledgeTreeSearchContent(
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            placeholder = { Text("搜索节点、内容、标签") },
-            singleLine = true,
-        )
+    Column(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),

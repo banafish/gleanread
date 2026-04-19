@@ -57,13 +57,21 @@ fun KnowledgeTreeHomeScreen(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            KnowledgeTreeTopBar(
-                title = KNOWLEDGE_TREE_ROOT_TITLE,
-                onToggleSearch = onToggleSearch,
-                onExpandAll = onExpandAll,
-                onCollapseAll = onCollapseAll,
-                showTreeIcon = true,
-            )
+            if (isSearchVisible) {
+                com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchTopBar(
+                    query = searchQuery,
+                    onQueryChange = onSearchQueryChange,
+                    onClose = onToggleSearch,
+                )
+            } else {
+                KnowledgeTreeTopBar(
+                    title = KNOWLEDGE_TREE_ROOT_TITLE,
+                    onToggleSearch = onToggleSearch,
+                    onExpandAll = onExpandAll,
+                    onCollapseAll = onCollapseAll,
+                    showTreeIcon = true,
+                )
+            }
         },
         floatingActionButton = {
             if (!isSearchVisible) {
@@ -74,8 +82,9 @@ fun KnowledgeTreeHomeScreen(
             }
         },
     ) { innerPadding ->
-        if (isSearchVisible) {
+        if (isSearchVisible && searchQuery.isNotEmpty()) {
             KnowledgeTreeSearchContent(
+                modifier = Modifier.padding(innerPadding).fillMaxSize(),
                 snapshot = snapshot,
                 query = searchQuery,
                 recentQueries = recentQueries,
