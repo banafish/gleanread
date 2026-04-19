@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalFoundationApi::class)
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.feature.workspace.feed
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.BorderStroke
@@ -62,11 +62,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.data.model.ExcerptUiModel
+import com.gleanread.android.core.ui.richtext.LinkAwareText
+import com.gleanread.android.feature.workspace.model.ExcerptUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 @Composable
 fun FeedRoute(
-    uiState: WorkspaceUiState,
+    snapshot: WorkspaceSnapshot,
+    uiState: FeedUiState,
     onOpenAiSummary: () -> Unit,
     onLongPress: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
@@ -75,7 +78,7 @@ fun FeedRoute(
     onOpenNode: (String) -> Unit,
     onPreviewExcerpt: (String) -> Unit,
 ) {
-    if (uiState.snapshot.isEmpty) {
+    if (snapshot.isEmpty) {
         EmptyStateRoute(
             onLoadSample = onLoadSample,
             onStartRecording = onStartRecording,
@@ -85,8 +88,8 @@ fun FeedRoute(
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showInboxOnly by rememberSaveable { mutableStateOf(false) }
-    val filtered = remember(uiState.snapshot.excerpts, searchQuery, showInboxOnly) {
-        uiState.snapshot.excerpts.filter { excerpt ->
+    val filtered = remember(snapshot.excerpts, searchQuery, showInboxOnly) {
+        snapshot.excerpts.filter { excerpt ->
             val matchesQuery = searchQuery.isBlank() || excerpt.content.contains(
                 searchQuery, ignoreCase = true
             ) || excerpt.thought.contains(

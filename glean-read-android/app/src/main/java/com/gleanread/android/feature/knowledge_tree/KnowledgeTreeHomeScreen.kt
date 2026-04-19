@@ -10,7 +10,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.data.model.WorkspaceSnapshot
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.DeleteNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeEmptyState

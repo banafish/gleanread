@@ -1,7 +1,7 @@
 package com.gleanread.android.feature.knowledge_tree.model
 
-import com.gleanread.android.data.model.FlatNodeUiModel
-import com.gleanread.android.data.model.WorkspaceSnapshot
+import com.gleanread.android.feature.workspace.model.FlatNodeUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 const val KNOWLEDGE_TREE_ROOT_TITLE = "知识体系"
 const val KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH = 2

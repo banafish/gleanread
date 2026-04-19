@@ -20,10 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.data.model.ExcerptUiModel
-import com.gleanread.android.data.model.FlatNodeUiModel
-import com.gleanread.android.data.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreePathText
+import com.gleanread.android.feature.workspace.model.ExcerptUiModel
+import com.gleanread.android.feature.workspace.model.FlatNodeUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 @Composable
 fun KnowledgeTreeSearchContent(

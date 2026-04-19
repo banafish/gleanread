@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalFoundationApi::class)
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.feature.workspace.component
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -48,12 +48,15 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.data.model.ExcerptUiModel
-import com.gleanread.android.data.model.LinkSuggestion
-import com.gleanread.android.data.model.TreeNodeUiModel
-import com.gleanread.android.data.model.WorkspaceSnapshot
-import com.gleanread.android.ui.CaptureBottomSheet
-import com.gleanread.android.ui.TagPill
+import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.core.ui.component.CaptureBottomSheet
+import com.gleanread.android.core.ui.component.TagPill
+import com.gleanread.android.core.ui.richtext.InlineLinkEditor
+import com.gleanread.android.core.ui.richtext.LinkAwareText
+import com.gleanread.android.feature.workspace.capture.QuickCaptureDraft
+import com.gleanread.android.feature.workspace.model.ExcerptUiModel
+import com.gleanread.android.feature.workspace.model.TreeNodeUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 @Composable
 fun NodePickerOverlay(

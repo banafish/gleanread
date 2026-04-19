@@ -1,6 +1,6 @@
 package com.gleanread.android.data.repository
 
-import com.gleanread.android.data.model.LinkSuggestionType
+import com.gleanread.android.core.richtext.LinkSuggestionType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test

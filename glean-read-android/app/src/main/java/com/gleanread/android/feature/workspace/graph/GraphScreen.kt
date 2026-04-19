@@ -2,7 +2,7 @@
     ExperimentalFoundationApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class
 )
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.feature.workspace.graph
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -45,9 +45,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.data.model.GraphNodeKind
-import com.gleanread.android.data.model.GraphUiModel
-import com.gleanread.android.data.model.WorkspaceSnapshot
+import com.gleanread.android.feature.workspace.model.GraphNodeKind
+import com.gleanread.android.feature.workspace.model.GraphUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min

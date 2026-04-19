@@ -3,7 +3,7 @@
     ExperimentalMaterial3Api::class
 )
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.feature.workspace.node_detail
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -54,11 +54,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gleanread.android.data.model.BacklinkUiModel
-import com.gleanread.android.data.model.BacklinkType
-import com.gleanread.android.data.model.ExcerptUiModel
-import com.gleanread.android.data.model.LinkSuggestion
-import com.gleanread.android.data.model.WorkspaceSnapshot
+import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.core.ui.richtext.InlineLinkEditor
+import com.gleanread.android.core.ui.richtext.LinkAwareText
+import com.gleanread.android.feature.workspace.model.BacklinkType
+import com.gleanread.android.feature.workspace.model.BacklinkUiModel
+import com.gleanread.android.feature.workspace.model.ExcerptUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 @Composable
 fun NodeDetailRoute(

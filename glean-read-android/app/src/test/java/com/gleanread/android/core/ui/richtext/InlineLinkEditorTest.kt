@@ -1,11 +1,13 @@
-package com.gleanread.android.data.model
+package com.gleanread.android.core.ui.richtext
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class WorkspaceModelsTest {
+import com.gleanread.android.core.richtext.currentInlineQuery
+
+class InlineLinkEditorTest {
     @Test
     fun `currentInlineQuery keeps empty query after trigger`() {
         assertEquals("", currentInlineQuery("[[", 2))

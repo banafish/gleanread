@@ -1,7 +1,5 @@
 package com.gleanread.android.data.repository
 
-import com.gleanread.android.data.model.OutlineDraft
-
 fun interface OutlineGenerator {
     suspend fun generate(excerpts: List<String>): OutlineDraft
 }

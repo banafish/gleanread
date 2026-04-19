@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalFoundationApi::class)
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.core.ui.richtext
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -44,18 +45,24 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.gleanread.android.data.model.LinkSuggestion
-import com.gleanread.android.data.model.buildInlineAnnotatedString
-import com.gleanread.android.data.model.currentInlineQuery
-import com.gleanread.android.data.model.insertStructuredLink
+import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.core.richtext.LinkSuggestionType
+import com.gleanread.android.core.richtext.currentInlineQuery
+import com.gleanread.android.core.richtext.displayLinkRanges
+import com.gleanread.android.core.richtext.extractStructuredLinks
+import com.gleanread.android.core.richtext.insertStructuredLink
+import com.gleanread.android.core.richtext.toDisplayInlineText
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -89,7 +96,7 @@ fun LinkAwareText(
         text = annotated,
         style = MaterialTheme.typography.bodyLarge.copy(
             color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 22.sp
+            lineHeight = 22.sp,
         ),
         onTextLayout = { layoutResult = it },
         modifier = modifier
@@ -144,8 +151,8 @@ fun InlineLinkEditor(
         mutableStateOf(
             TextFieldValue(
                 rawText,
-                selection = TextRange(rawText.length)
-            )
+                selection = TextRange(rawText.length),
+            ),
         )
     }
     var suggestions by remember { mutableStateOf<List<LinkSuggestion>>(emptyList()) }
@@ -197,9 +204,9 @@ fun InlineLinkEditor(
         if (suggestions.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             Card(
-                modifier = Modifier.clickable(enabled = false) {},
+                modifier = Modifier.clickable(enabled = false) { },
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             ) {
                 Column(modifier = Modifier.padding(vertical = 6.dp)) {
                     Text(
@@ -209,23 +216,29 @@ fun InlineLinkEditor(
                         style = MaterialTheme.typography.labelMedium,
                     )
                     suggestions.forEach { suggestion ->
-                        TextButton(onClick = {
-                            val (raw, cursor) = insertStructuredLink(
-                                fieldValue.text,
-                                fieldValue.selection.start,
-                                suggestion
-                            )
-                            fieldValue = TextFieldValue(raw, selection = TextRange(cursor))
-                            onRawTextChange(raw)
-                            suggestions = emptyList()
-                        }) {
+                        TextButton(
+                            onClick = {
+                                val (raw, cursor) = insertStructuredLink(
+                                    fieldValue.text,
+                                    fieldValue.selection.start,
+                                    suggestion,
+                                )
+                                fieldValue = TextFieldValue(raw, selection = TextRange(cursor))
+                                onRawTextChange(raw)
+                                suggestions = emptyList()
+                            },
+                        ) {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
-                                        imageVector = if (suggestion.type.name == "NODE") Icons.Default.AccountTree else Icons.Default.AttachFile,
+                                        imageVector = if (suggestion.type == LinkSuggestionType.NODE) {
+                                            Icons.Default.AccountTree
+                                        } else {
+                                            Icons.Default.AttachFile
+                                        },
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(16.dp),
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Text(
@@ -248,4 +261,49 @@ fun InlineLinkEditor(
             }
         }
     }
+}
+
+fun buildInlineAnnotatedString(
+    rawText: String,
+    linkColor: Color = Color.Unspecified,
+): AnnotatedString {
+    val structuredLinks = extractStructuredLinks(rawText)
+    val display = toDisplayInlineText(rawText)
+    val builder = AnnotatedString.Builder(display)
+    var searchStart = 0
+
+    structuredLinks.forEach { link ->
+        val token = "[[${link.title}]]"
+        val start = display.indexOf(token, startIndex = searchStart)
+        if (start >= 0) {
+            val end = start + token.length
+            builder.addStyle(
+                SpanStyle(
+                    color = linkColor,
+                    fontWeight = FontWeight.Medium,
+                    textDecoration = TextDecoration.Underline,
+                    fontSize = 15.sp,
+                ),
+                start,
+                end,
+            )
+            builder.addStringAnnotation("inline-link", link.targetId, start, end)
+            searchStart = end
+        }
+    }
+
+    displayLinkRanges(display).forEach { range ->
+        builder.addStyle(
+            SpanStyle(
+                color = linkColor,
+                fontWeight = FontWeight.Medium,
+                textDecoration = TextDecoration.Underline,
+                fontSize = 15.sp,
+            ),
+            range.first,
+            range.last + 1,
+        )
+    }
+
+    return builder.toAnnotatedString()
 }

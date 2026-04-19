@@ -1,8 +1,7 @@
 @file:OptIn(ExperimentalFoundationApi::class)
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.feature.workspace
 
-import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -15,11 +14,11 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Label
 import androidx.compose.material3.Button
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -47,8 +46,18 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.gleanread.android.appContainer
 import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeBranchRoute
 import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeHomeRoute
+import com.gleanread.android.feature.workspace.component.ExcerptPreviewDialog
+import com.gleanread.android.feature.workspace.component.QuickCaptureOverlay
+import com.gleanread.android.feature.workspace.feed.FeedRoute
+import com.gleanread.android.feature.workspace.feed.FeedViewModel
+import com.gleanread.android.feature.workspace.graph.GraphRoute
+import com.gleanread.android.feature.workspace.node_detail.NodeDetailRoute
+import com.gleanread.android.feature.workspace.summary.AiSummaryRoute
+import com.gleanread.android.feature.workspace.summary.AiSummaryViewModel
+import com.gleanread.android.feature.workspace.tags.TagsRoute
 
 object WorkspaceRoutes {
     const val Feed = "feed"
@@ -65,24 +74,32 @@ object WorkspaceRoutes {
 }
 
 @Composable
-fun WorkspaceApp(
-    workspaceViewModel: WorkspaceViewModel = viewModel(
-        factory = WorkspaceViewModel.factory(LocalContext.current.applicationContext as Context)
-    ),
-) {
+fun WorkspaceApp() {
+    val appContainer = LocalContext.current.appContainer
+    val workspaceViewModel: WorkspaceViewModel = viewModel(factory = appContainer.workspaceViewModelFactory)
+    val feedViewModel: FeedViewModel = viewModel(factory = appContainer.feedViewModelFactory)
+    val quickCaptureViewModel: com.gleanread.android.feature.workspace.capture.QuickCaptureViewModel =
+        viewModel(factory = appContainer.quickCaptureViewModelFactory)
+    val aiSummaryViewModel: AiSummaryViewModel = viewModel(factory = appContainer.aiSummaryViewModelFactory)
+
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
     val route = currentEntry?.destination?.route ?: WorkspaceRoutes.Feed
-    val uiState by workspaceViewModel.uiState.collectAsStateWithLifecycle()
+    val snapshot by workspaceViewModel.snapshot.collectAsStateWithLifecycle()
+    val feedUiState by feedViewModel.uiState.collectAsStateWithLifecycle()
+    val quickCaptureUiState by quickCaptureViewModel.uiState.collectAsStateWithLifecycle()
+    val aiSummaryDraft by aiSummaryViewModel.draft.collectAsStateWithLifecycle()
     var previewExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
 
     val isMainRoute =
         route == WorkspaceRoutes.Feed || route == WorkspaceRoutes.Tree || route == WorkspaceRoutes.Tags
-    val showEmptyGuide = route == WorkspaceRoutes.Feed && uiState.snapshot.isEmpty
+    val showEmptyGuide = route == WorkspaceRoutes.Feed && snapshot.isEmpty
     val showFab =
-        (route == WorkspaceRoutes.Feed || route == WorkspaceRoutes.Tags) && !uiState.isSelectionMode && !showEmptyGuide
-    val showBottomNav = isMainRoute && !uiState.isSelectionMode && !showEmptyGuide
-    val showSelectionBar = route == WorkspaceRoutes.Feed && uiState.isSelectionMode
+        (route == WorkspaceRoutes.Feed || route == WorkspaceRoutes.Tags) &&
+            !feedUiState.isSelectionMode &&
+            !showEmptyGuide
+    val showBottomNav = isMainRoute && !feedUiState.isSelectionMode && !showEmptyGuide
+    val showSelectionBar = route == WorkspaceRoutes.Feed && feedUiState.isSelectionMode
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -90,7 +107,7 @@ fun WorkspaceApp(
         floatingActionButton = {
             if (showFab) {
                 FloatingActionButton(
-                    onClick = workspaceViewModel::openQuickCapture,
+                    onClick = quickCaptureViewModel::open,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ) {
@@ -116,51 +133,55 @@ fun WorkspaceApp(
                 )
             } else if (showSelectionBar) {
                 SelectionActionBar(
-                    selectedCount = uiState.selectedExcerptIds.size,
-                    onCancel = workspaceViewModel::clearSelection,
+                    selectedCount = feedUiState.selectedExcerptIds.size,
+                    onCancel = feedViewModel::clearSelection,
                     onOpenAiSummary = {
-                        workspaceViewModel.prepareAiSummary()
+                        aiSummaryViewModel.prepare(feedUiState.selectedExcerptIds.toList())
                         navController.navigate(WorkspaceRoutes.AiSummary)
                     },
                 )
             }
-        }) { innerPadding ->
-        Box(modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding)) {
+        },
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = WorkspaceRoutes.Feed,
                 modifier = Modifier.fillMaxSize(),
                 enterTransition = {
                     androidx.compose.animation.fadeIn(
-                        androidx.compose.animation.core.tween(300)
+                        androidx.compose.animation.core.tween(300),
                     )
                 },
                 exitTransition = {
                     androidx.compose.animation.fadeOut(
-                        androidx.compose.animation.core.tween(300)
+                        androidx.compose.animation.core.tween(300),
                     )
                 },
             ) {
                 composable(WorkspaceRoutes.Feed) {
                     FeedRoute(
-                        uiState = uiState,
+                        snapshot = snapshot,
+                        uiState = feedUiState,
                         onOpenAiSummary = {
-                            workspaceViewModel.prepareAiSummary()
+                            aiSummaryViewModel.prepare(feedUiState.selectedExcerptIds.toList())
                             navController.navigate(WorkspaceRoutes.AiSummary)
                         },
-                        onLongPress = workspaceViewModel::enterSelectionMode,
-                        onToggleSelection = workspaceViewModel::toggleExcerptSelection,
+                        onLongPress = feedViewModel::enterSelectionMode,
+                        onToggleSelection = feedViewModel::toggleExcerptSelection,
                         onLoadSample = workspaceViewModel::loadSampleData,
-                        onStartRecording = workspaceViewModel::openQuickCapture,
+                        onStartRecording = quickCaptureViewModel::open,
                         onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
                         onPreviewExcerpt = { previewExcerptId = it },
                     )
                 }
                 composable(WorkspaceRoutes.Tree) {
                     KnowledgeTreeHomeRoute(
-                        snapshot = uiState.snapshot,
+                        snapshot = snapshot,
                         onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
                         onOpenBranch = { navController.navigate(WorkspaceRoutes.treeBranch(it)) },
                         onCreateRootNode = workspaceViewModel::createRootNode,
@@ -175,7 +196,7 @@ fun WorkspaceApp(
                 ) { backStackEntry ->
                     val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
                     KnowledgeTreeBranchRoute(
-                        snapshot = uiState.snapshot,
+                        snapshot = snapshot,
                         nodeId = nodeId,
                         onBack = { navController.popBackStack() },
                         onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
@@ -186,34 +207,36 @@ fun WorkspaceApp(
                     )
                 }
                 composable(WorkspaceRoutes.Tags) {
-                    TagsRoute(tagGroups = uiState.snapshot.tagGroups)
+                    TagsRoute(tagGroups = snapshot.tagGroups)
                 }
                 composable(WorkspaceRoutes.AiSummary) {
                     AiSummaryRoute(
-                        uiState = uiState,
+                        snapshot = snapshot,
+                        draft = aiSummaryDraft,
                         searchSuggestions = workspaceViewModel::searchSuggestions,
                         onClose = {
-                            workspaceViewModel.clearAiSummary()
+                            aiSummaryViewModel.clear()
                             navController.popBackStack()
                         },
                         onSave = {
-                            workspaceViewModel.saveAiSummary {
+                            aiSummaryViewModel.save {
+                                feedViewModel.clearSelection()
                                 navController.popBackStack(WorkspaceRoutes.Feed, false)
                             }
                         },
-                        onSelectTargetNode = workspaceViewModel::selectAiTargetNode,
-                        onSelectParentNode = workspaceViewModel::selectAiParentNode,
-                        onMarkdownChange = workspaceViewModel::updateAiMarkdown,
-                        onNewNodeTitleChange = workspaceViewModel::updateAiNewNodeTitle,
+                        onSelectTargetNode = aiSummaryViewModel::selectTargetNode,
+                        onSelectParentNode = aiSummaryViewModel::selectParentNode,
+                        onMarkdownChange = aiSummaryViewModel::updateMarkdown,
+                        onNewNodeTitleChange = aiSummaryViewModel::updateNewNodeTitle,
                     )
                 }
                 composable(
                     route = WorkspaceRoutes.NodePattern,
-                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType })
+                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
                 ) { backStackEntry ->
                     val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
                     NodeDetailRoute(
-                        snapshot = uiState.snapshot,
+                        snapshot = snapshot,
                         nodeId = nodeId,
                         searchSuggestions = workspaceViewModel::searchSuggestions,
                         onBack = { navController.popBackStack() },
@@ -221,19 +244,16 @@ fun WorkspaceApp(
                         onUpdateOutline = workspaceViewModel::updateNodeOutline,
                         onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
                         onPreviewExcerpt = { previewExcerptId = it },
-                        onAddExcerpt = {
-                            workspaceViewModel.setQuickCaptureArchiveNode(nodeId)
-                            workspaceViewModel.openQuickCapture()
-                        },
+                        onAddExcerpt = { quickCaptureViewModel.openForNode(nodeId) },
                     )
                 }
                 composable(
                     route = WorkspaceRoutes.GraphPattern,
-                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType })
+                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
                 ) { backStackEntry ->
                     val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
                     GraphRoute(
-                        snapshot = uiState.snapshot,
+                        snapshot = snapshot,
                         nodeId = nodeId,
                         onBack = { navController.popBackStack() },
                         onOpenNode = { navController.navigate(WorkspaceRoutes.node(it)) },
@@ -242,31 +262,31 @@ fun WorkspaceApp(
                 }
             }
 
-            // FAB and BottomNav are now handled by Scaffold
-
-            if (uiState.isQuickCaptureOpen) {
+            if (quickCaptureUiState.isOpen) {
                 QuickCaptureOverlay(
-                    snapshot = uiState.snapshot,
-                    draft = uiState.quickCaptureDraft,
+                    snapshot = snapshot,
+                    draft = quickCaptureUiState.draft,
                     searchSuggestions = workspaceViewModel::searchSuggestions,
-                    onDismiss = workspaceViewModel::closeQuickCapture,
-                    onContentChange = workspaceViewModel::updateQuickCaptureContent,
-                    onThoughtChange = workspaceViewModel::updateQuickCaptureThought,
-                    onUrlChange = workspaceViewModel::updateQuickCaptureUrl,
-                    onTagToggle = workspaceViewModel::toggleQuickCaptureTag,
-                    onArchiveNodeSelect = workspaceViewModel::setQuickCaptureArchiveNode,
-                    onSave = { workspaceViewModel.saveQuickCapture() },
+                    onDismiss = quickCaptureViewModel::close,
+                    onContentChange = quickCaptureViewModel::updateContent,
+                    onThoughtChange = quickCaptureViewModel::updateThought,
+                    onUrlChange = quickCaptureViewModel::updateUrl,
+                    onTagToggle = quickCaptureViewModel::toggleTag,
+                    onArchiveNodeSelect = quickCaptureViewModel::setArchiveNode,
+                    onSave = { quickCaptureViewModel.save() },
                 )
             }
 
             previewExcerptId?.let { excerptId ->
-                uiState.snapshot.excerptsById[excerptId]?.let { excerpt ->
+                snapshot.excerptsById[excerptId]?.let { excerpt ->
                     ExcerptPreviewDialog(
                         excerpt = excerpt,
                         onDismiss = { previewExcerptId = null },
                         onOpenNode = { nodeId ->
                             previewExcerptId = null
-                            if (nodeId != null) navController.navigate(WorkspaceRoutes.node(nodeId))
+                            if (nodeId != null) {
+                                navController.navigate(WorkspaceRoutes.node(nodeId))
+                            }
                         },
                     )
                 }
@@ -286,17 +306,20 @@ fun BottomNavigationBar(
             selected = currentRoute == WorkspaceRoutes.Feed,
             onClick = { onNavigate(WorkspaceRoutes.Feed) },
             icon = { Icon(Icons.Default.Home, contentDescription = "摘录") },
-            label = { Text("摘录") })
+            label = { Text("摘录") },
+        )
         NavigationBarItem(
             selected = currentRoute == WorkspaceRoutes.Tree,
             onClick = { onNavigate(WorkspaceRoutes.Tree) },
             icon = { Icon(Icons.Default.AccountTree, contentDescription = "知识树") },
-            label = { Text("知识树") })
+            label = { Text("知识树") },
+        )
         NavigationBarItem(
             selected = currentRoute == WorkspaceRoutes.Tags,
             onClick = { onNavigate(WorkspaceRoutes.Tags) },
-            icon = { Icon(Icons.Default.Label, contentDescription = "标签") },
-            label = { Text("标签") })
+            icon = { Icon(Icons.AutoMirrored.Filled.Label, contentDescription = "标签") },
+            label = { Text("标签") },
+        )
     }
 }
 
@@ -319,18 +342,18 @@ fun SelectionActionBar(
         Text(
             "已选 $selectedCount 项",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.Medium
+            fontWeight = FontWeight.Medium,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             TextButton(onClick = onCancel) { Text("取消") }
             Button(onClick = onOpenAiSummary, enabled = selectedCount > 0) {
                 Icon(
                     Icons.Default.AutoAwesome,
-                    contentDescription = "AI提炼并归档",
-                    modifier = Modifier.size(18.dp)
+                    contentDescription = "AI 提炼并归档",
+                    modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.size(8.dp))
-                Text("AI提炼并归档")
+                Text("AI 提炼并归档")
             }
         }
     }

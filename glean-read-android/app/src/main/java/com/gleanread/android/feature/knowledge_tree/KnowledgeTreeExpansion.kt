@@ -1,6 +1,6 @@
 package com.gleanread.android.feature.knowledge_tree
 
-import com.gleanread.android.data.model.WorkspaceSnapshot
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 internal fun collectExpandablePreviewIds(
     snapshot: WorkspaceSnapshot,

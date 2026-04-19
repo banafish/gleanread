@@ -6,6 +6,7 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
+import com.gleanread.android.feature.workspace.data.WorkspaceSnapshotStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -52,7 +53,7 @@ class WorkspaceRepositorySuggestedTagsTest {
             )
         )
 
-        val snapshot = repository.snapshot.first()
+        val snapshot = WorkspaceSnapshotStore(repository).snapshot.first()
 
         assertEquals(listOf("AI/大模型"), snapshot.suggestedTags.map { it.fullName })
         assertEquals(listOf("#大模型"), snapshot.suggestedTags.map { it.label })

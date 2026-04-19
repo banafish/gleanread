@@ -1,33 +1,16 @@
 package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
+import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.core.richtext.LinkSuggestionType
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDao
 import com.gleanread.android.data.local.WorkspaceDatabase
-import com.gleanread.android.data.model.BacklinkType
-import com.gleanread.android.data.model.BacklinkUiModel
-import com.gleanread.android.data.model.ExcerptUiModel
-import com.gleanread.android.data.model.FlatNodeUiModel
-import com.gleanread.android.data.model.GraphNodeKind
-import com.gleanread.android.data.model.GraphUiEdge
-import com.gleanread.android.data.model.GraphUiModel
-import com.gleanread.android.data.model.GraphUiNode
-import com.gleanread.android.data.model.LinkSuggestion
-import com.gleanread.android.data.model.LinkSuggestionType
 import com.gleanread.android.data.model.LOCAL_USER_ID
-import com.gleanread.android.data.model.OutlineDraft
-import com.gleanread.android.data.model.SuggestedTagUiModel
 import com.gleanread.android.data.model.SyncStatus
-import com.gleanread.android.data.model.TagGroupUiModel
-import com.gleanread.android.data.model.TagUiModel
-import com.gleanread.android.data.model.TreeNodeUiModel
-import com.gleanread.android.data.model.WorkspaceSnapshot
-import com.gleanread.android.data.model.buildInlineAnnotatedString
-import com.gleanread.android.data.model.excerptTitleFallback
-import com.gleanread.android.data.model.extractStructuredLinks
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -39,13 +22,18 @@ class WorkspaceRepository(
 ) {
     private val dao: WorkspaceDao = database.workspaceDao()
 
-    val snapshot: Flow<WorkspaceSnapshot> = combine(
+    val localSnapshot: Flow<WorkspaceLocalSnapshot> = combine(
         dao.observeExcerpts(),
         dao.observeNodes(),
         dao.observeTags(),
         dao.observeExcerptTags(),
     ) { excerpts, nodes, tags, relations ->
-        buildSnapshot(excerpts, nodes, tags, relations)
+        WorkspaceLocalSnapshot(
+            excerpts = excerpts,
+            nodes = nodes,
+            tags = tags,
+            relations = relations,
+        )
     }.distinctUntilChanged()
 
     fun observeAvailableTagNames(): Flow<List<String>> {
@@ -65,29 +53,25 @@ class WorkspaceRepository(
     }
 
     suspend fun searchSuggestions(query: String): List<LinkSuggestion> {
-        val snapshot = buildSnapshot(
-            dao.getExcerptsOnce(),
-            dao.getNodesOnce(),
-            dao.getTagsOnce(),
-            dao.getExcerptTagsOnce(),
-        )
-        val nodeSuggestions = snapshot.flatNodes.values.map {
+        val nodes = dao.getNodesOnce()
+        val excerpts = dao.getExcerptsOnce()
+        val nodeSuggestions = nodes.map {
             LocalSuggestionCandidate(
                 id = it.id,
-                title = it.title,
-                preview = it.outlineMarkdown.ifBlank { "知识树节点" },
+                title = it.nodeTitle,
+                preview = it.outlineMarkdown.orEmpty().ifBlank { "知识树节点" },
                 type = LinkSuggestionType.NODE,
             )
         }
-        val excerptSuggestions = snapshot.excerpts.map {
+        val excerptSuggestions = excerpts.map {
             LocalSuggestionCandidate(
                 id = it.id,
-                title = excerptTitleFallback(it),
+                title = excerptTitle(it),
                 preview = buildString {
                     append(it.content)
-                    if (it.thought.isNotBlank()) {
+                    if (!it.userThought.isNullOrBlank()) {
                         append(" ")
-                        append(it.thought)
+                        append(it.userThought)
                     }
                 },
                 type = LinkSuggestionType.EXCERPT,
@@ -111,7 +95,7 @@ class WorkspaceRepository(
                 createTime = now,
                 updateTime = now,
                 syncStatus = SyncStatus.PENDING_CREATE.code,
-            )
+            ),
         )
         return nodeId
     }
@@ -132,7 +116,7 @@ class WorkspaceRepository(
                 createTime = now,
                 updateTime = now,
                 syncStatus = SyncStatus.PENDING_CREATE.code,
-            )
+            ),
         )
         return nodeId
     }
@@ -147,7 +131,7 @@ class WorkspaceRepository(
                 nodeTitle = trimmed,
                 updateTime = now,
                 syncStatus = SyncStatus.bump(node.syncStatus),
-            )
+            ),
         )
     }
 
@@ -173,7 +157,7 @@ class WorkspaceRepository(
                             updateTime = now,
                             syncStatus = SyncStatus.markDeleted(node.syncStatus),
                         )
-                    }
+                    },
                 )
             }
             if (subtreeIds.isNotEmpty()) {
@@ -186,7 +170,7 @@ class WorkspaceRepository(
                                 updateTime = now,
                                 syncStatus = SyncStatus.bump(excerpt.syncStatus),
                             )
-                        }
+                        },
                     )
                 }
             }
@@ -219,7 +203,7 @@ class WorkspaceRepository(
                     createTime = now,
                     updateTime = now,
                     syncStatus = SyncStatus.PENDING_CREATE.code,
-                )
+                ),
             )
             if (resolvedTags.isNotEmpty()) {
                 dao.insertExcerptTags(
@@ -233,7 +217,7 @@ class WorkspaceRepository(
                             updateTime = now,
                             syncStatus = SyncStatus.PENDING_CREATE.code,
                         )
-                    }
+                    },
                 )
             }
         }
@@ -271,7 +255,7 @@ class WorkspaceRepository(
                         createTime = now,
                         updateTime = now,
                         syncStatus = SyncStatus.PENDING_CREATE.code,
-                    )
+                    ),
                 )
             } else {
                 dao.findNodeById(resolvedNodeId)?.let { node ->
@@ -280,7 +264,7 @@ class WorkspaceRepository(
                             outlineMarkdown = outlineMarkdown,
                             updateTime = now,
                             syncStatus = SyncStatus.bump(node.syncStatus),
-                        )
+                        ),
                     )
                 }
             }
@@ -293,7 +277,7 @@ class WorkspaceRepository(
                         updateTime = now,
                         syncStatus = SyncStatus.bump(excerpt.syncStatus),
                     )
-                }
+                },
             )
         }
         return resolvedNodeId
@@ -307,7 +291,7 @@ class WorkspaceRepository(
                 outlineMarkdown = rawMarkdown,
                 updateTime = now,
                 syncStatus = SyncStatus.bump(node.syncStatus),
-            )
+            ),
         )
     }
 
@@ -339,202 +323,9 @@ class WorkspaceRepository(
             }
     }
 
-    private fun buildSnapshot(
-        excerpts: List<ExcerptEntity>,
-        nodes: List<KnowledgeTreeNodeEntity>,
-        tags: List<TagEntity>,
-        relations: List<ExcerptTagEntity>,
-    ): WorkspaceSnapshot {
-        val nodeMap = nodes.associateBy { it.id }
-        val tagMap = tags.associateBy { it.id }
-        val tagNamesByExcerptId = relations.groupBy { it.excerptId }
-            .mapValues { (_, value) -> value.mapNotNull { tagMap[it.tagId]?.tagName }.sorted() }
-
-        val excerptsUi = excerpts.map { excerpt ->
-            val archivedNode = excerpt.treeNodeId?.let(nodeMap::get)
-            ExcerptUiModel(
-                id = excerpt.id,
-                content = excerpt.content,
-                thought = excerpt.userThought.orEmpty(),
-                url = excerpt.url,
-                sourceTitle = excerpt.sourceTitle,
-                tags = tagNamesByExcerptId[excerpt.id].orEmpty(),
-                archivedNodeId = archivedNode?.id,
-                archivedNodeTitle = archivedNode?.nodeTitle,
-                createTime = excerpt.createTime,
-            )
-        }
-
-        val excerptIdsByNodeId = excerpts.groupBy { it.treeNodeId }
-            .mapValues { (_, value) -> value.map { it.id } }
-        val childNodeIdsByParent = nodes.groupBy { it.parentId }
-            .mapValues { (_, value) -> value.map(KnowledgeTreeNodeEntity::id) }
-
-        val flatNodes = nodes.associate { node ->
-            node.id to FlatNodeUiModel(
-                id = node.id,
-                parentId = node.parentId,
-                title = node.nodeTitle,
-                outlineMarkdown = node.outlineMarkdown.orEmpty(),
-                excerptIds = excerptIdsByNodeId[node.id].orEmpty(),
-                excerptCount = excerptIdsByNodeId[node.id].orEmpty().size,
-                childNodeIds = childNodeIdsByParent[node.id].orEmpty(),
-            )
-        }
-
-        val treeRoots = buildTree(nodeMap.values.toList(), excerptIdsByNodeId)
-        val tagGroups = buildTagGroups(tags)
-        val backlinksByNodeId = buildBacklinks(nodes, excerpts)
-        val graphByNodeId = buildGraphs(flatNodes, excerptsUi.associateBy { it.id }, backlinksByNodeId)
-
-        return WorkspaceSnapshot(
-            isEmpty = excerpts.isEmpty() && nodes.isEmpty() && tags.isEmpty(),
-            excerpts = excerptsUi.sortedByDescending { it.createTime },
-            treeRoots = treeRoots,
-            flatNodes = flatNodes,
-            excerptsById = excerptsUi.associateBy { it.id },
-            tagGroups = tagGroups,
-            backlinksByNodeId = backlinksByNodeId,
-            graphByNodeId = graphByNodeId,
-            suggestedTags = tags.sortedByDescending { it.heatWeight }.take(6).map {
-                SuggestedTagUiModel(
-                    fullName = it.tagName,
-                    label = normalizeTagLabel(it.tagName),
-                )
-            },
-        )
-    }
-
-    private fun buildTree(
-        nodes: List<KnowledgeTreeNodeEntity>,
-        excerptIdsByNodeId: Map<String?, List<String>>,
-    ): List<TreeNodeUiModel> {
-        val childrenByParent = nodes.groupBy { it.parentId }
-        fun toTree(parentId: String?): List<TreeNodeUiModel> {
-            return childrenByParent[parentId].orEmpty().map { node ->
-                val children = toTree(node.id)
-                TreeNodeUiModel(
-                    id = node.id,
-                    title = node.nodeTitle,
-                    count = excerptIdsByNodeId[node.id].orEmpty().size,
-                    children = children,
-                )
-            }
-        }
-        return toTree(null)
-    }
-
-    private fun buildTagGroups(tags: List<TagEntity>): List<TagGroupUiModel> {
-        return tags.groupBy { folderName(it.tagName) }
-            .map { (folder, group) ->
-                TagGroupUiModel(
-                    folder = folder,
-                    count = group.sumOf { it.heatWeight },
-                    items = group.sortedByDescending { it.heatWeight }.map { tag ->
-                        TagUiModel(
-                            id = tag.id,
-                            folder = folder,
-                            displayName = displayTagName(tag.tagName),
-                            fullName = tag.tagName,
-                            heatWeight = tag.heatWeight,
-                        )
-                    }
-                )
-            }
-            .sortedByDescending { it.count }
-    }
-
-    private fun buildBacklinks(
-        nodes: List<KnowledgeTreeNodeEntity>,
-        excerpts: List<ExcerptEntity>,
-    ): Map<String, List<BacklinkUiModel>> {
-        val backlinks = mutableMapOf<String, MutableList<BacklinkUiModel>>()
-        nodes.forEach { node ->
-            val text = node.outlineMarkdown.orEmpty()
-            extractStructuredLinks(text).forEach { link ->
-                backlinks.getOrPut(link.targetId) { mutableListOf() }.add(
-                    BacklinkUiModel(
-                        sourceId = node.id,
-                        title = node.nodeTitle,
-                        sourceType = BacklinkType.NODE,
-                        snippet = toDisplay(text),
-                    )
-                )
-            }
-        }
-        excerpts.forEach { excerpt ->
-            listOf(excerpt.content, excerpt.userThought.orEmpty()).forEach { text ->
-                extractStructuredLinks(text).forEach { link ->
-                    backlinks.getOrPut(link.targetId) { mutableListOf() }.add(
-                        BacklinkUiModel(
-                            sourceId = excerpt.id,
-                            title = excerptTitle(excerpt),
-                            sourceType = BacklinkType.EXCERPT,
-                            snippet = toDisplay(text),
-                        )
-                    )
-                }
-            }
-        }
-        return backlinks.mapValues { (_, items) -> items.distinctBy { it.sourceId } }
-    }
-
-    private fun buildGraphs(
-        flatNodes: Map<String, FlatNodeUiModel>,
-        excerptsById: Map<String, ExcerptUiModel>,
-        backlinksByNodeId: Map<String, List<BacklinkUiModel>>,
-    ): Map<String, GraphUiModel> {
-        return flatNodes.values.associate { node ->
-            val nodes = mutableListOf(
-                GraphUiNode(node.id, node.title, GraphNodeKind.CURRENT_NODE)
-            )
-            val edges = mutableListOf<GraphUiEdge>()
-
-            node.excerptIds.forEach { excerptId ->
-                excerptsById[excerptId]?.let { excerpt ->
-                    nodes.add(GraphUiNode(excerpt.id, excerptTitleFallback(excerpt), GraphNodeKind.EXCERPT))
-                    edges.add(GraphUiEdge(node.id, excerpt.id))
-                }
-            }
-
-            extractStructuredLinks(node.outlineMarkdown).forEach { link ->
-                val linkedNode = flatNodes[link.targetId]
-                if (linkedNode != null) {
-                    nodes.add(GraphUiNode(linkedNode.id, linkedNode.title, GraphNodeKind.LINKED_NODE))
-                    edges.add(GraphUiEdge(node.id, linkedNode.id))
-                }
-            }
-
-            backlinksByNodeId[node.id].orEmpty().forEach { backlink ->
-                val kind = if (backlink.sourceType == BacklinkType.NODE) GraphNodeKind.BACKLINK_NODE else GraphNodeKind.EXCERPT
-                nodes.add(GraphUiNode(backlink.sourceId, backlink.title, kind))
-                edges.add(GraphUiEdge(backlink.sourceId, node.id))
-            }
-
-            node.id to GraphUiModel(
-                nodes = nodes.distinctBy { it.id },
-                edges = edges.distinct(),
-            )
-        }
-    }
-
-    private fun folderName(tagName: String): String {
-        return if (tagName.contains('/')) tagName.substringBefore('/') else "无分类"
-    }
-
-    private fun displayTagName(tagName: String): String {
-        return if (tagName.contains('/')) tagName.substringAfterLast('/') else tagName
-    }
-
-    private fun normalizeTagLabel(tagName: String): String = "#${displayTagName(tagName)}"
-
     private fun excerptTitle(excerpt: ExcerptEntity): String {
         return excerpt.sourceTitle?.takeIf { it.isNotBlank() }
             ?: excerpt.content.take(18).trim() + if (excerpt.content.length > 18) "..." else ""
-    }
-
-    private fun toDisplay(text: String): String {
-        return buildInlineAnnotatedString(text).text.take(80)
     }
 }
 

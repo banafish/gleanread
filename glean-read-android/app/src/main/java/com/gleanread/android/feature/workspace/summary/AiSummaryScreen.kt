@@ -3,7 +3,7 @@
     androidx.compose.material3.ExperimentalMaterial3Api::class
 )
 
-package com.gleanread.android.ui.workspace
+package com.gleanread.android.feature.workspace.summary
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -49,11 +49,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.data.model.LinkSuggestion
+import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.core.ui.richtext.InlineLinkEditor
+import com.gleanread.android.feature.workspace.component.NodePickerOverlay
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 @Composable
 fun AiSummaryRoute(
-    uiState: WorkspaceUiState,
+    snapshot: WorkspaceSnapshot,
+    draft: AiSummaryDraft,
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onClose: () -> Unit,
     onSave: () -> Unit,
@@ -64,9 +68,8 @@ fun AiSummaryRoute(
 ) {
     var showNodePicker by rememberSaveable { mutableStateOf(false) }
     var createNewNode by rememberSaveable { mutableStateOf(false) }
-    val draft = uiState.aiSummaryDraft
-    val selectedExcerpts = draft.selectedExcerptIds.mapNotNull(uiState.snapshot.excerptsById::get)
-    val selectedNodeTitle = draft.targetNodeId?.let { uiState.snapshot.flatNodes[it]?.title }
+    val selectedExcerpts = draft.selectedExcerptIds.mapNotNull(snapshot.excerptsById::get)
+    val selectedNodeTitle = draft.targetNodeId?.let { snapshot.flatNodes[it]?.title }
 
     Column(
         modifier = Modifier
@@ -210,7 +213,7 @@ fun AiSummaryRoute(
 
     if (showNodePicker) {
         NodePickerOverlay(
-            snapshot = uiState.snapshot,
+            snapshot = snapshot,
             createNewNode = createNewNode,
             draftTitle = draft.newNodeTitle,
             selectedTargetNodeId = draft.targetNodeId,

@@ -1,8 +1,8 @@
 package com.gleanread.android.feature.knowledge_tree.model
 
-import com.gleanread.android.data.model.FlatNodeUiModel
-import com.gleanread.android.data.model.WorkspaceSnapshot
-import com.gleanread.android.data.model.TreeNodeUiModel
+import com.gleanread.android.feature.workspace.model.FlatNodeUiModel
+import com.gleanread.android.feature.workspace.model.TreeNodeUiModel
+import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
