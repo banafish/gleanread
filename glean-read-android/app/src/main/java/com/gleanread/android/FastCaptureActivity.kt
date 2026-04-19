@@ -1,5 +1,6 @@
 ﻿package com.gleanread.android
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
@@ -68,12 +69,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,19 +95,16 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gleanread.android.capture.CaptureSeedResolver
 import com.gleanread.android.capture.PageContextAccessibilityState
 import com.gleanread.android.capture.PageContextStore
 import com.gleanread.android.capture.PageContextSupport
-import com.gleanread.android.data.local.WorkspaceDatabase
-import com.gleanread.android.data.repository.WorkspaceRepository
 import com.gleanread.android.ui.CaptureBottomSheet
 import com.gleanread.android.ui.ContextHintCard
 import com.gleanread.android.ui.RichExcerptCard
 import com.gleanread.android.ui.theme.GleanReadTheme
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class FastCaptureActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -138,6 +138,11 @@ class FastCaptureActivity : ComponentActivity() {
     }
 }
 
+private val StringSetStateSaver = listSaver<MutableState<Set<String>>, String>(
+    save = { state -> state.value.toList() },
+    restore = { restored -> mutableStateOf(restored.toSet()) },
+)
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CaptureDialogV2(
@@ -148,17 +153,19 @@ fun CaptureDialogV2(
     usedCachedUrl: Boolean,
     usedCachedTitle: Boolean,
     onDismiss: () -> Unit,
+    fastCaptureViewModel: FastCaptureViewModel = viewModel(
+        factory = FastCaptureViewModel.factory(LocalContext.current.applicationContext as Context),
+    ),
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val repository = remember(context) {
-        WorkspaceRepository(WorkspaceDatabase.get(context))
+    val uiState by fastCaptureViewModel.uiState.collectAsStateWithLifecycle()
+    val availableTags = uiState.availableTags
+    val isSaving = uiState.isSaving
+    var thought by rememberSaveable { mutableStateOf("") }
+    var selectedTags by rememberSaveable(saver = StringSetStateSaver) {
+        mutableStateOf(emptySet<String>())
     }
-    val availableTagsFlow = remember(repository) { repository.observeAvailableTagNames() }
-    val availableTags by availableTagsFlow.collectAsState(initial = emptyList())
-    var thought by remember { mutableStateOf("") }
-    var selectedTags by remember { mutableStateOf(setOf<String>()) }
-    var currentUrl by remember { mutableStateOf(initialUrl) }
+    var currentUrl by rememberSaveable { mutableStateOf(initialUrl) }
     val density = LocalDensity.current
     val isImeVisible = WindowInsets.ime.getBottom(density) > 0
     val isAccessibilityEnabled = remember(context) {
@@ -176,14 +183,21 @@ fun CaptureDialogV2(
         label = "capture_sheet_height",
     )
 
-    var isSaving by remember { mutableStateOf(false) }
-    var isInputFocused by remember { mutableStateOf(false) }
-    var showTagMenu by remember { mutableStateOf(false) }
-    var tagDraftSelection by remember { mutableStateOf(setOf<String>()) }
-    var tagSearchQuery by remember { mutableStateOf("") }
-    var showLinkMenu by remember { mutableStateOf(false) }
-    var tempLink by remember { mutableStateOf("") }
+    var isInputFocused by rememberSaveable { mutableStateOf(false) }
+    var showTagMenu by rememberSaveable { mutableStateOf(false) }
+    var tagDraftSelection by rememberSaveable(saver = StringSetStateSaver) {
+        mutableStateOf(emptySet<String>())
+    }
+    var tagSearchQuery by rememberSaveable { mutableStateOf("") }
+    var showLinkMenu by rememberSaveable { mutableStateOf(false) }
+    var tempLink by rememberSaveable { mutableStateOf("") }
     val shouldCompactCaptureLayout = isImeVisible || isInputFocused
+
+    LaunchedEffect(uiState.isSaved) {
+        if (uiState.isSaved) {
+            onDismiss()
+        }
+    }
 
     val targetBgColor =
         if (isInputFocused || showTagMenu || showLinkMenu) {
@@ -426,24 +440,13 @@ fun CaptureDialogV2(
                             Surface(
                                 onClick = {
                                     if (!isSaving) {
-                                        isSaving = true
-                                        scope.launch {
-                                            try {
-                                                withContext(Dispatchers.IO) {
-                                                    repository.saveQuickExcerpt(
-                                                        content = initialSharedContent,
-                                                        thought = thought,
-                                                        url = currentUrl,
-                                                        sourceTitle = initialSourceTitle,
-                                                        tagNames = selectedTags.toList(),
-                                                        archiveNodeId = null,
-                                                    )
-                                                }
-                                                onDismiss()
-                                            } catch (_: Exception) {
-                                                isSaving = false
-                                            }
-                                        }
+                                        fastCaptureViewModel.saveQuickExcerpt(
+                                            content = initialSharedContent,
+                                            thought = thought,
+                                            url = currentUrl,
+                                            sourceTitle = initialSourceTitle,
+                                            tagNames = selectedTags,
+                                        )
                                     }
                                 },
                                 shape = CircleShape,

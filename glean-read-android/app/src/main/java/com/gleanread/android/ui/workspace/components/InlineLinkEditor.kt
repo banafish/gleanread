@@ -4,6 +4,7 @@ package com.gleanread.android.ui.workspace
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
@@ -37,7 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.onLongClick
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -45,10 +52,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.TextLayoutResult
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 import com.gleanread.android.data.model.LinkSuggestion
 import com.gleanread.android.data.model.buildInlineAnnotatedString
 import com.gleanread.android.data.model.currentInlineQuery
@@ -67,6 +70,19 @@ fun LinkAwareText(
 ) {
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
+    val accessibilityActions = remember(annotated, onLinkClick) {
+        annotated.getStringAnnotations(
+            tag = "inline-link",
+            start = 0,
+            end = annotated.length,
+        ).map { annotation ->
+            val label = annotated.text.substring(annotation.start, annotation.end)
+            CustomAccessibilityAction(label = "打开 $label") {
+                onLinkClick(annotation.item)
+                true
+            }
+        }
+    }
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Text(
@@ -76,24 +92,41 @@ fun LinkAwareText(
             lineHeight = 22.sp
         ),
         onTextLayout = { layoutResult = it },
-        modifier = modifier.pointerInput(annotated) {
-            detectTapGestures(
-                onTap = { offset: Offset ->
-                    val annotation = layoutResult?.let { lr ->
-                        val pos = lr.getOffsetForPosition(offset)
-                        annotated.getStringAnnotations("inline-link", pos, pos).firstOrNull()
-                    }
-                    if (annotation != null) {
-                        onLinkClick(annotation.item)
-                    } else {
-                        onClick?.invoke()
-                    }
-                },
-                onLongPress = {
-                    onLongClick?.invoke()
+        modifier = modifier
+            .semantics {
+                if (accessibilityActions.isNotEmpty()) {
+                    customActions = accessibilityActions
                 }
-            )
-        }
+                if (onClick != null) {
+                    this.onClick {
+                        onClick()
+                        true
+                    }
+                }
+                if (onLongClick != null) {
+                    this.onLongClick {
+                        onLongClick()
+                        true
+                    }
+                }
+            }
+            .pointerInput(annotated, onClick, onLongClick) {
+                detectTapGestures(
+                    onTap = { offset ->
+                        val annotation = layoutResult?.let { result ->
+                            val position = result.getOffsetForPosition(offset)
+                            annotated.getStringAnnotations("inline-link", position, position)
+                                .firstOrNull()
+                        }
+                        if (annotation != null) {
+                            onLinkClick(annotation.item)
+                        } else {
+                            onClick?.invoke()
+                        }
+                    },
+                    onLongPress = { onLongClick?.invoke() },
+                )
+            },
     )
 }
 
