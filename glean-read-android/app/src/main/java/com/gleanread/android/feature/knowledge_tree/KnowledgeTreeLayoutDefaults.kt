@@ -10,4 +10,4 @@ internal val KnowledgeTreeListContentPadding = PaddingValues(
     bottom = 128.dp,
 )
 
-internal val KnowledgeTreeFabBottomPadding = 6.dp
+internal val KnowledgeTreeFabBottomPadding = 0.dp

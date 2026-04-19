@@ -36,6 +36,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material.icons.filled.UnfoldLess
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,16 +96,25 @@ fun KnowledgeTreeTopBar(
                     contentDescription = "更多",
                 )
             }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false },
+            MaterialTheme(
+                shapes = MaterialTheme.shapes.copy(extraSmall = RoundedCornerShape(16.dp))
             ) {
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
                 DropdownMenuItem(
                     text = { Text("展开全部") },
                     onClick = {
                         menuExpanded = false
                         onExpandAll()
                     },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.UnfoldMore,
+                            contentDescription = null
+                        )
+                    }
                 )
                 DropdownMenuItem(
                     text = { Text("收起全部") },
@@ -110,7 +122,14 @@ fun KnowledgeTreeTopBar(
                         menuExpanded = false
                         onCollapseAll()
                     },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.UnfoldLess,
+                            contentDescription = null
+                        )
+                    }
                 )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

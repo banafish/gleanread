@@ -2,9 +2,9 @@ package com.gleanread.android.feature.knowledge_tree.component
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
@@ -13,15 +13,15 @@ fun KnowledgeTreeBranchFab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ExtendedFloatingActionButton(
+    FloatingActionButton(
         modifier = modifier,
         onClick = onClick,
-        text = { Text("新增子节点") },
-        icon = {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-            )
-        },
-    )
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = "新增子节点",
+        )
+    }
 }
