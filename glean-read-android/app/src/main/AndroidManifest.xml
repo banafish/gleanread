@@ -1,10 +1,10 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".GleanReadApplication"
+        android:name=".app.GleanReadApplication"
         android:usesCleartextTraffic="true"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
-            android:name=".MainActivity"
+            android:name=".app.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -22,7 +22,7 @@
         </activity>
 
         <activity
-            android:name=".feature.fast_capture.FastCaptureActivity"
+            android:name=".feature.capture.fast_capture.FastCaptureActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
@@ -38,7 +38,7 @@
         </activity>
 
         <service
-            android:name=".capture.PageContextAccessibilityService"
+            android:name=".platform.page_context.PageContextAccessibilityService"
             android:exported="false"
             android:label="@string/page_context_accessibility_label"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
@@ -52,3 +52,4 @@
         </service>
     </application>
 </manifest>
+

@@ -1,4 +1,4 @@
-package com.gleanread.android.feature.excerpts.summary
+﻿package com.gleanread.android.feature.excerpts.summary
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -7,7 +7,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
-import com.gleanread.android.feature.capture.component.NodePickerOverlay
+import com.gleanread.android.feature.capture.quick_capture.component.NodePickerOverlay
 
 @Composable
 fun AiSummaryRoute(
@@ -60,3 +60,4 @@ fun AiSummaryRoute(
         )
     }
 }
+

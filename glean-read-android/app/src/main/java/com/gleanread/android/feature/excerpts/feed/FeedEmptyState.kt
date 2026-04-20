@@ -1,4 +1,4 @@
-package com.gleanread.android.feature.excerpts.feed
+﻿package com.gleanread.android.feature.excerpts.feed
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun FeedEmptyState(
@@ -108,3 +108,4 @@ private fun FeedEmptyStatePreview() {
         )
     }
 }
+

@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+﻿@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.gleanread.android.feature.excerpts.summary
 
@@ -48,7 +48,7 @@ import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.core.ui.richtext.InlineLinkEditor
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun AiSummaryScreen(
@@ -238,3 +238,4 @@ private fun AiSummaryScreenPreview() {
         )
     }
 }
+

@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+﻿@file:OptIn(ExperimentalFoundationApi::class)
 
 package com.gleanread.android.feature.excerpts.feed
 
@@ -49,7 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.gleanread.android.R
 import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun FeedScreen(
@@ -293,3 +293,4 @@ private fun FeedScreenPreview() {
         )
     }
 }
+

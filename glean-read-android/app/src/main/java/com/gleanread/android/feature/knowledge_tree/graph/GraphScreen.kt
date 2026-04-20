@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+﻿@file:OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 
 package com.gleanread.android.feature.knowledge_tree.graph
 
@@ -51,7 +51,7 @@ import com.gleanread.android.R
 import com.gleanread.android.core.model.GraphNodeKind
 import com.gleanread.android.core.model.GraphUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
@@ -232,3 +232,4 @@ private fun GraphScreenPreview() {
         )
     }
 }
+

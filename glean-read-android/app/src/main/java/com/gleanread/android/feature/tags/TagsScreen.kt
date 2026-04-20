@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+﻿@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.gleanread.android.feature.tags
 
@@ -42,7 +42,7 @@ import androidx.compose.ui.unit.sp
 import com.gleanread.android.R
 import com.gleanread.android.core.model.TagGroupUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun TagsScreen(
@@ -140,3 +140,4 @@ private fun TagsScreenPreview() {
         TagsScreen(tagGroups = WorkspacePreviewData.snapshot().tagGroups)
     }
 }
+

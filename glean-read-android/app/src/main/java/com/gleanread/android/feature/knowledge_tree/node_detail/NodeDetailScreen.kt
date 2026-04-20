@@ -1,4 +1,4 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
+﻿@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.gleanread.android.feature.knowledge_tree.node_detail
 
@@ -55,7 +55,7 @@ import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.core.ui.richtext.InlineLinkEditor
 import com.gleanread.android.core.ui.richtext.LinkAwareText
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun NodeDetailScreen(
@@ -333,3 +333,4 @@ private fun NodeDetailScreenPreview() {
         )
     }
 }
+

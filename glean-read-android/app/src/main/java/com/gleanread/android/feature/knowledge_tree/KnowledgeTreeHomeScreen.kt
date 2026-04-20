@@ -1,4 +1,4 @@
-package com.gleanread.android.feature.knowledge_tree
+﻿package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
@@ -30,7 +30,7 @@ import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeHomeUiState
-import com.gleanread.android.ui.theme.GleanReadTheme
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun KnowledgeTreeHomeScreen(
@@ -195,3 +195,4 @@ private fun KnowledgeTreeHomeScreenPreview() {
         )
     }
 }
+
