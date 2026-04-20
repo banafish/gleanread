@@ -13,9 +13,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.RootNodeCardUiModel
 
@@ -29,6 +31,9 @@ fun RootNodeCard(
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
 ) {
+    val expandContentDescription = stringResource(R.string.knowledge_tree_expand_node)
+    val countText = stringResource(R.string.knowledge_tree_count, card.count)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -45,7 +50,7 @@ fun RootNodeCard(
                 KnowledgeTreeLeadingIndicator(
                     showActionIcon = card.canExpand,
                     isExpanded = card.isExpanded,
-                    contentDescription = "展开节点",
+                    contentDescription = expandContentDescription,
                     onClick = if (card.canExpand) {
                         { onToggle(card.nodeId) }
                     } else {
@@ -62,7 +67,7 @@ fun RootNodeCard(
                     fontWeight = FontWeight.SemiBold,
                 )
                 Text(
-                    text = "${card.count}条",
+                    text = countText,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 12.sp,
                 )

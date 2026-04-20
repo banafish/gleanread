@@ -5,8 +5,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
+import androidx.compose.ui.res.stringResource
+import com.gleanread.android.R
+import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
@@ -24,12 +27,18 @@ fun KnowledgeTreeBranchRoute(
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
 ) {
-    var expandedIds by remember(nodeId) { mutableStateOf(emptySet<String>()) }
-    var isSearchVisible by remember(nodeId) { mutableStateOf(false) }
-    var searchQuery by remember(nodeId) { mutableStateOf("") }
-    var recentQueries by remember(nodeId) { mutableStateOf(emptyList<String>()) }
-    var nodeDialogState by remember { mutableStateOf<NodeDialogUiState?>(null) }
-    var deleteDialogState by remember { mutableStateOf<DeleteDialogUiState?>(null) }
+    var expandedIds by rememberSaveable(nodeId, stateSaver = ExpandedIdsSaver) {
+        mutableStateOf(emptySet<String>())
+    }
+    var isSearchVisible by rememberSaveable(nodeId) { mutableStateOf(false) }
+    var searchQuery by rememberSaveable(nodeId) { mutableStateOf("") }
+    var recentQueries by rememberSaveable(nodeId) { mutableStateOf(emptyList<String>()) }
+    var nodeDialogState by rememberSaveable(nodeId, stateSaver = NodeDialogUiStateSaver) {
+        mutableStateOf<NodeDialogUiState?>(null)
+    }
+    var deleteDialogState by rememberSaveable(nodeId, stateSaver = DeleteDialogUiStateSaver) {
+        mutableStateOf<DeleteDialogUiState?>(null)
+    }
 
     val currentNode = snapshot.flatNodes[nodeId]
     LaunchedEffect(nodeId, currentNode?.childNodeIds) {
@@ -40,9 +49,10 @@ fun KnowledgeTreeBranchRoute(
             onBack()
         }
     }
+    val rootTitle = stringResource(R.string.knowledge_tree_root_title)
 
     val uiState = remember(snapshot, nodeId, expandedIds) {
-        buildKnowledgeTreeBranchUiState(snapshot, nodeId, expandedIds)
+        buildKnowledgeTreeBranchUiState(snapshot, nodeId, expandedIds, rootTitle)
     } ?: return
 
     KnowledgeTreeBranchScreen(

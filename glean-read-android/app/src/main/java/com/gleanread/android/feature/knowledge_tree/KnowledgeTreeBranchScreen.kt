@@ -10,8 +10,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
+import com.gleanread.android.R
+import com.gleanread.android.core.model.WorkspacePreviewData
+import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.BreadcrumbBar
 import com.gleanread.android.feature.knowledge_tree.component.BranchNodeItem
@@ -25,6 +29,8 @@ import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeBranchUiS
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeBranchUiState
+import com.gleanread.android.ui.theme.GleanReadTheme
 
 @Composable
 fun KnowledgeTreeBranchScreen(
@@ -54,6 +60,8 @@ fun KnowledgeTreeBranchScreen(
     onDismissDeleteDialog: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
 ) {
+    val rootTitle = stringResource(R.string.knowledge_tree_root_title)
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
@@ -80,6 +88,7 @@ fun KnowledgeTreeBranchScreen(
                 snapshot = snapshot,
                 query = searchQuery,
                 recentQueries = recentQueries,
+                rootTitle = rootTitle,
                 onQueryChange = onSearchQueryChange,
                 onSearchSubmit = onSearchSubmit,
                 onOpenNode = onOpenNode,
@@ -98,7 +107,7 @@ fun KnowledgeTreeBranchScreen(
                 if (uiState.isEmpty) {
                     item {
                         Text(
-                            text = "当前节点下还没有子节点",
+                            text = stringResource(R.string.knowledge_tree_branch_empty),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         )
                     }
@@ -144,6 +153,49 @@ fun KnowledgeTreeBranchScreen(
             state = state,
             onDismiss = onDismissDeleteDialog,
             onConfirm = onConfirmDeleteDialog,
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun KnowledgeTreeBranchScreenPreview() {
+    val snapshot = WorkspacePreviewData.snapshot()
+    val rootTitle = stringResource(R.string.knowledge_tree_root_title)
+    val uiState = buildKnowledgeTreeBranchUiState(
+        snapshot = snapshot,
+        nodeId = "node-1",
+        expandedIds = setOf("node-2"),
+        rootTitle = rootTitle,
+    ) ?: return
+
+    GleanReadTheme {
+        KnowledgeTreeBranchScreen(
+            snapshot = snapshot,
+            uiState = uiState,
+            isSearchVisible = false,
+            searchQuery = "",
+            recentQueries = emptyList(),
+            onBack = {},
+            onToggleSearch = {},
+            onSearchQueryChange = {},
+            onSearchSubmit = {},
+            onToggleNode = {},
+            onOpenNode = {},
+            onOpenBranch = {},
+            onExpandAll = {},
+            onCollapseAll = {},
+            onOpenAddChildDialog = {},
+            onOpenRenameDialog = {},
+            onOpenDeleteDialog = {},
+            onOpenCurrentAddChildDialog = {},
+            nodeDialogState = null,
+            onNodeDialogValueChange = {},
+            onDismissNodeDialog = {},
+            onConfirmNodeDialog = {},
+            deleteDialogState = null,
+            onDismissDeleteDialog = {},
+            onConfirmDeleteDialog = {},
         )
     }
 }

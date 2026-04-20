@@ -57,12 +57,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 
 @Composable
 fun BoxScope.FastCaptureTagMenuPopup(
@@ -92,9 +94,9 @@ fun BoxScope.FastCaptureTagMenuPopup(
     val featuredTags = remember(availableTags) { availableTags.take(5) }
     val emptyStateText =
         if (orderedTags.isEmpty()) {
-            "本地标签库还是空的，先去工作区创建几个标签吧。"
+            stringResource(R.string.fast_capture_tag_library_empty)
         } else {
-            "没有找到匹配的标签，试试其他关键词。"
+            stringResource(R.string.fast_capture_tag_search_empty)
         }
 
     AnimatedVisibility(
@@ -127,13 +129,13 @@ fun BoxScope.FastCaptureTagMenuPopup(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(R.string.common_back),
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(24.dp),
                         )
                     }
                     Text(
-                        text = "选择分类标签",
+                        text = stringResource(R.string.fast_capture_choose_tags),
                         modifier = Modifier.align(Alignment.Center),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
@@ -157,7 +159,7 @@ fun BoxScope.FastCaptureTagMenuPopup(
 
                     if (normalizedQuery.isBlank()) {
                         TagSection(
-                            title = "热门标签",
+                            title = stringResource(R.string.fast_capture_hot_tags),
                             tags = featuredTags,
                             selectedTags = selectedTags,
                             emptyText = emptyStateText,
@@ -167,7 +169,7 @@ fun BoxScope.FastCaptureTagMenuPopup(
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
                         Spacer(modifier = Modifier.height(20.dp))
                         TagSection(
-                            title = "所有标签",
+                            title = stringResource(R.string.fast_capture_all_tags),
                             tags = orderedTags,
                             selectedTags = selectedTags,
                             emptyText = emptyStateText,
@@ -175,7 +177,7 @@ fun BoxScope.FastCaptureTagMenuPopup(
                         )
                     } else {
                         TagSection(
-                            title = "搜索结果",
+                            title = stringResource(R.string.fast_capture_search_results),
                             tags = filteredTags,
                             selectedTags = selectedTags,
                             emptyText = emptyStateText,
@@ -213,7 +215,7 @@ fun BoxScope.FastCaptureTagMenuPopup(
                                 ),
                             ) {
                                 Text(
-                                    text = "取消",
+                                    text = stringResource(R.string.common_cancel),
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 14.sp,
@@ -234,7 +236,7 @@ fun BoxScope.FastCaptureTagMenuPopup(
                                 ),
                             ) {
                                 Text(
-                                    text = "完成",
+                                    text = stringResource(R.string.fast_capture_complete),
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 14.sp,
@@ -327,7 +329,7 @@ fun BoxScope.FastCaptureLinkMenuPopup(
                         color = MaterialTheme.colorScheme.primary,
                     ) {
                         Text(
-                            text = "确定",
+                            text = stringResource(R.string.common_confirm),
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.Medium,
@@ -426,16 +428,14 @@ private fun TagSearchField(
             ),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
             decorationBox = { innerTextField ->
-                Box {
-                    if (query.isBlank()) {
-                        Text(
-                            text = "搜索标签...",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                            fontSize = 14.sp,
-                        )
-                    }
-                    innerTextField()
+                if (query.isBlank()) {
+                    Text(
+                        text = stringResource(R.string.fast_capture_search_tags),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                        fontSize = 14.sp,
+                    )
                 }
+                innerTextField()
             },
         )
     }

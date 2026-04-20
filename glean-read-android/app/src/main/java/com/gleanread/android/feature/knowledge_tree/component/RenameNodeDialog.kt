@@ -13,7 +13,9 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.gleanread.android.R
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 
 @Composable
@@ -23,22 +25,20 @@ fun RenameNodeDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    // 1. 判断当前是否为深色模式
     val isDark = isSystemInDarkTheme()
-
-    // 2. 根据深浅色模式动态计算绝对对比度背景色
     val inputBackgroundColor = if (isDark) {
-        Color.White.copy(alpha = 0.1f) // 暗色模式下叠加一层微弱的纯白
+        Color.White.copy(alpha = 0.1f)
     } else {
-        Color.Black.copy(alpha = 0.06f) // 亮色模式下叠加一层微弱的纯黑
+        Color.Black.copy(alpha = 0.06f)
     }
+    val placeholderText = state.targetNodeTitle ?: stringResource(R.string.knowledge_tree_node_name_placeholder)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = state.title,
-                style = MaterialTheme.typography.titleLarge
+                text = stringResource(R.string.knowledge_tree_rename_node),
+                style = MaterialTheme.typography.titleLarge,
             )
         },
         text = {
@@ -48,8 +48,8 @@ fun RenameNodeDialog(
                     onValueChange = onValueChange,
                     placeholder = {
                         Text(
-                            text = state.targetNodeTitle ?: "请输入节点名称",
-                            style = MaterialTheme.typography.bodyLarge
+                            text = placeholderText,
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     },
                     singleLine = true,
@@ -60,11 +60,10 @@ fun RenameNodeDialog(
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
                         errorIndicatorColor = Color.Transparent,
-                        // 3. 应用计算好的绝对对比度底色
                         focusedContainerColor = inputBackgroundColor,
                         unfocusedContainerColor = inputBackgroundColor,
                     ),
-                    textStyle = MaterialTheme.typography.bodyLarge
+                    textStyle = MaterialTheme.typography.bodyLarge,
                 )
             }
         },
@@ -72,12 +71,16 @@ fun RenameNodeDialog(
             TextButton(
                 onClick = onConfirm,
                 enabled = state.inputValue.isNotBlank(),
-            ) { Text(state.confirmLabel) }
+            ) {
+                Text(stringResource(R.string.common_save))
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
         },
         shape = RoundedCornerShape(24.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     )
 }

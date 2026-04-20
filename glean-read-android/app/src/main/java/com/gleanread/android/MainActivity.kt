@@ -4,7 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.gleanread.android.feature.workspace.WorkspaceApp
+import com.gleanread.android.feature.main.MainApp
 import com.gleanread.android.ui.theme.GleanReadTheme
 
 class MainActivity : ComponentActivity() {
@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             GleanReadTheme {
-                WorkspaceApp()
+                MainApp()
             }
         }
     }

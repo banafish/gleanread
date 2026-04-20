@@ -18,12 +18,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.gleanread.android.R
+import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreePathText
-import com.gleanread.android.feature.workspace.model.ExcerptUiModel
-import com.gleanread.android.feature.workspace.model.FlatNodeUiModel
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
 
 @Composable
 fun KnowledgeTreeSearchContent(
@@ -31,18 +31,20 @@ fun KnowledgeTreeSearchContent(
     snapshot: WorkspaceSnapshot,
     query: String,
     recentQueries: List<String>,
+    rootTitle: String,
     onQueryChange: (String) -> Unit,
     onSearchSubmit: (String) -> Unit,
     onOpenNode: (String) -> Unit,
 ) {
     val trimmedQuery = query.trim()
-    val nodeResults = remember(snapshot, trimmedQuery) {
+    val nodeResults = remember(snapshot, trimmedQuery, rootTitle) {
         if (trimmedQuery.isBlank()) {
             emptyList()
         } else {
             snapshot.flatNodes.values.filter { node ->
                 node.title.contains(trimmedQuery, ignoreCase = true) ||
-                    buildKnowledgeTreePathText(snapshot, node.id).contains(trimmedQuery, ignoreCase = true)
+                    buildKnowledgeTreePathText(snapshot, node.id, rootTitle)
+                        .contains(trimmedQuery, ignoreCase = true)
             }.take(8)
         }
     }
@@ -56,6 +58,12 @@ fun KnowledgeTreeSearchContent(
             }.take(8)
         }
     }
+    val recentSearchTitle = stringResource(R.string.knowledge_tree_recent_search)
+    val nodeResultsTitle = stringResource(R.string.knowledge_tree_node_results)
+    val excerptResultsTitle = stringResource(R.string.knowledge_tree_search_results)
+    val nodeTypeLabel = stringResource(R.string.knowledge_tree_result_node)
+    val excerptTypeLabel = stringResource(R.string.knowledge_tree_result_excerpt)
+    val inboxLabel = stringResource(R.string.knowledge_tree_inbox)
 
     Column(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
@@ -64,9 +72,9 @@ fun KnowledgeTreeSearchContent(
         ) {
             if (recentQueries.isNotEmpty()) {
                 item {
-                    SearchSectionTitle("最近搜索")
+                    SearchSectionTitle(recentSearchTitle)
                 }
-                items(recentQueries) { recentQuery ->
+                items(recentQueries, key = { it }) { recentQuery ->
                     Text(
                         text = recentQuery,
                         modifier = Modifier
@@ -81,13 +89,13 @@ fun KnowledgeTreeSearchContent(
             }
             if (nodeResults.isNotEmpty()) {
                 item {
-                    SearchSectionTitle("节点结果")
+                    SearchSectionTitle(nodeResultsTitle)
                 }
                 items(nodeResults, key = { it.id }) { node ->
                     SearchResultCard(
                         title = node.title,
-                        subtitle = buildKnowledgeTreePathText(snapshot, node.id),
-                        typeLabel = "节点",
+                        subtitle = buildKnowledgeTreePathText(snapshot, node.id, rootTitle),
+                        typeLabel = nodeTypeLabel,
                         onClick = {
                             onSearchSubmit(trimmedQuery)
                             onOpenNode(node.id)
@@ -97,15 +105,22 @@ fun KnowledgeTreeSearchContent(
             }
             if (excerptResults.isNotEmpty()) {
                 item {
-                    SearchSectionTitle("内容结果")
+                    SearchSectionTitle(excerptResultsTitle)
                 }
                 items(excerptResults, key = { it.id }) { excerpt ->
+                    val subtitle = if (excerpt.archivedNodeId != null) {
+                        stringResource(
+                            R.string.knowledge_tree_result_location,
+                            buildKnowledgeTreePathText(snapshot, excerpt.archivedNodeId, rootTitle),
+                        )
+                    } else {
+                        stringResource(R.string.knowledge_tree_result_location, inboxLabel)
+                    }
+
                     SearchResultCard(
                         title = excerpt.content,
-                        subtitle = excerpt.archivedNodeId?.let { nodeId ->
-                            "位于：${buildKnowledgeTreePathText(snapshot, nodeId)}"
-                        } ?: "位于：Inbox",
-                        typeLabel = "摘录",
+                        subtitle = subtitle,
+                        typeLabel = excerptTypeLabel,
                         onClick = {
                             onSearchSubmit(trimmedQuery)
                             excerpt.archivedNodeId?.let(onOpenNode)

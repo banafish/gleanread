@@ -15,7 +15,10 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.gleanread.android.R
+import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 
 @Composable
@@ -25,31 +28,40 @@ fun AddNodeDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
 ) {
-    // 1. 判断当前是否为深色模式
     val isDark = isSystemInDarkTheme()
-
-    // 2. 根据深浅色模式动态计算绝对对比度背景色
     val inputBackgroundColor = if (isDark) {
-        Color.White.copy(alpha = 0.1f) // 暗色模式下叠加一层微弱的纯白
+        Color.White.copy(alpha = 0.1f)
     } else {
-        Color.Black.copy(alpha = 0.06f) // 亮色模式下叠加一层微弱的纯黑
+        Color.Black.copy(alpha = 0.06f)
+    }
+    val dialogTitle = stringResource(
+        if (state.type == NodeDialogType.ADD_CHILD) {
+            R.string.knowledge_tree_add_child_node
+        } else {
+            R.string.knowledge_tree_add_node
+        },
+    )
+    val parentTitleText = if (state.parentNodeTitle != null) {
+        stringResource(R.string.knowledge_tree_parent_node, state.parentNodeTitle)
+    } else {
+        null
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                text = state.title,
-                style = MaterialTheme.typography.titleLarge
+                text = dialogTitle,
+                style = MaterialTheme.typography.titleLarge,
             )
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                state.parentNodeTitle?.let { parentTitle ->
+                if (parentTitleText != null) {
                     Text(
-                        text = "父节点：$parentTitle",
+                        text = parentTitleText,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -59,8 +71,8 @@ fun AddNodeDialog(
                     onValueChange = onValueChange,
                     placeholder = {
                         Text(
-                            text = "请输入节点名称",
-                            style = MaterialTheme.typography.bodyLarge
+                            text = stringResource(R.string.knowledge_tree_node_name_placeholder),
+                            style = MaterialTheme.typography.bodyLarge,
                         )
                     },
                     singleLine = true,
@@ -71,11 +83,10 @@ fun AddNodeDialog(
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
                         errorIndicatorColor = Color.Transparent,
-                        // 3. 应用计算好的绝对对比度底色
                         focusedContainerColor = inputBackgroundColor,
                         unfocusedContainerColor = inputBackgroundColor,
                     ),
-                    textStyle = MaterialTheme.typography.bodyLarge
+                    textStyle = MaterialTheme.typography.bodyLarge,
                 )
             }
         },
@@ -83,12 +94,16 @@ fun AddNodeDialog(
             TextButton(
                 onClick = onConfirm,
                 enabled = state.inputValue.isNotBlank(),
-            ) { Text(state.confirmLabel) }
+            ) {
+                Text(stringResource(R.string.common_save))
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
         },
         shape = RoundedCornerShape(24.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
     )
 }

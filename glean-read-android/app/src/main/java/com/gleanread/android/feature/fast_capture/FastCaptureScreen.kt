@@ -15,11 +15,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -62,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.gleanread.android.R
 import com.gleanread.android.appContainer
 import com.gleanread.android.capture.CaptureSeed
 import com.gleanread.android.capture.PageContextAccessibilityState
@@ -233,7 +235,7 @@ private fun FastCaptureScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "极速摘录",
+                        text = stringResource(R.string.fast_capture_title),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -253,8 +255,8 @@ private fun FastCaptureScreen(
                         if (shouldShowAccessibilityPrompt) {
                             Spacer(modifier = Modifier.height(10.dp))
                             ContextHintCard(
-                                text = "当前分享缺少标题或链接。开启辅助识别后，下次可尝试从浏览器或公众号页面自动补齐来源。",
-                                actionLabel = "去开启",
+                                text = stringResource(R.string.fast_capture_accessibility_hint),
+                                actionLabel = stringResource(R.string.fast_capture_accessibility_action),
                                 onActionClick = onOpenAccessibilitySettings,
                             )
                         }
@@ -304,7 +306,7 @@ private fun FastCaptureScreen(
                                 Box {
                                     if (thought.isEmpty()) {
                                         Text(
-                                            text = "此刻你的想法是...",
+                                            text = stringResource(R.string.fast_capture_thought_placeholder),
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
                                             fontSize = 15.sp,
                                         )
@@ -353,7 +355,7 @@ private fun FastCaptureScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.LocalOffer,
-                                            contentDescription = "Tags",
+                                            contentDescription = stringResource(R.string.fast_capture_tag_content_description),
                                             tint = tagMenuButtonTint,
                                             modifier = Modifier.size(22.dp),
                                         )
@@ -363,7 +365,10 @@ private fun FastCaptureScreen(
                                                 if (selectedTags.size == 1) {
                                                     selectedTagSummary
                                                 } else {
-                                                    "${selectedTagSummary}等"
+                                                    stringResource(
+                                                        R.string.fast_capture_more_tags,
+                                                        selectedTagSummary,
+                                                    )
                                                 }
                                             Text(
                                                 text = tagText,
@@ -401,7 +406,7 @@ private fun FastCaptureScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Link,
-                                        contentDescription = "Link",
+                                        contentDescription = stringResource(R.string.fast_capture_link_content_description),
                                         tint = linkMenuButtonTint,
                                         modifier = Modifier
                                             .padding(4.dp)
@@ -440,7 +445,7 @@ private fun FastCaptureScreen(
                                         )
                                     } else {
                                         Text(
-                                            text = "保存并继续",
+                                            text = stringResource(R.string.fast_capture_save_continue),
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = saveButtonTextColor,

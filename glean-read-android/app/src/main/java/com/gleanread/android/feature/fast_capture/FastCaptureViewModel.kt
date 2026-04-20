@@ -2,7 +2,7 @@ package com.gleanread.android.feature.fast_capture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gleanread.android.data.repository.WorkspaceRepository
+import com.gleanread.android.data.repository.ExcerptCaptureRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,14 +16,14 @@ data class FastCaptureUiState(
 )
 
 class FastCaptureViewModel(
-    private val repository: WorkspaceRepository,
+    private val captureRepository: ExcerptCaptureRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FastCaptureUiState())
     val uiState: StateFlow<FastCaptureUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            repository.observeAvailableTagNames().collect { availableTags ->
+            captureRepository.observeAvailableTagNames().collect { availableTags ->
                 _uiState.update { it.copy(availableTags = availableTags) }
             }
         }
@@ -42,7 +42,7 @@ class FastCaptureViewModel(
             _uiState.update { it.copy(isSaving = true, isSaved = false) }
 
             runCatching {
-                repository.saveQuickExcerpt(
+                captureRepository.saveQuickExcerpt(
                     content = content,
                     thought = thought,
                     url = url,

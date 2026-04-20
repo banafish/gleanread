@@ -2,4 +2,135 @@
     <string name="app_name">GleanRead</string>
     <string name="page_context_accessibility_label">GleanRead 辅助识别</string>
     <string name="page_context_accessibility_description">在浏览器和微信公众号页面中识别最近的标题与链接，并为极速摘录补齐来源信息。</string>
+
+    <string name="common_back">返回</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_close">关闭</string>
+    <string name="common_confirm">确定</string>
+    <string name="common_no_source_link">暂无来源链接</string>
+    <string name="common_save">保存</string>
+
+    <string name="main_add_content_description">新增摘录</string>
+    <string name="main_ai_archive_action">AI 归档</string>
+    <string name="main_nav_feed">摘录流</string>
+    <string name="main_nav_tags">标签</string>
+    <string name="main_nav_tree">知识树</string>
+    <string name="main_selected_count">已选中 %1$d 条</string>
+
+    <string name="feed_ai_recommendation_action">去整理</string>
+    <string name="feed_ai_recommendation_body">选中几条摘录后，让 AI 帮你归档成节点大纲。</string>
+    <string name="feed_ai_recommendation_ignore">暂不处理</string>
+    <string name="feed_ai_recommendation_title">AI 整理建议</string>
+    <string name="feed_clear_search_content_description">清空搜索</string>
+    <string name="feed_empty_body">先记录几条内容，再把它们整理进知识树和标签体系。</string>
+    <string name="feed_empty_capture">3. 用极速摘录随手记录灵感</string>
+    <string name="feed_empty_flow">1. 收藏摘录，保留原始内容</string>
+    <string name="feed_empty_title">从摘录开始积累知识</string>
+    <string name="feed_empty_tree">2. 归档到知识节点，形成结构</string>
+    <string name="feed_filter_inbox_content_description">仅看 Inbox</string>
+    <string name="feed_load_sample">导入示例</string>
+    <string name="feed_search_content_description">搜索摘录</string>
+    <string name="feed_search_placeholder">搜索摘录、想法或标签</string>
+    <string name="feed_selection_hint">长按卡片可进入多选</string>
+    <string name="feed_selection_selected">已选中</string>
+    <string name="feed_selection_unselected">未选中</string>
+    <string name="feed_start_recording">开始摘录</string>
+    <string name="feed_status_inbox">Inbox</string>
+
+    <string name="tags_new">新建</string>
+    <string name="tags_title">标签</string>
+
+    <string name="excerpt_preview_archived_to">已归档到：%1$s</string>
+    <string name="excerpt_preview_open_node">打开节点</string>
+    <string name="excerpt_preview_title">摘录详情</string>
+
+    <string name="quick_capture_content_placeholder">输入摘录内容，支持插入 [[节点]] 或 [[摘录]]</string>
+    <string name="quick_capture_link_hint">可在正文和想法里插入节点或摘录链接</string>
+    <string name="quick_capture_submit">保存摘录</string>
+    <string name="quick_capture_suggested_tags">推荐标签</string>
+    <string name="quick_capture_thought_placeholder">记下你的想法、判断或下一步</string>
+    <string name="quick_capture_title">快速摘录</string>
+    <string name="quick_capture_url_placeholder">粘贴来源链接</string>
+
+    <string name="archive_picker_inbox">Inbox</string>
+    <string name="archive_picker_title">选择归档位置</string>
+
+    <string name="node_picker_choose_existing">选择已有节点</string>
+    <string name="node_picker_create_new">新建节点</string>
+    <string name="node_picker_parent_hint">请选择新节点的父节点</string>
+    <string name="node_picker_parent_selected">父节点：%1$s</string>
+    <string name="node_picker_title">选择挂载节点</string>
+    <string name="node_picker_title_placeholder">输入新节点标题</string>
+
+    <string name="ai_summary_choose_target">选择目标节点</string>
+    <string name="ai_summary_excerpt_title">关联摘录（%1$d）</string>
+    <string name="ai_summary_mount_title">挂载到节点</string>
+    <string name="ai_summary_new_node">新建节点：%1$s</string>
+    <string name="ai_summary_outline_placeholder">让 AI 生成一个可编辑的大纲</string>
+    <string name="ai_summary_outline_title">生成大纲</string>
+    <string name="ai_summary_title">AI 归档</string>
+
+    <string name="node_detail_add_excerpt">添加摘录</string>
+    <string name="node_detail_backlink_item">%1$s：%2$s</string>
+    <string name="node_detail_backlink_source_excerpt">摘录</string>
+    <string name="node_detail_backlink_source_node">节点</string>
+    <string name="node_detail_backlinks_empty">还没有被其他节点或摘录引用</string>
+    <string name="node_detail_backlinks_title">反向链接</string>
+    <string name="node_detail_edit_outline">编辑大纲</string>
+    <string name="node_detail_excerpt_header">关联摘录（%1$d）</string>
+    <string name="node_detail_open_graph">打开关系图</string>
+    <string name="node_detail_outline_placeholder">为这个节点写点总结、上下文或可执行建议</string>
+    <string name="node_detail_save_outline">保存大纲</string>
+
+    <string name="knowledge_tree_add_child_node">新增子节点</string>
+    <string name="knowledge_tree_add_node">新增节点</string>
+    <string name="knowledge_tree_branch_empty">当前节点下还没有子节点</string>
+    <string name="knowledge_tree_collapse_all">收起全部</string>
+    <string name="knowledge_tree_count">%1$d条</string>
+    <string name="knowledge_tree_delete_action">删除</string>
+    <string name="knowledge_tree_delete_irreversible">删除后不可恢复。</string>
+    <string name="knowledge_tree_delete_node">删除“%1$s”？</string>
+    <string name="knowledge_tree_delete_with_children">该节点下还有 %1$d 个子节点。\n删除后整棵子树都会被移除。</string>
+    <string name="knowledge_tree_empty_body">新增节点后，可继续添加子节点</string>
+    <string name="knowledge_tree_empty_title">还没有知识节点</string>
+    <string name="knowledge_tree_enter_branch">进入分支页</string>
+    <string name="knowledge_tree_expand_all">展开全部</string>
+    <string name="knowledge_tree_expand_node">展开节点</string>
+    <string name="knowledge_tree_inbox">Inbox</string>
+    <string name="knowledge_tree_more">更多</string>
+    <string name="knowledge_tree_node_actions">节点操作</string>
+    <string name="knowledge_tree_node_name_placeholder">请输入节点名称</string>
+    <string name="knowledge_tree_node_results">节点结果</string>
+    <string name="knowledge_tree_parent_node">父节点：%1$s</string>
+    <string name="knowledge_tree_recent_search">最近搜索</string>
+    <string name="knowledge_tree_rename_action">重命名</string>
+    <string name="knowledge_tree_rename_node">重命名节点</string>
+    <string name="knowledge_tree_result_excerpt">摘录</string>
+    <string name="knowledge_tree_result_location">位于：%1$s</string>
+    <string name="knowledge_tree_result_node">节点</string>
+    <string name="knowledge_tree_root_title">知识体系</string>
+    <string name="knowledge_tree_search">搜索</string>
+    <string name="knowledge_tree_search_clear">清除</string>
+    <string name="knowledge_tree_search_placeholder">搜索</string>
+    <string name="knowledge_tree_search_results">内容结果</string>
+
+    <string name="fast_capture_accessibility_action">去开启</string>
+    <string name="fast_capture_accessibility_hint">当前分享缺少标题或链接。开启辅助识别后，下次可尝试从浏览器或公众号页面自动补齐来源。</string>
+    <string name="fast_capture_all_tags">所有标签</string>
+    <string name="fast_capture_choose_tags">选择分类标签</string>
+    <string name="fast_capture_complete">完成</string>
+    <string name="fast_capture_hot_tags">热门标签</string>
+    <string name="fast_capture_link_content_description">编辑链接</string>
+    <string name="fast_capture_more_tags">%1$s等</string>
+    <string name="fast_capture_save_continue">保存并继续</string>
+    <string name="fast_capture_search_results">搜索结果</string>
+    <string name="fast_capture_search_tags">搜索标签...</string>
+    <string name="fast_capture_tag_content_description">选择标签</string>
+    <string name="fast_capture_tag_library_empty">本地标签库还是空的，先去工作区创建几个标签吧。</string>
+    <string name="fast_capture_tag_search_empty">没有找到匹配的标签，试试其他关键词。</string>
+    <string name="fast_capture_thought_placeholder">此刻你的想法是...</string>
+    <string name="fast_capture_title">极速摘录</string>
+
+    <string name="richtext_open_link_action">打开 %1$s</string>
+    <string name="richtext_suggestion_title">联想结果</string>
 </resources>

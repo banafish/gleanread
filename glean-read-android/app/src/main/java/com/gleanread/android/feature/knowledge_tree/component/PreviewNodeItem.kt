@@ -10,8 +10,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDestination
 import com.gleanread.android.feature.knowledge_tree.model.PreviewNodeUiModel
@@ -26,6 +28,15 @@ fun PreviewNodeItem(
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
 ) {
+    val expandContentDescription = stringResource(
+        if (node.showEnterBranch) {
+            R.string.knowledge_tree_enter_branch
+        } else {
+            R.string.knowledge_tree_expand_node
+        },
+    )
+    val countText = stringResource(R.string.knowledge_tree_count, node.count)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -41,7 +52,7 @@ fun PreviewNodeItem(
             KnowledgeTreeLeadingIndicator(
                 showActionIcon = node.canExpand || node.showEnterBranch,
                 isExpanded = node.canExpand && node.isExpanded,
-                contentDescription = if (node.showEnterBranch) "进入面包屑页" else "展开节点",
+                contentDescription = expandContentDescription,
                 onClick = if (node.canExpand || node.showEnterBranch) {
                     {
                         if (node.showEnterBranch) {
@@ -69,7 +80,7 @@ fun PreviewNodeItem(
                     .padding(horizontal = 4.dp, vertical = 2.dp),
             )
             Text(
-                text = "${node.count}条",
+                text = countText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp,
             )

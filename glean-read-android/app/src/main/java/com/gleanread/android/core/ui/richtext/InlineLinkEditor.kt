@@ -39,7 +39,9 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.onClick
@@ -56,6 +58,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.core.richtext.LinkSuggestionType
 import com.gleanread.android.core.richtext.currentInlineQuery
@@ -77,14 +80,17 @@ fun LinkAwareText(
 ) {
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
-    val accessibilityActions = remember(annotated, onLinkClick) {
+    val context = LocalContext.current
+    val accessibilityActions = remember(annotated, onLinkClick, context) {
         annotated.getStringAnnotations(
             tag = "inline-link",
             start = 0,
             end = annotated.length,
         ).map { annotation ->
             val label = annotated.text.substring(annotation.start, annotation.end)
-            CustomAccessibilityAction(label = "打开 $label") {
+            CustomAccessibilityAction(
+                label = context.getString(R.string.richtext_open_link_action, label),
+            ) {
                 onLinkClick(annotation.item)
                 true
             }
@@ -210,7 +216,7 @@ fun InlineLinkEditor(
             ) {
                 Column(modifier = Modifier.padding(vertical = 6.dp)) {
                     Text(
-                        "联想结果",
+                        text = stringResource(R.string.richtext_suggestion_title),
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelMedium,

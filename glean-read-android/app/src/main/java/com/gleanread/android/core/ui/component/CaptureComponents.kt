@@ -39,10 +39,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 import java.net.URL
 
 @Composable
@@ -148,6 +150,7 @@ fun SourceBadge(
     sourceTitle: String = "",
 ) {
     val tintColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val noSourceText = stringResource(R.string.common_no_source_link)
     val host = remember(url) {
         try {
             URL(url).host.ifEmpty { url }
@@ -169,7 +172,7 @@ fun SourceBadge(
         )
         Spacer(modifier = Modifier.width(4.dp))
         Text(
-            text = sourceTitle.ifBlank { host.ifEmpty { "暂无来源链接" } },
+            text = sourceTitle.ifBlank { host.ifEmpty { noSourceText } },
             color = tintColor,
             style = MaterialTheme.typography.labelMedium.copy(
                 fontWeight = if (sourceTitle.isNotBlank()) FontWeight.SemiBold else FontWeight.Normal,

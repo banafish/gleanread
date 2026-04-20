@@ -60,8 +60,13 @@ node_modules/
 
 doc
 
+docs/
+
 .claude
 CLAUDE.md
+
+.gemini
+GEMINI.md
 
 AGENTS.md
 

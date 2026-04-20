@@ -1,9 +1,8 @@
 package com.gleanread.android.feature.knowledge_tree.model
 
-import com.gleanread.android.feature.workspace.model.FlatNodeUiModel
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
+import com.gleanread.android.core.model.FlatNodeUiModel
+import com.gleanread.android.core.model.WorkspaceSnapshot
 
-const val KNOWLEDGE_TREE_ROOT_TITLE = "知识体系"
 const val KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH = 2
 const val KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH = 3
 
@@ -24,12 +23,13 @@ fun buildKnowledgeTreeBranchUiState(
     snapshot: WorkspaceSnapshot,
     nodeId: String,
     expandedIds: Set<String>,
+    rootTitle: String,
 ): KnowledgeTreeBranchUiState? {
     val currentNode = snapshot.flatNodes[nodeId] ?: return null
     return KnowledgeTreeBranchUiState(
         currentNodeId = currentNode.id,
         title = currentNode.title,
-        breadcrumbTitles = buildKnowledgeTreePathTitles(snapshot, nodeId),
+        breadcrumbTitles = buildKnowledgeTreePathTitles(snapshot, nodeId, rootTitle),
         items = currentNode.childNodeIds.mapNotNull { childId ->
             buildBranchNode(
                 snapshot = snapshot,
@@ -47,6 +47,7 @@ fun buildKnowledgeTreeBranchUiState(
 fun buildKnowledgeTreePathTitles(
     snapshot: WorkspaceSnapshot,
     nodeId: String,
+    rootTitle: String,
 ): List<String> {
     val titles = mutableListOf<String>()
     var currentId: String? = nodeId
@@ -55,14 +56,15 @@ fun buildKnowledgeTreePathTitles(
         titles += current.title
         currentId = current.parentId
     }
-    return listOf(KNOWLEDGE_TREE_ROOT_TITLE) + titles.asReversed()
+    return listOf(rootTitle) + titles.asReversed()
 }
 
 fun buildKnowledgeTreePathText(
     snapshot: WorkspaceSnapshot,
     nodeId: String,
+    rootTitle: String,
 ): String {
-    return buildKnowledgeTreePathTitles(snapshot, nodeId).joinToString(" / ")
+    return buildKnowledgeTreePathTitles(snapshot, nodeId, rootTitle).joinToString(" / ")
 }
 
 private fun buildRootNodeCard(

@@ -13,10 +13,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 import com.gleanread.android.feature.knowledge_tree.model.BranchNodeUiModel
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDestination
@@ -120,6 +122,15 @@ private fun BranchNodeRow(
     titleStyle: TextStyle,
     titleFontWeight: FontWeight? = null,
 ) {
+    val expandContentDescription = stringResource(
+        if (node.showEnterBranch) {
+            R.string.knowledge_tree_enter_branch
+        } else {
+            R.string.knowledge_tree_expand_node
+        },
+    )
+    val countText = stringResource(R.string.knowledge_tree_count, node.count)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -130,7 +141,7 @@ private fun BranchNodeRow(
         KnowledgeTreeLeadingIndicator(
             showActionIcon = node.canExpand || node.showEnterBranch,
             isExpanded = node.canExpand && node.isExpanded,
-            contentDescription = if (node.showEnterBranch) "进入面包屑页" else "展开节点",
+            contentDescription = expandContentDescription,
             onClick = if (node.canExpand || node.showEnterBranch) {
                 {
                     if (node.showEnterBranch) {
@@ -159,7 +170,7 @@ private fun BranchNodeRow(
             fontWeight = titleFontWeight,
         )
         Text(
-            text = "${node.count}条",
+            text = countText,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp,
         )

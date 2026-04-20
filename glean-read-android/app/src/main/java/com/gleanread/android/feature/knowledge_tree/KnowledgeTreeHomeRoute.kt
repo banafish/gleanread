@@ -5,8 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
+import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
@@ -23,12 +24,16 @@ fun KnowledgeTreeHomeRoute(
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
 ) {
-    var expandedIds by remember { mutableStateOf(emptySet<String>()) }
-    var isSearchVisible by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var recentQueries by remember { mutableStateOf(emptyList<String>()) }
-    var nodeDialogState by remember { mutableStateOf<NodeDialogUiState?>(null) }
-    var deleteDialogState by remember { mutableStateOf<DeleteDialogUiState?>(null) }
+    var expandedIds by rememberSaveable(stateSaver = ExpandedIdsSaver) { mutableStateOf(emptySet<String>()) }
+    var isSearchVisible by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var recentQueries by rememberSaveable { mutableStateOf(emptyList<String>()) }
+    var nodeDialogState by rememberSaveable(stateSaver = NodeDialogUiStateSaver) {
+        mutableStateOf<NodeDialogUiState?>(null)
+    }
+    var deleteDialogState by rememberSaveable(stateSaver = DeleteDialogUiStateSaver) {
+        mutableStateOf<DeleteDialogUiState?>(null)
+    }
 
     val rootIds = remember(snapshot.treeRoots) { snapshot.treeRoots.map { it.id } }
     LaunchedEffect(rootIds) {

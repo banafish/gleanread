@@ -9,22 +9,28 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
+import com.gleanread.android.R
+import com.gleanread.android.core.model.WorkspacePreviewData
+import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.DeleteNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeEmptyState
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeHomeFab
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchContent
+import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchTopBar
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeTopBar
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.RootNodeCard
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
-import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_ROOT_TITLE
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeHomeUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeHomeUiState
+import com.gleanread.android.ui.theme.GleanReadTheme
 
 @Composable
 fun KnowledgeTreeHomeScreen(
@@ -53,19 +59,21 @@ fun KnowledgeTreeHomeScreen(
     onDismissDeleteDialog: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
 ) {
+    val rootTitle = stringResource(R.string.knowledge_tree_root_title)
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
         topBar = {
             if (isSearchVisible) {
-                com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchTopBar(
+                KnowledgeTreeSearchTopBar(
                     query = searchQuery,
                     onQueryChange = onSearchQueryChange,
                     onClose = onToggleSearch,
                 )
             } else {
                 KnowledgeTreeTopBar(
-                    title = KNOWLEDGE_TREE_ROOT_TITLE,
+                    title = rootTitle,
                     onToggleSearch = onToggleSearch,
                     onExpandAll = onExpandAll,
                     onCollapseAll = onCollapseAll,
@@ -82,12 +90,15 @@ fun KnowledgeTreeHomeScreen(
             }
         },
     ) { innerPadding ->
-        if (isSearchVisible && searchQuery.isNotEmpty()) {
+        if (isSearchVisible) {
             KnowledgeTreeSearchContent(
-                modifier = Modifier.padding(innerPadding).fillMaxSize(),
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
                 snapshot = snapshot,
                 query = searchQuery,
                 recentQueries = recentQueries,
+                rootTitle = rootTitle,
                 onQueryChange = onSearchQueryChange,
                 onSearchSubmit = onSearchSubmit,
                 onOpenNode = onOpenNode,
@@ -145,6 +156,42 @@ fun KnowledgeTreeHomeScreen(
             state = state,
             onDismiss = onDismissDeleteDialog,
             onConfirm = onConfirmDeleteDialog,
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun KnowledgeTreeHomeScreenPreview() {
+    val snapshot = WorkspacePreviewData.snapshot()
+    val expandedIds = snapshot.treeRoots.map { it.id }.toSet() + setOf("node-2")
+
+    GleanReadTheme {
+        KnowledgeTreeHomeScreen(
+            snapshot = snapshot,
+            uiState = buildKnowledgeTreeHomeUiState(snapshot, expandedIds),
+            isSearchVisible = false,
+            searchQuery = "",
+            recentQueries = listOf("Compose"),
+            onToggleSearch = {},
+            onSearchQueryChange = {},
+            onSearchSubmit = {},
+            onToggleNode = {},
+            onOpenNode = {},
+            onOpenBranch = {},
+            onExpandAll = {},
+            onCollapseAll = {},
+            onOpenAddRootDialog = {},
+            onOpenAddChildDialog = {},
+            onOpenRenameDialog = {},
+            onOpenDeleteDialog = {},
+            nodeDialogState = null,
+            onNodeDialogValueChange = {},
+            onDismissNodeDialog = {},
+            onConfirmNodeDialog = {},
+            deleteDialogState = null,
+            onDismissDeleteDialog = {},
+            onConfirmDeleteDialog = {},
         )
     }
 }
