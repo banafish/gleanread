@@ -6,9 +6,8 @@ import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
-import java.util.UUID
 
-object WorkspaceSeedData {
+object SampleSeedData {
     fun nodes(now: Long): List<KnowledgeTreeNodeEntity> = listOf(
         KnowledgeTreeNodeEntity("node-growth", LOCAL_USER_ID, null, "🧠 个人成长", "围绕个人成长建立长期知识体系。", now - 80_000, now - 30_000, syncStatus = SyncStatus.SYNCED.code),
         KnowledgeTreeNodeEntity("node-time", LOCAL_USER_ID, "node-growth", "⏱️ 时间管理", "聚焦高频时间管理方法。", now - 70_000, now - 30_000, syncStatus = SyncStatus.SYNCED.code),
@@ -122,9 +121,4 @@ object WorkspaceSeedData {
         updateTime = now,
         syncStatus = SyncStatus.SYNCED.code,
     )
-
-    fun newDraftExcerptId(): String = UUID.randomUUID().toString()
-    fun newNodeId(): String = UUID.randomUUID().toString()
-    fun newRelationId(): String = UUID.randomUUID().toString()
-    fun newTagId(): String = UUID.randomUUID().toString()
 }

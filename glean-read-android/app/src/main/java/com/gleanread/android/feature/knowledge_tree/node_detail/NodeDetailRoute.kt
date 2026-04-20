@@ -24,6 +24,12 @@ fun NodeDetailRoute(
     val node = snapshot.flatNodes[nodeId] ?: return
     val nodeExcerpts = node.excerptIds.mapNotNull(snapshot.excerptsById::get)
     val backlinks = snapshot.backlinksByNodeId[nodeId].orEmpty()
+    val onOpenLinkedTarget: (String) -> Unit = { targetId ->
+        when {
+            snapshot.flatNodes.containsKey(targetId) -> onOpenNode(targetId)
+            snapshot.excerptsById.containsKey(targetId) -> onPreviewExcerpt(targetId)
+        }
+    }
     var editing by rememberSaveable(nodeId) { mutableStateOf(false) }
     var localOutline by rememberSaveable(nodeId) { mutableStateOf(node.outlineMarkdown) }
 
@@ -37,7 +43,6 @@ fun NodeDetailRoute(
         node = node,
         nodeExcerpts = nodeExcerpts,
         backlinks = backlinks,
-        snapshot = snapshot,
         editing = editing,
         localOutline = localOutline,
         searchSuggestions = searchSuggestions,
@@ -50,6 +55,7 @@ fun NodeDetailRoute(
             editing = !editing
         },
         onOutlineChange = { localOutline = it },
+        onOpenLinkedTarget = onOpenLinkedTarget,
         onOpenNode = onOpenNode,
         onPreviewExcerpt = onPreviewExcerpt,
         onAddExcerpt = onAddExcerpt,

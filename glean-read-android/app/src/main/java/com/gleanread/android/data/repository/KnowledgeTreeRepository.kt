@@ -12,11 +12,12 @@ import com.gleanread.android.data.model.SyncStatus
 class KnowledgeTreeRepository(
     private val database: WorkspaceDatabase,
 ) {
-    private val dao = database.workspaceDao()
+    private val excerptDao = database.excerptDao()
+    private val nodeDao = database.nodeDao()
 
     suspend fun searchSuggestions(query: String): List<LinkSuggestion> {
-        val nodes = dao.getNodesOnce()
-        val excerpts = dao.getExcerptsOnce()
+        val nodes = nodeDao.getNodesOnce()
+        val excerpts = excerptDao.getExcerptsOnce()
         val nodeSuggestions = nodes.map {
             LocalSuggestionCandidate(
                 id = it.id,
@@ -46,8 +47,8 @@ class KnowledgeTreeRepository(
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return ""
         val now = System.currentTimeMillis()
-        val nodeId = WorkspaceSeedData.newNodeId()
-        dao.insertNode(
+        val nodeId = EntityIdGenerator.newNodeId()
+        nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
                 userId = LOCAL_USER_ID,
@@ -65,10 +66,10 @@ class KnowledgeTreeRepository(
     suspend fun createChildNode(parentId: String, title: String): String {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return ""
-        val parentNode = dao.findNodeById(parentId) ?: return ""
+        val parentNode = nodeDao.findNodeById(parentId) ?: return ""
         val now = System.currentTimeMillis()
-        val nodeId = WorkspaceSeedData.newNodeId()
-        dao.insertNode(
+        val nodeId = EntityIdGenerator.newNodeId()
+        nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
                 userId = LOCAL_USER_ID,
@@ -86,9 +87,9 @@ class KnowledgeTreeRepository(
     suspend fun renameNode(nodeId: String, title: String) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return
-        val node = dao.findNodeById(nodeId) ?: return
+        val node = nodeDao.findNodeById(nodeId) ?: return
         val now = System.currentTimeMillis()
-        dao.updateNode(
+        nodeDao.updateNode(
             node.copy(
                 nodeTitle = trimmed,
                 updateTime = now,
@@ -100,7 +101,7 @@ class KnowledgeTreeRepository(
     suspend fun deleteNodeSubtree(nodeId: String) {
         val now = System.currentTimeMillis()
         database.withTransaction {
-            val allNodes = dao.getNodesOnce()
+            val allNodes = nodeDao.getNodesOnce()
             val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
             val childrenByParent = allNodes.groupBy { it.parentId }
             val subtreeIds = buildList {
@@ -112,7 +113,7 @@ class KnowledgeTreeRepository(
             }
             val subtreeNodes = allNodes.filter { subtreeIds.contains(it.id) }
             if (subtreeNodes.isNotEmpty()) {
-                dao.updateNodes(
+                nodeDao.updateNodes(
                     subtreeNodes.map { node ->
                         node.copy(
                             isDeleted = true,
@@ -123,9 +124,9 @@ class KnowledgeTreeRepository(
                 )
             }
             if (subtreeIds.isNotEmpty()) {
-                val affectedExcerpts = dao.findExcerptsByNodeIds(subtreeIds)
+                val affectedExcerpts = excerptDao.findExcerptsByNodeIds(subtreeIds)
                 if (affectedExcerpts.isNotEmpty()) {
-                    dao.updateExcerpts(
+                    excerptDao.updateExcerpts(
                         affectedExcerpts.map { excerpt ->
                             excerpt.copy(
                                 treeNodeId = null,
@@ -140,9 +141,9 @@ class KnowledgeTreeRepository(
     }
 
     suspend fun updateNodeOutline(nodeId: String, rawMarkdown: String) {
-        val node = dao.findNodeById(nodeId) ?: return
+        val node = nodeDao.findNodeById(nodeId) ?: return
         val now = System.currentTimeMillis()
-        dao.updateNode(
+        nodeDao.updateNode(
             node.copy(
                 outlineMarkdown = rawMarkdown,
                 updateTime = now,

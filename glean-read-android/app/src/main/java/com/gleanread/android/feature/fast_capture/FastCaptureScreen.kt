@@ -1,7 +1,5 @@
 package com.gleanread.android.feature.fast_capture
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -53,7 +51,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -61,12 +58,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.gleanread.android.R
-import com.gleanread.android.appContainer
 import com.gleanread.android.capture.CaptureSeed
-import com.gleanread.android.capture.PageContextAccessibilityState
 import com.gleanread.android.capture.PageContextSupport
 import com.gleanread.android.core.ui.component.CaptureBottomSheet
 import com.gleanread.android.core.ui.component.ContextHintCard
@@ -80,45 +73,7 @@ private val StringSetStateSaver = listSaver<MutableState<Set<String>>, String>(
 )
 
 @Composable
-fun FastCaptureRoute(
-    captureSeed: CaptureSeed,
-    onDismiss: () -> Unit,
-    fastCaptureViewModel: FastCaptureViewModel = viewModel(
-        factory = LocalContext.current.appContainer.fastCaptureViewModelFactory,
-    ),
-) {
-    val context = LocalContext.current
-    val uiState by fastCaptureViewModel.uiState.collectAsStateWithLifecycle()
-    val isAccessibilityEnabled = remember(context) {
-        PageContextAccessibilityState.isEnabled(context)
-    }
-
-    FastCaptureScreen(
-        captureSeed = captureSeed,
-        uiState = uiState,
-        isAccessibilityEnabled = isAccessibilityEnabled,
-        onDismiss = onDismiss,
-        onOpenAccessibilitySettings = {
-            context.startActivity(
-                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(
-                    Intent.FLAG_ACTIVITY_NEW_TASK,
-                ),
-            )
-        },
-        onSaveQuickExcerpt = { thought, url, tagNames ->
-            fastCaptureViewModel.saveQuickExcerpt(
-                content = captureSeed.content,
-                thought = thought,
-                url = url,
-                sourceTitle = captureSeed.sourceTitle,
-                tagNames = tagNames,
-            )
-        },
-    )
-}
-
-@Composable
-private fun FastCaptureScreen(
+fun FastCaptureScreen(
     captureSeed: CaptureSeed,
     uiState: FastCaptureUiState,
     isAccessibilityEnabled: Boolean,

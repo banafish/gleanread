@@ -52,7 +52,6 @@ import com.gleanread.android.core.model.BacklinkUiModel
 import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.FlatNodeUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
-import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.core.ui.richtext.InlineLinkEditor
 import com.gleanread.android.core.ui.richtext.LinkAwareText
@@ -63,7 +62,6 @@ fun NodeDetailScreen(
     node: FlatNodeUiModel,
     nodeExcerpts: List<ExcerptUiModel>,
     backlinks: List<BacklinkUiModel>,
-    snapshot: WorkspaceSnapshot,
     editing: Boolean,
     localOutline: String,
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
@@ -71,6 +69,7 @@ fun NodeDetailScreen(
     onOpenGraph: () -> Unit,
     onToggleEditing: () -> Unit,
     onOutlineChange: (String) -> Unit,
+    onOpenLinkedTarget: (String) -> Unit,
     onOpenNode: (String) -> Unit,
     onPreviewExcerpt: (String) -> Unit,
     onAddExcerpt: () -> Unit,
@@ -153,13 +152,7 @@ fun NodeDetailScreen(
             } else {
                 LinkAwareText(
                     rawText = node.outlineMarkdown,
-                    onLinkClick = { targetId ->
-                        if (snapshot.flatNodes.containsKey(targetId)) {
-                            onOpenNode(targetId)
-                        } else if (snapshot.excerptsById.containsKey(targetId)) {
-                            onPreviewExcerpt(targetId)
-                        }
-                    },
+                    onLinkClick = onOpenLinkedTarget,
                 )
             }
         }
@@ -201,9 +194,7 @@ fun NodeDetailScreen(
         items(nodeExcerpts, key = { it.id }) { excerpt ->
             NodeExcerptCard(
                 excerpt = excerpt,
-                snapshot = snapshot,
-                onOpenNode = onOpenNode,
-                onPreviewExcerpt = onPreviewExcerpt,
+                onOpenLinkedTarget = onOpenLinkedTarget,
             )
         }
 
@@ -220,9 +211,7 @@ fun NodeDetailScreen(
 @Composable
 private fun NodeExcerptCard(
     excerpt: ExcerptUiModel,
-    snapshot: WorkspaceSnapshot,
-    onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenLinkedTarget: (String) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(18.dp),
@@ -233,11 +222,7 @@ private fun NodeExcerptCard(
                 rawText = excerpt.content,
                 onLinkClick = { targetId ->
                     if (targetId == excerpt.id) return@LinkAwareText
-                    if (snapshot.excerptsById.containsKey(targetId)) {
-                        onPreviewExcerpt(targetId)
-                    } else if (snapshot.flatNodes.containsKey(targetId)) {
-                        onOpenNode(targetId)
-                    }
+                    onOpenLinkedTarget(targetId)
                 },
             )
             if (excerpt.tags.isNotEmpty()) {
@@ -334,7 +319,6 @@ private fun NodeDetailScreenPreview() {
             node = snapshot.flatNodes.getValue("node-1"),
             nodeExcerpts = snapshot.excerpts.filter { it.archivedNodeId == "node-1" },
             backlinks = snapshot.backlinksByNodeId["node-1"].orEmpty(),
-            snapshot = snapshot,
             editing = false,
             localOutline = snapshot.flatNodes.getValue("node-1").outlineMarkdown,
             searchSuggestions = { emptyList() },
@@ -342,6 +326,7 @@ private fun NodeDetailScreenPreview() {
             onOpenGraph = {},
             onToggleEditing = {},
             onOutlineChange = {},
+            onOpenLinkedTarget = {},
             onOpenNode = {},
             onPreviewExcerpt = {},
             onAddExcerpt = {},

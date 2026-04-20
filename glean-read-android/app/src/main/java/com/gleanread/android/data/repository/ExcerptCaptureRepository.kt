@@ -13,10 +13,12 @@ import kotlinx.coroutines.flow.map
 class ExcerptCaptureRepository(
     private val database: WorkspaceDatabase,
 ) {
-    private val dao = database.workspaceDao()
+    private val excerptDao = database.excerptDao()
+    private val tagDao = database.tagDao()
+    private val excerptTagDao = database.excerptTagDao()
 
     fun observeAvailableTagNames(): Flow<List<String>> {
-        return dao.observeTags().map { tags -> tags.map(TagEntity::tagName) }
+        return tagDao.observeTags().map { tags -> tags.map(TagEntity::tagName) }
     }
 
     suspend fun saveQuickExcerpt(
@@ -30,10 +32,10 @@ class ExcerptCaptureRepository(
         val trimmedContent = content.trim()
         if (trimmedContent.isEmpty()) return ""
         val now = System.currentTimeMillis()
-        val excerptId = WorkspaceSeedData.newDraftExcerptId()
+        val excerptId = EntityIdGenerator.newDraftExcerptId()
         database.withTransaction {
             val resolvedTags = resolveTags(tagNames, now)
-            dao.insertExcerpt(
+            excerptDao.insertExcerpt(
                 ExcerptEntity(
                     id = excerptId,
                     userId = LOCAL_USER_ID,
@@ -48,10 +50,10 @@ class ExcerptCaptureRepository(
                 ),
             )
             if (resolvedTags.isNotEmpty()) {
-                dao.insertExcerptTags(
+                excerptTagDao.insertExcerptTags(
                     resolvedTags.map { tag ->
                         ExcerptTagEntity(
-                            id = WorkspaceSeedData.newRelationId(),
+                            id = EntityIdGenerator.newRelationId(),
                             userId = LOCAL_USER_ID,
                             excerptId = excerptId,
                             tagId = tag.id,
@@ -72,10 +74,10 @@ class ExcerptCaptureRepository(
             .filter { it.isNotEmpty() }
             .distinct()
             .map { tagName ->
-                val existing = dao.findTagByName(LOCAL_USER_ID, tagName)
+                val existing = tagDao.findTagByName(LOCAL_USER_ID, tagName)
                 if (existing == null) {
                     TagEntity(
-                        id = WorkspaceSeedData.newTagId(),
+                        id = EntityIdGenerator.newTagId(),
                         userId = LOCAL_USER_ID,
                         tagName = tagName,
                         colorIcon = null,
@@ -83,13 +85,13 @@ class ExcerptCaptureRepository(
                         createTime = now,
                         updateTime = now,
                         syncStatus = SyncStatus.PENDING_CREATE.code,
-                    ).also { dao.insertTag(it) }
+                    ).also { tagDao.insertTag(it) }
                 } else {
                     existing.copy(
                         heatWeight = existing.heatWeight + 1,
                         updateTime = now,
                         syncStatus = SyncStatus.bump(existing.syncStatus),
-                    ).also { dao.updateTag(it) }
+                    ).also { tagDao.updateTag(it) }
                 }
             }
     }

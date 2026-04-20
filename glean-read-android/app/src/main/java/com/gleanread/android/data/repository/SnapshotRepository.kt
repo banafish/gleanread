@@ -8,13 +8,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 class SnapshotRepository(
     private val database: WorkspaceDatabase,
 ) {
-    private val dao = database.workspaceDao()
+    private val excerptDao = database.excerptDao()
+    private val nodeDao = database.nodeDao()
+    private val tagDao = database.tagDao()
+    private val excerptTagDao = database.excerptTagDao()
 
     val localSnapshot = combine(
-        dao.observeExcerpts(),
-        dao.observeNodes(),
-        dao.observeTags(),
-        dao.observeExcerptTags(),
+        excerptDao.observeExcerpts(),
+        nodeDao.observeNodes(),
+        tagDao.observeTags(),
+        excerptTagDao.observeExcerptTags(),
     ) { excerpts, nodes, tags, relations ->
         WorkspaceLocalSnapshot(
             excerpts = excerpts,
@@ -25,14 +28,14 @@ class SnapshotRepository(
     }.distinctUntilChanged()
 
     suspend fun seedSampleData() {
-        val hasData = dao.countExcerpts() > 0 || dao.countNodes() > 0 || dao.countTags() > 0
+        val hasData = excerptDao.countExcerpts() > 0 || nodeDao.countNodes() > 0 || tagDao.countTags() > 0
         if (hasData) return
         val now = System.currentTimeMillis()
         database.withTransaction {
-            dao.insertNodes(WorkspaceSeedData.nodes(now))
-            dao.insertTags(WorkspaceSeedData.tags(now))
-            dao.insertExcerpts(WorkspaceSeedData.excerpts(now))
-            dao.insertExcerptTags(WorkspaceSeedData.excerptTags(now))
+            nodeDao.insertNodes(SampleSeedData.nodes(now))
+            tagDao.insertTags(SampleSeedData.tags(now))
+            excerptDao.insertExcerpts(SampleSeedData.excerpts(now))
+            excerptTagDao.insertExcerptTags(SampleSeedData.excerptTags(now))
         }
     }
 }

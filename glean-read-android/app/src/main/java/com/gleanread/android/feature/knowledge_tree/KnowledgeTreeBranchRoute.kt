@@ -2,18 +2,12 @@ package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.gleanread.android.R
 import com.gleanread.android.core.model.WorkspaceSnapshot
-import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
-import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeBranchUiState
 
 @Composable
@@ -27,22 +21,11 @@ fun KnowledgeTreeBranchRoute(
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
 ) {
-    var expandedIds by rememberSaveable(nodeId, stateSaver = ExpandedIdsSaver) {
-        mutableStateOf(emptySet<String>())
-    }
-    var isSearchVisible by rememberSaveable(nodeId) { mutableStateOf(false) }
-    var searchQuery by rememberSaveable(nodeId) { mutableStateOf("") }
-    var recentQueries by rememberSaveable(nodeId) { mutableStateOf(emptyList<String>()) }
-    var nodeDialogState by rememberSaveable(nodeId, stateSaver = NodeDialogUiStateSaver) {
-        mutableStateOf<NodeDialogUiState?>(null)
-    }
-    var deleteDialogState by rememberSaveable(nodeId, stateSaver = DeleteDialogUiStateSaver) {
-        mutableStateOf<DeleteDialogUiState?>(null)
-    }
+    val controller = rememberKnowledgeTreeRouteController(routeKey = nodeId)
 
     val currentNode = snapshot.flatNodes[nodeId]
     LaunchedEffect(nodeId, currentNode?.childNodeIds) {
-        expandedIds = collectExpandableIds(snapshot, nodeId)
+        controller.setExpandedIds(collectExpandableIds(snapshot, nodeId))
     }
     LaunchedEffect(snapshot.flatNodes.containsKey(nodeId)) {
         if (!snapshot.flatNodes.containsKey(nodeId)) {
@@ -51,83 +34,48 @@ fun KnowledgeTreeBranchRoute(
     }
     val rootTitle = stringResource(R.string.knowledge_tree_root_title)
 
-    val uiState = remember(snapshot, nodeId, expandedIds) {
-        buildKnowledgeTreeBranchUiState(snapshot, nodeId, expandedIds, rootTitle)
+    val uiState = remember(snapshot, nodeId, controller.expandedIds) {
+        buildKnowledgeTreeBranchUiState(snapshot, nodeId, controller.expandedIds, rootTitle)
     } ?: return
 
     KnowledgeTreeBranchScreen(
         snapshot = snapshot,
         uiState = uiState,
-        isSearchVisible = isSearchVisible,
-        searchQuery = searchQuery,
-        recentQueries = recentQueries,
+        isSearchVisible = controller.isSearchVisible,
+        searchQuery = controller.searchQuery,
+        recentQueries = controller.recentQueries,
         onBack = onBack,
-        onToggleSearch = {
-            isSearchVisible = !isSearchVisible
-            if (!isSearchVisible) {
-                searchQuery = ""
-            }
-        },
-        onSearchQueryChange = { searchQuery = it },
-        onSearchSubmit = { query ->
-            val trimmed = query.trim()
-            if (trimmed.isNotBlank()) {
-                recentQueries = listOf(trimmed) + recentQueries.filterNot { it == trimmed }.take(4)
-            }
-        },
-        onToggleNode = { targetId ->
-            expandedIds = if (expandedIds.contains(targetId)) {
-                expandedIds - targetId
-            } else {
-                expandedIds + targetId
-            }
-        },
+        onToggleSearch = controller.toggleSearch,
+        onSearchQueryChange = controller.updateSearchQuery,
+        onSearchSubmit = controller.submitSearch,
+        onToggleNode = controller.toggleNode,
         onOpenNode = onOpenNode,
         onOpenBranch = onOpenBranch,
-        onExpandAll = { expandedIds = collectExpandableIds(snapshot, nodeId) },
-        onCollapseAll = { expandedIds = emptySet() },
-        onOpenAddChildDialog = { target ->
-            nodeDialogState = NodeDialogUiState(
-                type = NodeDialogType.ADD_CHILD,
-                parentNodeId = target.nodeId,
-                parentNodeTitle = target.title,
-            )
-        },
-        onOpenRenameDialog = { target ->
-            nodeDialogState = NodeDialogUiState(
-                type = NodeDialogType.RENAME,
-                inputValue = target.title,
-                targetNodeId = target.nodeId,
-                targetNodeTitle = target.title,
-            )
-        },
+        onExpandAll = { controller.setExpandedIds(collectExpandableIds(snapshot, nodeId)) },
+        onCollapseAll = { controller.setExpandedIds(emptySet()) },
+        onOpenAddChildDialog = controller.openAddChildDialog,
+        onOpenRenameDialog = controller.openRenameDialog,
         onOpenDeleteDialog = { target ->
-            deleteDialogState = DeleteDialogUiState(
-                target = target,
-                descendantCount = countDescendants(snapshot, target.nodeId),
+            controller.openDeleteDialog(
+                target,
+                countKnowledgeTreeDescendants(snapshot, target.nodeId),
             )
         },
         onOpenCurrentAddChildDialog = {
-            nodeDialogState = NodeDialogUiState(
-                type = NodeDialogType.ADD_CHILD,
-                parentNodeId = uiState.currentNodeId,
-                parentNodeTitle = uiState.title,
-            )
+            controller.openAddChildDialog(uiState.actionTarget)
         },
-        nodeDialogState = nodeDialogState,
-        onNodeDialogValueChange = { value ->
-            nodeDialogState = nodeDialogState?.copy(inputValue = value)
-        },
-        onDismissNodeDialog = { nodeDialogState = null },
+        nodeDialogState = controller.nodeDialogState,
+        onNodeDialogValueChange = controller.updateNodeDialogValue,
+        onDismissNodeDialog = controller.dismissNodeDialog,
         onConfirmNodeDialog = {
-            when (val dialogState = nodeDialogState) {
+            when (val dialogState = controller.nodeDialogState) {
                 null -> Unit
                 else -> when (dialogState.type) {
                     NodeDialogType.ADD_ROOT -> Unit
                     NodeDialogType.ADD_CHILD -> {
                         dialogState.parentNodeId?.let { parentId ->
                             onCreateChildNode(parentId, dialogState.inputValue) {
-                                expandedIds = expandedIds + parentId
+                                controller.expandNode(parentId)
                             }
                         }
                     }
@@ -139,15 +87,15 @@ fun KnowledgeTreeBranchRoute(
                     }
                 }
             }
-            nodeDialogState = null
+            controller.dismissNodeDialog()
         },
-        deleteDialogState = deleteDialogState,
-        onDismissDeleteDialog = { deleteDialogState = null },
+        deleteDialogState = controller.deleteDialogState,
+        onDismissDeleteDialog = controller.dismissDeleteDialog,
         onConfirmDeleteDialog = {
-            deleteDialogState?.target?.nodeId?.let { targetId ->
+            controller.deleteDialogState?.target?.nodeId?.let { targetId ->
                 onDeleteNode(targetId) {}
             }
-            deleteDialogState = null
+            controller.dismissDeleteDialog()
         },
     )
 }
@@ -161,14 +109,4 @@ private fun collectExpandableIds(
         nodeIds = snapshot.flatNodes[nodeId]?.childNodeIds.orEmpty(),
         remainingPreviewDepth = KNOWLEDGE_TREE_BRANCH_PREVIEW_DEPTH,
     )
-}
-
-private fun countDescendants(
-    snapshot: WorkspaceSnapshot,
-    nodeId: String,
-): Int {
-    val node = snapshot.flatNodes[nodeId] ?: return 0
-    return node.childNodeIds.sumOf { childId ->
-        1 + countDescendants(snapshot, childId)
-    }
 }

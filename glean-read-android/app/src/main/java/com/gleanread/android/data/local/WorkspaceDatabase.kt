@@ -16,7 +16,10 @@ import androidx.room.RoomDatabase
     exportSchema = false,
 )
 abstract class WorkspaceDatabase : RoomDatabase() {
-    abstract fun workspaceDao(): WorkspaceDao
+    abstract fun excerptDao(): ExcerptDao
+    abstract fun nodeDao(): KnowledgeTreeNodeDao
+    abstract fun tagDao(): TagDao
+    abstract fun excerptTagDao(): ExcerptTagDao
 
     companion object {
         @Volatile
