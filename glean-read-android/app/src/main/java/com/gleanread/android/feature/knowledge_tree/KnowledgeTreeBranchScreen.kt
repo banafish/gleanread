@@ -62,6 +62,7 @@ fun KnowledgeTreeBranchScreen(
     onConfirmDeleteDialog: () -> Unit,
 ) {
     val rootTitle = stringResource(R.string.knowledge_tree_root_title)
+    val showSearchResults = isSearchVisible && searchQuery.trim().isNotEmpty()
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -92,7 +93,7 @@ fun KnowledgeTreeBranchScreen(
             }
         },
     ) { innerPadding ->
-        if (isSearchVisible) {
+        if (showSearchResults) {
             KnowledgeTreeSearchContent(
                 modifier = Modifier
                     .padding(innerPadding)
