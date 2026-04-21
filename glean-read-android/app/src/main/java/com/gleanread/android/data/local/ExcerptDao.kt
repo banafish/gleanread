@@ -15,6 +15,9 @@ interface ExcerptDao {
     @Query("SELECT * FROM excerpts WHERE is_deleted = 0 ORDER BY create_time DESC")
     suspend fun getExcerptsOnce(): List<ExcerptEntity>
 
+    @Query("SELECT * FROM excerpts WHERE id = :excerptId LIMIT 1")
+    suspend fun findExcerptById(excerptId: String): ExcerptEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExcerpt(excerpt: ExcerptEntity)
 

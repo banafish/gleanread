@@ -58,23 +58,36 @@ fun FeedScreen(
     showInboxOnly: Boolean,
     isSelectionMode: Boolean,
     selectedExcerptIds: Set<String>,
+    revealedExcerptId: String?,
+    pendingDeleteExcerpt: ExcerptUiModel?,
     onSearchQueryChange: (String) -> Unit,
     onClearSearch: () -> Unit,
     onToggleInboxFilter: () -> Unit,
     onOpenAiSummary: () -> Unit,
+    onOpenExcerptAiSummary: (String) -> Unit,
+    onDeleteExcerpt: (String) -> Unit,
     onLongPress: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
     onOpenNode: (String) -> Unit,
     onPreviewExcerpt: (String) -> Unit,
+    onRevealExcerptActions: (String) -> Unit,
+    onDismissExcerptActions: (String) -> Unit,
+    onDismissDeleteDialog: () -> Unit,
+    onConfirmDeleteDialog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
+    Column(
         modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(vertical = 16.dp),
+            .fillMaxSize(),
     ) {
-        item(key = "feed_search") {
+        Column(
+            modifier = Modifier.padding(
+                start = 16.dp,
+                top = 16.dp,
+                end = 16.dp,
+                bottom = 12.dp,
+            ),
+        ) {
             FeedSearchBar(
                 searchQuery = searchQuery,
                 showInboxOnly = showInboxOnly,
@@ -84,27 +97,53 @@ fun FeedScreen(
             )
         }
 
-        items(items = filteredExcerpts, key = { it.id }) { excerpt ->
-            ExcerptCard(
-                excerpt = excerpt,
-                isSelectionMode = isSelectionMode,
-                isSelected = selectedExcerptIds.contains(excerpt.id),
-                onLongPress = { onLongPress(excerpt.id) },
-                onClick = {
-                    if (isSelectionMode) {
-                        onToggleSelection(excerpt.id)
-                    }
-                },
-                onOpenNode = onOpenNode,
-                onPreviewExcerpt = onPreviewExcerpt,
-            )
-            Spacer(Modifier.height(14.dp))
-        }
+        LazyColumn(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(bottom = 16.dp),
+        ) {
+            item(key = "feed_selection_hint") {
+                FeedSelectionHint()
+                Spacer(Modifier.height(14.dp))
+            }
 
-        item(key = "feed_ai_recommendation") {
-            AiRecommendationCard(onOpenAiSummary = onOpenAiSummary)
-            Spacer(Modifier.height(120.dp))
+            items(items = filteredExcerpts, key = { it.id }) { excerpt ->
+                ExcerptCard(
+                    excerpt = excerpt,
+                    isSelectionMode = isSelectionMode,
+                    isSelected = selectedExcerptIds.contains(excerpt.id),
+                    isActionsRevealed = revealedExcerptId == excerpt.id,
+                    onRevealActions = { onRevealExcerptActions(excerpt.id) },
+                    onDismissActions = { onDismissExcerptActions(excerpt.id) },
+                    onOpenAiSummary = { onOpenExcerptAiSummary(excerpt.id) },
+                    onDelete = { onDeleteExcerpt(excerpt.id) },
+                    onLongPress = { onLongPress(excerpt.id) },
+                    onClick = {
+                        if (isSelectionMode) {
+                            onToggleSelection(excerpt.id)
+                        }
+                    },
+                    onOpenNode = onOpenNode,
+                    onPreviewExcerpt = onPreviewExcerpt,
+                )
+                Spacer(Modifier.height(14.dp))
+            }
+
+            item(key = "feed_ai_recommendation") {
+                AiRecommendationCard(onOpenAiSummary = onOpenAiSummary)
+                Spacer(Modifier.height(120.dp))
+            }
         }
+    }
+
+    pendingDeleteExcerpt?.let { excerpt ->
+        DeleteExcerptDialog(
+            excerpt = excerpt,
+            onDismiss = onDismissDeleteDialog,
+            onConfirm = onConfirmDeleteDialog,
+        )
     }
 }
 
@@ -186,15 +225,16 @@ private fun FeedSearchBar(
             )
         }
     }
+}
 
-    Spacer(Modifier.height(12.dp))
+@Composable
+private fun FeedSelectionHint() {
     Text(
         text = stringResource(R.string.feed_selection_hint),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp),
     )
-    Spacer(Modifier.height(14.dp))
 }
 
 @Composable
@@ -282,14 +322,22 @@ private fun FeedScreenPreview() {
             showInboxOnly = false,
             isSelectionMode = false,
             selectedExcerptIds = emptySet(),
+            revealedExcerptId = null,
+            pendingDeleteExcerpt = null,
             onSearchQueryChange = {},
             onClearSearch = {},
             onToggleInboxFilter = {},
             onOpenAiSummary = {},
+            onOpenExcerptAiSummary = {},
+            onDeleteExcerpt = {},
             onLongPress = {},
             onToggleSelection = {},
             onOpenNode = {},
             onPreviewExcerpt = {},
+            onRevealExcerptActions = {},
+            onDismissExcerptActions = {},
+            onDismissDeleteDialog = {},
+            onConfirmDeleteDialog = {},
         )
     }
 }

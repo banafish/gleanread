@@ -13,6 +13,8 @@ fun FeedRoute(
     snapshot: WorkspaceSnapshot,
     uiState: FeedUiState,
     onOpenAiSummary: () -> Unit,
+    onOpenExcerptAiSummary: (String) -> Unit,
+    onDeleteExcerpt: (String) -> Unit,
     onLongPress: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
     onLoadSample: () -> Unit,
@@ -30,6 +32,8 @@ fun FeedRoute(
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showInboxOnly by rememberSaveable { mutableStateOf(false) }
+    var revealedExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingDeleteExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
     val filtered = remember(snapshot.excerpts, searchQuery, showInboxOnly) {
         snapshot.excerpts.filter { excerpt ->
             val matchesQuery = searchQuery.isBlank() ||
@@ -40,6 +44,9 @@ fun FeedRoute(
             matchesQuery && matchesFilter
         }
     }
+    val pendingDeleteExcerpt = remember(snapshot.excerpts, pendingDeleteExcerptId) {
+        snapshot.excerpts.firstOrNull { it.id == pendingDeleteExcerptId }
+    }
 
     FeedScreen(
         filteredExcerpts = filtered,
@@ -47,13 +54,46 @@ fun FeedRoute(
         showInboxOnly = showInboxOnly,
         isSelectionMode = uiState.isSelectionMode,
         selectedExcerptIds = uiState.selectedExcerptIds,
-        onSearchQueryChange = { searchQuery = it },
-        onClearSearch = { searchQuery = "" },
-        onToggleInboxFilter = { showInboxOnly = !showInboxOnly },
+        revealedExcerptId = revealedExcerptId,
+        pendingDeleteExcerpt = pendingDeleteExcerpt,
+        onSearchQueryChange = {
+            revealedExcerptId = null
+            searchQuery = it
+        },
+        onClearSearch = {
+            revealedExcerptId = null
+            searchQuery = ""
+        },
+        onToggleInboxFilter = {
+            revealedExcerptId = null
+            showInboxOnly = !showInboxOnly
+        },
         onOpenAiSummary = onOpenAiSummary,
-        onLongPress = onLongPress,
+        onOpenExcerptAiSummary = { excerptId ->
+            revealedExcerptId = null
+            onOpenExcerptAiSummary(excerptId)
+        },
+        onDeleteExcerpt = { excerptId ->
+            revealedExcerptId = null
+            pendingDeleteExcerptId = excerptId
+        },
+        onLongPress = { excerptId ->
+            revealedExcerptId = null
+            onLongPress(excerptId)
+        },
         onToggleSelection = onToggleSelection,
         onOpenNode = onOpenNode,
         onPreviewExcerpt = onPreviewExcerpt,
+        onRevealExcerptActions = { excerptId -> revealedExcerptId = excerptId },
+        onDismissExcerptActions = { excerptId ->
+            if (revealedExcerptId == excerptId) {
+                revealedExcerptId = null
+            }
+        },
+        onDismissDeleteDialog = { pendingDeleteExcerptId = null },
+        onConfirmDeleteDialog = {
+            pendingDeleteExcerptId?.let(onDeleteExcerpt)
+            pendingDeleteExcerptId = null
+        },
     )
 }

@@ -11,24 +11,27 @@
     <string name="common_save">保存</string>
 
     <string name="main_add_content_description">新增摘录</string>
-    <string name="main_ai_archive_action">AI 归档</string>
+    <string name="main_ai_archive_action">AI 总结</string>
     <string name="main_nav_feed">摘录流</string>
     <string name="main_nav_tags">标签</string>
     <string name="main_nav_tree">知识树</string>
     <string name="main_selected_count">已选中 %1$d 条</string>
 
     <string name="feed_ai_recommendation_action">去整理</string>
-    <string name="feed_ai_recommendation_body">选中几条摘录后，让 AI 帮你归档成节点大纲。</string>
+    <string name="feed_ai_recommendation_body">选中几条摘录后，让 AI 帮你总结成节点大纲。</string>
     <string name="feed_ai_recommendation_ignore">暂不处理</string>
     <string name="feed_ai_recommendation_title">AI 整理建议</string>
     <string name="feed_clear_search_content_description">清空搜索</string>
+    <string name="feed_delete_excerpt_body">删除后不可恢复。\n\n%1$s</string>
+    <string name="feed_delete_excerpt_title">删除这条摘录？</string>
     <string name="feed_empty_body">先记录几条内容，再把它们整理进知识树和标签体系。</string>
     <string name="feed_empty_capture">3. 用极速摘录随手记录灵感</string>
     <string name="feed_empty_flow">1. 收藏摘录，保留原始内容</string>
     <string name="feed_empty_title">从摘录开始积累知识</string>
-    <string name="feed_empty_tree">2. 归档到知识节点，形成结构</string>
+    <string name="feed_empty_tree">2. 总结到知识节点，形成结构</string>
     <string name="feed_filter_inbox_content_description">仅看 Inbox</string>
     <string name="feed_load_sample">导入示例</string>
+    <string name="feed_mount_excerpt_action">挂载摘录</string>
     <string name="feed_search_content_description">搜索摘录</string>
     <string name="feed_search_placeholder">搜索摘录、想法或标签</string>
     <string name="feed_selection_hint">长按卡片可进入多选</string>
@@ -44,7 +47,7 @@
     <string name="tags_new">新建</string>
     <string name="tags_title">标签</string>
 
-    <string name="excerpt_preview_archived_to">已归档到：%1$s</string>
+    <string name="excerpt_preview_archived_to">已总结到：%1$s</string>
     <string name="excerpt_preview_open_node">打开节点</string>
     <string name="excerpt_preview_title">摘录详情</string>
 
@@ -57,7 +60,7 @@
     <string name="quick_capture_url_placeholder">粘贴来源链接</string>
 
     <string name="archive_picker_inbox">Inbox</string>
-    <string name="archive_picker_title">选择归档位置</string>
+    <string name="archive_picker_title">选择总结位置</string>
 
     <string name="node_picker_choose_existing">选择已有节点</string>
     <string name="node_picker_create_new">新建节点</string>
@@ -72,7 +75,7 @@
     <string name="ai_summary_new_node">新建节点：%1$s</string>
     <string name="ai_summary_outline_placeholder">让 AI 生成一个可编辑的大纲</string>
     <string name="ai_summary_outline_title">生成大纲</string>
-    <string name="ai_summary_title">AI 归档</string>
+    <string name="ai_summary_title">AI 总结</string>
 
     <string name="node_detail_add_excerpt">添加摘录</string>
     <string name="node_detail_backlink_item">%1$s：%2$s</string>

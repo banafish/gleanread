@@ -2,6 +2,7 @@ package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.model.SyncStatus
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -37,5 +38,19 @@ class SnapshotRepository(
             excerptDao.insertExcerpts(SampleSeedData.excerpts(now))
             excerptTagDao.insertExcerptTags(SampleSeedData.excerptTags(now))
         }
+    }
+
+    suspend fun deleteExcerpt(excerptId: String) {
+        val excerpt = excerptDao.findExcerptById(excerptId) ?: return
+        val now = System.currentTimeMillis()
+        excerptDao.updateExcerpts(
+            listOf(
+                excerpt.copy(
+                    isDeleted = true,
+                    updateTime = now,
+                    syncStatus = SyncStatus.markDeleted(excerpt.syncStatus),
+                ),
+            ),
+        )
     }
 }

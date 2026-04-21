@@ -167,6 +167,12 @@ fun MainApp() {
                             aiSummaryViewModel.prepare(feedUiState.selectedExcerptIds.toList())
                             navController.navigate(MainRoutes.AiSummary)
                         },
+                        onOpenExcerptAiSummary = { excerptId ->
+                            feedViewModel.clearSelection()
+                            aiSummaryViewModel.prepare(listOf(excerptId))
+                            navController.navigate(MainRoutes.AiSummary)
+                        },
+                        onDeleteExcerpt = mainViewModel::deleteExcerpt,
                         onLongPress = feedViewModel::enterSelectionMode,
                         onToggleSelection = feedViewModel::toggleExcerptSelection,
                         onLoadSample = mainViewModel::loadSampleData,

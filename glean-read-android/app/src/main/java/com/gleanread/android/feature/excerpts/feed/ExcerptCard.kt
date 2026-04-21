@@ -1,10 +1,16 @@
 package com.gleanread.android.feature.excerpts.feed
 
 import android.net.Uri
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.AnchoredDraggableState
+import androidx.compose.foundation.gestures.DraggableAnchors
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.anchoredDraggable
+import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,27 +18,39 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
 import com.gleanread.android.core.model.ExcerptUiModel
@@ -41,10 +59,131 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
+
+private enum class ExcerptCardSwipeValue {
+    Closed,
+    ActionsRevealed,
+}
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ExcerptCard(
+    excerpt: ExcerptUiModel,
+    isSelectionMode: Boolean,
+    isSelected: Boolean,
+    isActionsRevealed: Boolean,
+    onRevealActions: () -> Unit,
+    onDismissActions: () -> Unit,
+    onOpenAiSummary: () -> Unit,
+    onDelete: () -> Unit,
+    onLongPress: () -> Unit,
+    onClick: () -> Unit,
+    onOpenNode: (String) -> Unit,
+    onPreviewExcerpt: (String) -> Unit,
+) {
+    if (isSelectionMode) {
+        ExcerptCardSurface(
+            excerpt = excerpt,
+            isSelectionMode = true,
+            isSelected = isSelected,
+            onLongPress = onLongPress,
+            onClick = onClick,
+            onOpenNode = onOpenNode,
+            onPreviewExcerpt = onPreviewExcerpt,
+        )
+        return
+    }
+
+    val density = LocalDensity.current
+    val actionAreaWidthPx = with(density) { EXCERPT_CARD_ACTION_AREA_WIDTH.toPx() }
+    val coroutineScope = rememberCoroutineScope()
+    val swipeState = remember(actionAreaWidthPx, density) {
+        AnchoredDraggableState(
+            initialValue = ExcerptCardSwipeValue.Closed,
+            anchors = DraggableAnchors {
+                ExcerptCardSwipeValue.Closed at 0f
+                ExcerptCardSwipeValue.ActionsRevealed at -actionAreaWidthPx
+            },
+            positionalThreshold = { distance -> distance * 0.35f },
+            velocityThreshold = { with(density) { 120.dp.toPx() } },
+            animationSpec = tween(durationMillis = 220),
+        )
+    }
+    val offsetX = swipeState.offset.takeIf { !it.isNaN() }?.roundToInt() ?: 0
+
+    LaunchedEffect(isActionsRevealed) {
+        val targetValue = if (isActionsRevealed) {
+            ExcerptCardSwipeValue.ActionsRevealed
+        } else {
+            ExcerptCardSwipeValue.Closed
+        }
+        if (swipeState.currentValue != targetValue) {
+            swipeState.animateTo(targetValue)
+        }
+    }
+
+    LaunchedEffect(swipeState) {
+        snapshotFlow { swipeState.currentValue }.collect { value ->
+            if (value == ExcerptCardSwipeValue.ActionsRevealed) {
+                onRevealActions()
+            } else {
+                onDismissActions()
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(EXCERPT_CARD_SHAPE),
+    ) {
+        ExcerptCardActions(
+            onOpenAiSummary = onOpenAiSummary,
+            onDelete = onDelete,
+            modifier = Modifier.matchParentSize(),
+        )
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(offsetX, 0) }
+                .anchoredDraggable(
+                    state = swipeState,
+                    orientation = Orientation.Horizontal,
+                ),
+        ) {
+            ExcerptCardSurface(
+                excerpt = excerpt,
+                isSelectionMode = false,
+                isSelected = isSelected,
+                onLongPress = {
+                    if (swipeState.currentValue == ExcerptCardSwipeValue.ActionsRevealed) {
+                        coroutineScope.launch {
+                            swipeState.animateTo(ExcerptCardSwipeValue.Closed)
+                        }
+                    } else {
+                        onLongPress()
+                    }
+                },
+                onClick = {
+                    if (swipeState.currentValue == ExcerptCardSwipeValue.ActionsRevealed) {
+                        coroutineScope.launch {
+                            swipeState.animateTo(ExcerptCardSwipeValue.Closed)
+                        }
+                    } else {
+                        onClick()
+                    }
+                },
+                onOpenNode = onOpenNode,
+                onPreviewExcerpt = onPreviewExcerpt,
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ExcerptCardSurface(
     excerpt: ExcerptUiModel,
     isSelectionMode: Boolean,
     isSelected: Boolean,
@@ -59,9 +198,8 @@ internal fun ExcerptCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
             .combinedClickable(onClick = onClick, onLongClick = onLongPress),
-        shape = RoundedCornerShape(24.dp),
+        shape = EXCERPT_CARD_SHAPE,
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
@@ -143,7 +281,7 @@ internal fun ExcerptCard(
                 Spacer(Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 ) {
                     Box(modifier = Modifier.padding(12.dp)) {
                         LinkAwareText(
@@ -204,6 +342,64 @@ internal fun ExcerptCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ExcerptCardActions(
+    onOpenAiSummary: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.padding(end = 8.dp),
+        horizontalArrangement = Arrangement.End,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ExcerptCardActionButton(
+            contentDescription = stringResource(R.string.feed_mount_excerpt_action),
+            icon = Icons.Default.AutoAwesome,
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+            onClick = onOpenAiSummary,
+        )
+        Spacer(Modifier.width(8.dp))
+        ExcerptCardActionButton(
+            contentDescription = stringResource(R.string.knowledge_tree_delete_action),
+            icon = Icons.Default.Delete,
+            containerColor = MaterialTheme.colorScheme.error,
+            contentColor = MaterialTheme.colorScheme.onError,
+            onClick = onDelete,
+        )
+    }
+}
+
+@Composable
+private fun ExcerptCardActionButton(
+    contentDescription: String,
+    icon: ImageVector,
+    containerColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.width(EXCERPT_CARD_ACTION_BUTTON_SIZE),
+        contentAlignment = Alignment.Center,
+    ) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier
+                .size(EXCERPT_CARD_ACTION_BUTTON_SIZE)
+                .clip(CircleShape)
+                .background(containerColor),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = contentColor,
+                modifier = Modifier.size(EXCERPT_CARD_ACTION_ICON_SIZE),
+            )
         }
     }
 }
@@ -277,3 +473,7 @@ private fun excerptCreateTimeLabel(createTime: Long): String {
 }
 
 private const val ONE_HOUR_MILLIS = 60 * 60 * 1000L
+private val EXCERPT_CARD_SHAPE = RoundedCornerShape(24.dp)
+private val EXCERPT_CARD_ACTION_BUTTON_SIZE = 50.dp
+private val EXCERPT_CARD_ACTION_ICON_SIZE = 26.dp
+private val EXCERPT_CARD_ACTION_AREA_WIDTH = 128.dp

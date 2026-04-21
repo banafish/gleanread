@@ -34,6 +34,12 @@ class MainAppViewModel(
         }
     }
 
+    fun deleteExcerpt(excerptId: String) {
+        viewModelScope.launch {
+            snapshotRepository.deleteExcerpt(excerptId)
+        }
+    }
+
     fun createRootNode(title: String, onCreated: (String) -> Unit = {}) {
         if (title.isBlank()) return
         viewModelScope.launch {
