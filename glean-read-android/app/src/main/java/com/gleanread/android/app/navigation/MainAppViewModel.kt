@@ -40,6 +40,22 @@ class MainAppViewModel(
         }
     }
 
+    fun createTag(tagName: String, onCreated: () -> Unit = {}) {
+        if (tagName.isBlank()) return
+        viewModelScope.launch {
+            snapshotRepository.createTag(tagName)
+            onCreated()
+        }
+    }
+
+    fun deleteTags(tagIds: Set<String>, onDeleted: () -> Unit = {}) {
+        if (tagIds.isEmpty()) return
+        viewModelScope.launch {
+            snapshotRepository.deleteTags(tagIds)
+            onDeleted()
+        }
+    }
+
     fun createRootNode(title: String, onCreated: (String) -> Unit = {}) {
         if (title.isBlank()) return
         viewModelScope.launch {

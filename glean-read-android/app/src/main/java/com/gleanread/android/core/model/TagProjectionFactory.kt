@@ -41,12 +41,29 @@ internal class TagProjectionFactory {
     }
 
     private fun folderName(tagName: String): String {
-        return if (tagName.contains('/')) tagName.substringBefore('/') else "Uncategorized"
+        return tagPathParts(tagName).folder
     }
 
     private fun displayTagName(tagName: String): String {
-        return if (tagName.contains('/')) tagName.substringAfterLast('/') else tagName
+        return tagPathParts(tagName).displayName
     }
 
     private fun normalizeTagLabel(tagName: String): String = "#${displayTagName(tagName)}"
+
+    private fun tagPathParts(tagName: String): TagPathParts {
+        val segments = tagName.split('/')
+            .map(String::trim)
+            .filter(String::isNotEmpty)
+
+        return when {
+            segments.isEmpty() -> TagPathParts(folder = "Uncategorized", displayName = tagName)
+            segments.size == 1 -> TagPathParts(folder = "Uncategorized", displayName = segments.first())
+            else -> TagPathParts(folder = segments.first(), displayName = segments[1])
+        }
+    }
 }
+
+private data class TagPathParts(
+    val folder: String,
+    val displayName: String,
+)

@@ -21,8 +21,10 @@ import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -32,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -64,6 +67,8 @@ import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeHomeRoute
 import com.gleanread.android.feature.knowledge_tree.graph.GraphRoute
 import com.gleanread.android.feature.knowledge_tree.node_detail.NodeDetailRoute
 import com.gleanread.android.feature.tags.TagsRoute
+import com.gleanread.android.feature.tags.TagsViewModel
+import com.gleanread.android.feature.tags.component.AddTagDialog
 
 object MainRoutes {
     const val Feed = "feed"
@@ -87,6 +92,7 @@ fun MainApp() {
     val quickCaptureViewModel: QuickCaptureViewModel =
         viewModel(factory = appContainer.quickCaptureViewModelFactory)
     val aiSummaryViewModel: AiSummaryViewModel = viewModel(factory = appContainer.aiSummaryViewModelFactory)
+    val tagsViewModel: TagsViewModel = viewModel(factory = appContainer.tagsViewModelFactory)
 
     val navController = rememberNavController()
     val currentEntry by navController.currentBackStackEntryAsState()
@@ -95,15 +101,36 @@ fun MainApp() {
     val feedUiState by feedViewModel.uiState.collectAsStateWithLifecycle()
     val quickCaptureUiState by quickCaptureViewModel.uiState.collectAsStateWithLifecycle()
     val aiSummaryDraft by aiSummaryViewModel.draft.collectAsStateWithLifecycle()
+    val tagsUiState by tagsViewModel.uiState.collectAsStateWithLifecycle()
     var previewExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
+    var isAddTagDialogOpen by rememberSaveable { mutableStateOf(false) }
+    var addTagInput by rememberSaveable { mutableStateOf("") }
 
     val isMainRoute = route == MainRoutes.Feed || route == MainRoutes.Tree || route == MainRoutes.Tags
     val showEmptyGuide = route == MainRoutes.Feed && snapshot.isEmpty
     val showFab = (route == MainRoutes.Feed || route == MainRoutes.Tags) &&
         !feedUiState.isSelectionMode &&
+        !(route == MainRoutes.Tags && (tagsUiState.isSelectionMode || tagsUiState.isSearchVisible)) &&
         !showEmptyGuide
-    val showBottomNav = isMainRoute && !feedUiState.isSelectionMode && !showEmptyGuide
-    val showSelectionBar = route == MainRoutes.Feed && feedUiState.isSelectionMode
+    val showBottomNav = isMainRoute &&
+        !feedUiState.isSelectionMode &&
+        !(route == MainRoutes.Tags && tagsUiState.isSelectionMode) &&
+        !showEmptyGuide
+    val showFeedSelectionBar = route == MainRoutes.Feed && feedUiState.isSelectionMode
+    val showTagsSelectionBar = route == MainRoutes.Tags && tagsUiState.isSelectionMode
+    val openAddTagDialog = {
+        isAddTagDialogOpen = true
+    }
+    val dismissAddTagDialog = {
+        isAddTagDialogOpen = false
+        addTagInput = ""
+    }
+
+    LaunchedEffect(route) {
+        if (route != MainRoutes.Tags && isAddTagDialogOpen) {
+            dismissAddTagDialog()
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -111,13 +138,25 @@ fun MainApp() {
         floatingActionButton = {
             if (showFab) {
                 FloatingActionButton(
-                    onClick = quickCaptureViewModel::open,
+                    onClick = {
+                        if (route == MainRoutes.Tags) {
+                            openAddTagDialog()
+                        } else {
+                            quickCaptureViewModel.open()
+                        }
+                    },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.main_add_content_description),
+                        contentDescription = stringResource(
+                            if (route == MainRoutes.Tags) {
+                                R.string.tags_add_content_description
+                            } else {
+                                R.string.main_add_content_description
+                            },
+                        ),
                     )
                 }
             }
@@ -135,7 +174,7 @@ fun MainApp() {
                         }
                     },
                 )
-            } else if (showSelectionBar) {
+            } else if (showFeedSelectionBar) {
                 SelectionActionBar(
                     selectedCount = feedUiState.selectedExcerptIds.size,
                     onCancel = feedViewModel::clearSelection,
@@ -143,6 +182,12 @@ fun MainApp() {
                         aiSummaryViewModel.prepare(feedUiState.selectedExcerptIds.toList())
                         navController.navigate(MainRoutes.AiSummary)
                     },
+                )
+            } else if (showTagsSelectionBar) {
+                TagsSelectionActionBar(
+                    selectedCount = tagsUiState.selectedTagIds.size,
+                    onCancel = tagsViewModel::clearSelection,
+                    onDelete = tagsViewModel::promptDeleteSelected,
                 )
             }
         },
@@ -209,7 +254,21 @@ fun MainApp() {
                     )
                 }
                 composable(MainRoutes.Tags) {
-                    TagsRoute(tagGroups = snapshot.tagGroups)
+                    TagsRoute(
+                        snapshot = snapshot,
+                        uiState = tagsUiState,
+                        onToggleSearch = tagsViewModel::toggleSearch,
+                        onSearchQueryChange = tagsViewModel::updateSearchQuery,
+                        onLongPressTag = tagsViewModel::enterSelectionMode,
+                        onToggleTagSelection = tagsViewModel::toggleTagSelection,
+                        onDismissDeleteDialog = tagsViewModel::dismissDeleteDialog,
+                        onConfirmDeleteDialog = {
+                            mainViewModel.deleteTags(tagsUiState.pendingDeleteTagIds) {
+                                tagsViewModel.dismissDeleteDialog()
+                                tagsViewModel.clearSelection()
+                            }
+                        },
+                    )
                 }
                 composable(MainRoutes.AiSummary) {
                     AiSummaryRoute(
@@ -262,6 +321,19 @@ fun MainApp() {
                         onPreviewExcerpt = { previewExcerptId = it },
                     )
                 }
+            }
+
+            if (route == MainRoutes.Tags && isAddTagDialogOpen) {
+                AddTagDialog(
+                    tagName = addTagInput,
+                    onValueChange = { addTagInput = it },
+                    onDismiss = dismissAddTagDialog,
+                    onConfirm = {
+                        mainViewModel.createTag(addTagInput) {
+                            dismissAddTagDialog()
+                        }
+                    },
+                )
             }
 
             if (quickCaptureUiState.isOpen) {
@@ -337,6 +409,50 @@ private fun BottomNavigationBar(
             },
             label = { Text(stringResource(R.string.main_nav_tags)) },
         )
+    }
+}
+
+@Composable
+private fun TagsSelectionActionBar(
+    selectedCount: Int,
+    onCancel: () -> Unit,
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surface)
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.main_selected_count, selectedCount),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Medium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.common_cancel))
+            }
+            Button(onClick = onDelete,
+                enabled = selectedCount > 0,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+            )) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.tags_delete_selected),
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onError,
+                )
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.tags_delete_selected))
+            }
+        }
     }
 }
 

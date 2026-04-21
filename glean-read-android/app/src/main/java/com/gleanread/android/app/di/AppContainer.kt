@@ -13,6 +13,7 @@ import com.gleanread.android.feature.capture.quick_capture.QuickCaptureViewModel
 import com.gleanread.android.feature.excerpts.feed.FeedViewModel
 import com.gleanread.android.feature.excerpts.summary.AiSummaryViewModel
 import com.gleanread.android.app.navigation.MainAppViewModel
+import com.gleanread.android.feature.tags.TagsViewModel
 
 class AppContainer(
     context: Context,
@@ -60,6 +61,10 @@ class AppContainer(
 
     val aiSummaryViewModelFactory: ViewModelProvider.Factory by lazy {
         AppViewModelFactory { AiSummaryViewModel(aiSummaryRepository) }
+    }
+
+    val tagsViewModelFactory: ViewModelProvider.Factory by lazy {
+        AppViewModelFactory { TagsViewModel() }
     }
 
     val fastCaptureViewModelFactory: ViewModelProvider.Factory by lazy {
