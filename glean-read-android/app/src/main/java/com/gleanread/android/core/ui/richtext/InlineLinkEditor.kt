@@ -77,6 +77,8 @@ fun LinkAwareText(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    maxLines: Int = Int.MAX_VALUE,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
@@ -104,6 +106,8 @@ fun LinkAwareText(
             color = MaterialTheme.colorScheme.onSurface,
             lineHeight = 22.sp,
         ),
+        maxLines = maxLines,
+        overflow = overflow,
         onTextLayout = { layoutResult = it },
         modifier = modifier
             .semantics {

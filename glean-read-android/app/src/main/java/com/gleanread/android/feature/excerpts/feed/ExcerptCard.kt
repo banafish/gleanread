@@ -1,5 +1,6 @@
 package com.gleanread.android.feature.excerpts.feed
 
+import android.net.Uri
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -36,6 +37,10 @@ import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
 import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.ui.richtext.LinkAwareText
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -48,6 +53,9 @@ internal fun ExcerptCard(
     onOpenNode: (String) -> Unit,
     onPreviewExcerpt: (String) -> Unit,
 ) {
+    val sourceLabel = excerptSourceLabel(excerpt)
+    val createTimeLabel = excerptCreateTimeLabel(excerpt.createTime)
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -128,12 +136,14 @@ internal fun ExcerptCard(
                 },
                 onClick = onClick,
                 onLongClick = onLongPress,
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
             )
             if (excerpt.thought.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
                 ) {
                     Box(modifier = Modifier.padding(12.dp)) {
                         LinkAwareText(
@@ -148,27 +158,50 @@ internal fun ExcerptCard(
                             },
                             onClick = onClick,
                             onLongClick = onLongPress,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
             }
-            if (!excerpt.sourceTitle.isNullOrBlank() || !excerpt.url.isNullOrBlank()) {
+            if (sourceLabel != null || createTimeLabel.isNotBlank()) {
                 Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Link,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = excerpt.sourceTitle ?: excerpt.url.orEmpty(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (sourceLabel != null) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Link,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = sourceLabel,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    if (createTimeLabel.isNotBlank()) {
+                        Text(
+                            text = createTimeLabel,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                        )
+                    }
                 }
             }
         }
@@ -194,3 +227,53 @@ private fun StatusBadge(
         )
     }
 }
+
+private fun excerptSourceLabel(excerpt: ExcerptUiModel): String? {
+    return excerpt.url.toDomainLabel()
+        ?: excerpt.sourceTitle?.takeIf { it.isNotBlank() }
+}
+
+private fun String?.toDomainLabel(): String? {
+    val rawValue = this?.trim().orEmpty()
+    if (rawValue.isBlank()) return null
+    val host = runCatching { Uri.parse(rawValue).host }
+        .getOrNull()
+        ?: runCatching { Uri.parse("https://$rawValue").host }.getOrNull()
+    return host
+        ?.removePrefix("www.")
+        ?.takeIf { it.isNotBlank() }
+}
+
+@Composable
+private fun excerptCreateTimeLabel(createTime: Long): String {
+    if (createTime <= 0L) return ""
+
+    val nowInstant = Instant.now()
+    if (createTime >= nowInstant.toEpochMilli() - ONE_HOUR_MILLIS) {
+        return stringResource(R.string.feed_time_just_now)
+    }
+
+    val zoneId = ZoneId.systemDefault()
+    val createdDate = runCatching {
+        Instant.ofEpochMilli(createTime)
+            .atZone(zoneId)
+            .toLocalDate()
+    }.getOrNull() ?: return ""
+    val today = LocalDate.now(zoneId)
+    val daysBetween = ChronoUnit.DAYS.between(createdDate, today)
+
+    return when (daysBetween) {
+        0L -> stringResource(R.string.feed_time_today)
+        1L -> stringResource(R.string.feed_time_yesterday)
+        2L -> stringResource(R.string.feed_time_day_before_yesterday)
+        else -> {
+            if (createdDate.year == today.year) {
+                "${createdDate.monthValue}月${createdDate.dayOfMonth}日"
+            } else {
+                "${createdDate.year}年${createdDate.monthValue}月${createdDate.dayOfMonth}日"
+            }
+        }
+    }
+}
+
+private const val ONE_HOUR_MILLIS = 60 * 60 * 1000L

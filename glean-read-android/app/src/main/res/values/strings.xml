@@ -36,6 +36,10 @@
     <string name="feed_selection_unselected">未选中</string>
     <string name="feed_start_recording">开始摘录</string>
     <string name="feed_status_inbox">Inbox</string>
+    <string name="feed_time_day_before_yesterday">前天</string>
+    <string name="feed_time_just_now">刚刚</string>
+    <string name="feed_time_today">今天</string>
+    <string name="feed_time_yesterday">昨天</string>
 
     <string name="tags_new">新建</string>
     <string name="tags_title">标签</string>

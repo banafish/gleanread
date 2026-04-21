@@ -2,6 +2,7 @@ package com.gleanread.android.core.model
 
 object WorkspacePreviewData {
     fun snapshot(): WorkspaceSnapshot {
+        val now = System.currentTimeMillis()
         val excerptOne = ExcerptUiModel(
             id = "excerpt-1",
             content = "Compose state should be hoisted to keep screens easier to test.",
@@ -11,7 +12,7 @@ object WorkspacePreviewData {
             tags = listOf("compose", "state"),
             archivedNodeId = "node-1",
             archivedNodeTitle = "Compose Architecture",
-            createTime = 1_000L,
+            createTime = now - 45_000L,
         )
         val excerptTwo = ExcerptUiModel(
             id = "excerpt-2",
@@ -22,7 +23,7 @@ object WorkspacePreviewData {
             tags = listOf("tags"),
             archivedNodeId = null,
             archivedNodeTitle = null,
-            createTime = 900L,
+            createTime = now - 2 * 24 * 60 * 60 * 1_000L,
         )
         val rootNode = TreeNodeUiModel(
             id = "node-1",
