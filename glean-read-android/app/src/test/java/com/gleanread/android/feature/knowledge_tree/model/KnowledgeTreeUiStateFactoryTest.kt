@@ -1,8 +1,8 @@
 package com.gleanread.android.feature.knowledge_tree.model
 
-import com.gleanread.android.feature.workspace.model.FlatNodeUiModel
-import com.gleanread.android.feature.workspace.model.TreeNodeUiModel
-import com.gleanread.android.feature.workspace.model.WorkspaceSnapshot
+import com.gleanread.android.core.model.FlatNodeUiModel
+import com.gleanread.android.core.model.TreeNodeUiModel
+import com.gleanread.android.core.model.WorkspaceSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,7 +10,7 @@ import org.junit.Test
 
 class KnowledgeTreeUiStateFactoryTest {
     @Test
-    fun `home state routes hidden deeper preview nodes to branch pages`() {
+    fun `home state keeps title clicks on detail even when deeper descendants are hidden`() {
         val snapshot = buildLinearSnapshot(
             "root",
             "child",
@@ -28,13 +28,13 @@ class KnowledgeTreeUiStateFactoryTest {
         val grandchild = child.visibleChildren.single()
 
         assertTrue(rootCard.canExpand)
-        assertEquals(NodeDestination.Branch("child"), child.titleDestination)
-        assertEquals(NodeDestination.Branch("grandchild"), grandchild.titleDestination)
+        assertEquals(NodeDestination.Detail("child"), child.titleDestination)
+        assertEquals(NodeDestination.Detail("grandchild"), grandchild.titleDestination)
         assertTrue(grandchild.showEnterBranch)
     }
 
     @Test
-    fun `branch state builds breadcrumb and previews three levels before another branch`() {
+    fun `branch state keeps title clicks on detail while preserving enter-branch affordance`() {
         val snapshot = buildLinearSnapshot(
             "root",
             "child",
@@ -67,9 +67,9 @@ class KnowledgeTreeUiStateFactoryTest {
         assertTrue(thirdLevel.canExpand)
         assertTrue(fourthLevel.canExpand)
         assertTrue(fifthLevel.showEnterBranch)
-        assertEquals(NodeDestination.Branch("grandchild"), thirdLevel.titleDestination)
-        assertEquals(NodeDestination.Branch("greatgrandchild"), fourthLevel.titleDestination)
-        assertEquals(NodeDestination.Branch("fifth"), fifthLevel.titleDestination)
+        assertEquals(NodeDestination.Detail("grandchild"), thirdLevel.titleDestination)
+        assertEquals(NodeDestination.Detail("greatgrandchild"), fourthLevel.titleDestination)
+        assertEquals(NodeDestination.Detail("fifth"), fifthLevel.titleDestination)
     }
 
     @Test

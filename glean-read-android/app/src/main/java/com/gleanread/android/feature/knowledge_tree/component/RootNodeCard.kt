@@ -59,7 +59,7 @@ fun RootNodeCard(
                 )
                 KnowledgeTreeNodeTitle(
                     title = card.title,
-                    onClick = { onOpenBranch(card.nodeId) },
+                    onClick = { onOpenDetail(card.nodeId) },
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .weight(1f)

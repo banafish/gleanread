@@ -110,11 +110,6 @@ private fun buildPreviewNode(
     val node = snapshot.flatNodes[nodeId] ?: return null
     val canExpand = remainingPreviewDepth > 1 && node.childNodeIds.isNotEmpty()
     val isExpanded = canExpand && expandedIds.contains(node.id)
-    val titleDestination = buildTitleDestination(
-        snapshot = snapshot,
-        node = node,
-        remainingPreviewDepth = remainingPreviewDepth,
-    )
     return PreviewNodeUiModel(
         nodeId = node.id,
         title = node.title,
@@ -136,7 +131,7 @@ private fun buildPreviewNode(
             emptyList()
         },
         showEnterBranch = node.childNodeIds.isNotEmpty() && !canExpand,
-        titleDestination = titleDestination,
+        titleDestination = NodeDestination.Detail(node.id),
         detailDestination = NodeDestination.Detail(node.id),
         branchDestination = if (node.childNodeIds.isNotEmpty()) {
             NodeDestination.Branch(node.id)
@@ -157,11 +152,6 @@ private fun buildBranchNode(
     val node = snapshot.flatNodes[nodeId] ?: return null
     val canExpand = remainingPreviewDepth > 1 && node.childNodeIds.isNotEmpty()
     val isExpanded = canExpand && expandedIds.contains(node.id)
-    val titleDestination = buildTitleDestination(
-        snapshot = snapshot,
-        node = node,
-        remainingPreviewDepth = remainingPreviewDepth,
-    )
     return BranchNodeUiModel(
         nodeId = node.id,
         title = node.title,
@@ -183,7 +173,7 @@ private fun buildBranchNode(
             emptyList()
         },
         showEnterBranch = node.childNodeIds.isNotEmpty() && !canExpand,
-        titleDestination = titleDestination,
+        titleDestination = NodeDestination.Detail(node.id),
         detailDestination = NodeDestination.Detail(node.id),
         branchDestination = if (node.childNodeIds.isNotEmpty()) {
             NodeDestination.Branch(node.id)
@@ -192,36 +182,6 @@ private fun buildBranchNode(
         },
         actionTarget = node.toActionTarget(),
     )
-}
-
-private fun buildTitleDestination(
-    snapshot: WorkspaceSnapshot,
-    node: FlatNodeUiModel,
-    remainingPreviewDepth: Int,
-): NodeDestination {
-    return if (hasHiddenDescendants(snapshot, node, remainingPreviewDepth)) {
-        NodeDestination.Branch(node.id)
-    } else {
-        NodeDestination.Detail(node.id)
-    }
-}
-
-private fun hasHiddenDescendants(
-    snapshot: WorkspaceSnapshot,
-    node: FlatNodeUiModel,
-    remainingPreviewDepth: Int,
-): Boolean {
-    if (node.childNodeIds.isEmpty()) {
-        return false
-    }
-    if (remainingPreviewDepth <= 1) {
-        return true
-    }
-    return node.childNodeIds.any { childId ->
-        snapshot.flatNodes[childId]?.let { child ->
-            hasHiddenDescendants(snapshot, child, remainingPreviewDepth - 1)
-        } ?: false
-    }
 }
 
 private fun FlatNodeUiModel.toActionTarget(): NodeActionTarget {

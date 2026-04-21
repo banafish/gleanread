@@ -22,6 +22,7 @@ import com.gleanread.android.feature.knowledge_tree.component.BranchNodeItem
 import com.gleanread.android.feature.knowledge_tree.component.DeleteNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeBranchFab
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchContent
+import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchTopBar
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeTopBar
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
@@ -66,13 +67,21 @@ fun KnowledgeTreeBranchScreen(
         modifier = Modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            KnowledgeTreeTopBar(
-                title = uiState.title,
-                onToggleSearch = onToggleSearch,
-                onExpandAll = onExpandAll,
-                onCollapseAll = onCollapseAll,
-                onBack = onBack,
-            )
+            if (isSearchVisible) {
+                KnowledgeTreeSearchTopBar(
+                    query = searchQuery,
+                    onQueryChange = onSearchQueryChange,
+                    onClose = onToggleSearch,
+                )
+            } else {
+                KnowledgeTreeTopBar(
+                    title = uiState.title,
+                    onToggleSearch = onToggleSearch,
+                    onExpandAll = onExpandAll,
+                    onCollapseAll = onCollapseAll,
+                    onBack = onBack,
+                )
+            }
         },
         floatingActionButton = {
             if (!isSearchVisible) {
@@ -85,6 +94,9 @@ fun KnowledgeTreeBranchScreen(
     ) { innerPadding ->
         if (isSearchVisible) {
             KnowledgeTreeSearchContent(
+                modifier = Modifier
+                    .padding(innerPadding)
+                    .fillMaxSize(),
                 snapshot = snapshot,
                 query = searchQuery,
                 recentQueries = recentQueries,
