@@ -75,7 +75,7 @@ private val TagChipHorizontalPadding = 12.dp
 private val TagChipVerticalPadding = 8.dp
 private val TagChipCheckIconSize = 14.dp
 private val TagChipCheckSpacing = 6.dp
-private val TagsContentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 120.dp)
+private val TagsContentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 120.dp)
 
 @Composable
 fun TagsScreen(
