@@ -15,6 +15,7 @@ fun KnowledgeTreeHomeRoute(
     onOpenBranch: (String) -> Unit,
     onCreateRootNode: (String, (String) -> Unit) -> Unit,
     onCreateChildNode: (String, String, (String) -> Unit) -> Unit,
+    onMoveNode: (String, String?, () -> Unit) -> Unit,
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
 ) {
@@ -53,6 +54,7 @@ fun KnowledgeTreeHomeRoute(
         onCollapseAll = { controller.setExpandedIds(emptySet()) },
         onOpenAddRootDialog = controller.openAddRootDialog,
         onOpenAddChildDialog = controller.openAddChildDialog,
+        onOpenMoveNodeSheet = controller.openMoveNodeSheet,
         onOpenRenameDialog = controller.openRenameDialog,
         onOpenDeleteDialog = { target ->
             controller.openDeleteDialog(
@@ -99,6 +101,27 @@ fun KnowledgeTreeHomeRoute(
                 onDeleteNode(nodeId) {}
             }
             controller.dismissDeleteDialog()
+        },
+        moveNodeSheetState = controller.moveNodeSheetState,
+        onDismissMoveNodeSheet = controller.dismissMoveNodeSheet,
+        onMoveNodeSheetNavigate = controller.updateMoveNodeSheetParent,
+        onOpenMoveNodeCreateDialog = {
+            openMoveSheetCreateNodeDialog(
+                snapshot = snapshot,
+                state = controller.moveNodeSheetState,
+                openAddRootDialog = controller.openAddRootDialog,
+                openAddChildDialog = controller.openAddChildDialog,
+            )
+        },
+        onConfirmMoveNodeSheet = {
+            controller.moveNodeSheetState?.let { moveState ->
+                onMoveNode(moveState.targetNodeId, moveState.currentParentNodeId) {
+                    moveState.currentParentNodeId?.let { parentNodeId ->
+                        controller.expandNode(parentNodeId)
+                    }
+                }
+            }
+            controller.dismissMoveNodeSheet()
         },
     )
 }

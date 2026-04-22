@@ -67,6 +67,47 @@ fun buildKnowledgeTreePathText(
     return buildKnowledgeTreePathTitles(snapshot, nodeId, rootTitle).joinToString(" / ")
 }
 
+fun buildMoveNodeBottomSheetUiModel(
+    snapshot: WorkspaceSnapshot,
+    state: MoveNodeSheetUiState,
+    rootTitle: String,
+): MoveNodeBottomSheetUiModel? {
+    if (!snapshot.flatNodes.containsKey(state.targetNodeId)) return null
+    val currentParentNodeId = state.currentParentNodeId
+    if (currentParentNodeId != null && !snapshot.flatNodes.containsKey(currentParentNodeId)) {
+        return null
+    }
+
+    val excludedNodeIds = collectKnowledgeTreeSubtreeIds(snapshot, state.targetNodeId)
+    if (currentParentNodeId in excludedNodeIds) {
+        return null
+    }
+
+    val childIds = currentParentNodeId?.let { parentId ->
+        snapshot.flatNodes[parentId]?.childNodeIds.orEmpty()
+    } ?: snapshot.treeRoots.map { it.id }
+
+    return MoveNodeBottomSheetUiModel(
+        targetNodeTitle = state.targetNodeTitle,
+        breadcrumbs = buildMoveNodeBreadcrumbs(snapshot, currentParentNodeId, rootTitle),
+        destinations = childIds.mapNotNull { childId ->
+            if (childId in excludedNodeIds) {
+                null
+            } else {
+                snapshot.flatNodes[childId]?.let { node ->
+                    MoveNodeDestinationUiModel(
+                        nodeId = node.id,
+                        title = node.title,
+                        childCount = node.childNodeIds.size,
+                        excerptCount = node.excerptCount,
+                    )
+                }
+            }
+        },
+        confirmEnabled = currentParentNodeId != state.sourceParentNodeId,
+    )
+}
+
 private fun buildRootNodeCard(
     snapshot: WorkspaceSnapshot,
     nodeId: String,
@@ -189,5 +230,43 @@ private fun FlatNodeUiModel.toActionTarget(): NodeActionTarget {
         nodeId = id,
         title = title,
         childCount = childNodeIds.size,
+        parentNodeId = parentId,
     )
+}
+
+private fun buildMoveNodeBreadcrumbs(
+    snapshot: WorkspaceSnapshot,
+    nodeId: String?,
+    rootTitle: String,
+): List<MoveNodeBreadcrumbUiModel> {
+    if (nodeId == null) {
+        return listOf(MoveNodeBreadcrumbUiModel(title = rootTitle, nodeId = null))
+    }
+
+    val crumbs = mutableListOf<MoveNodeBreadcrumbUiModel>()
+    var currentId: String? = nodeId
+    while (currentId != null) {
+        val node = snapshot.flatNodes[currentId] ?: break
+        crumbs += MoveNodeBreadcrumbUiModel(
+            title = node.title,
+            nodeId = node.id,
+        )
+        currentId = node.parentId
+    }
+    return listOf(MoveNodeBreadcrumbUiModel(title = rootTitle, nodeId = null)) + crumbs.asReversed()
+}
+
+private fun collectKnowledgeTreeSubtreeIds(
+    snapshot: WorkspaceSnapshot,
+    nodeId: String,
+): Set<String> {
+    val collected = mutableSetOf<String>()
+
+    fun collect(currentId: String) {
+        if (!collected.add(currentId)) return
+        snapshot.flatNodes[currentId]?.childNodeIds.orEmpty().forEach(::collect)
+    }
+
+    collect(nodeId)
+    return collected
 }

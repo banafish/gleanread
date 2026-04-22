@@ -78,6 +78,13 @@ class MainAppViewModel(
         }
     }
 
+    fun moveNode(nodeId: String, parentNodeId: String?, onMoved: () -> Unit = {}) {
+        viewModelScope.launch {
+            knowledgeTreeRepository.moveNode(nodeId, parentNodeId)
+            onMoved()
+        }
+    }
+
     fun deleteNodeSubtree(nodeId: String, onDeleted: () -> Unit = {}) {
         viewModelScope.launch {
             knowledgeTreeRepository.deleteNodeSubtree(nodeId)

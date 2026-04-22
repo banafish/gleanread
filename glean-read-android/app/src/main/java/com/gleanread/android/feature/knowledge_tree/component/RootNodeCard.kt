@@ -28,6 +28,7 @@ fun RootNodeCard(
     onOpenDetail: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
     onAddChild: (NodeActionTarget) -> Unit,
+    onMove: (NodeActionTarget) -> Unit,
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
 ) {
@@ -74,6 +75,7 @@ fun RootNodeCard(
                 NodeActionMenu(
                     onEnterBranch = { onOpenBranch(card.nodeId) },
                     onAddChild = { onAddChild(card.actionTarget) },
+                    onMove = { onMove(card.actionTarget) },
                     onRename = { onRename(card.actionTarget) },
                     onDelete = { onDelete(card.actionTarget) },
                 )
@@ -92,6 +94,7 @@ fun RootNodeCard(
                             onOpenDetail = onOpenDetail,
                             onOpenBranch = onOpenBranch,
                             onAddChild = onAddChild,
+                            onMove = onMove,
                             onRename = onRename,
                             onDelete = onDelete,
                         )

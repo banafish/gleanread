@@ -130,6 +130,7 @@ fun TagPill(
 fun CaptureBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -138,7 +139,7 @@ fun CaptureBottomSheet(
         sheetState = sheetState,
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = dragHandle,
     ) {
         content()
     }

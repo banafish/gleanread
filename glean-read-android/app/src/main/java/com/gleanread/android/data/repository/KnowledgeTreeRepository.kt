@@ -98,6 +98,40 @@ class KnowledgeTreeRepository(
         )
     }
 
+    suspend fun moveNode(nodeId: String, newParentId: String?) {
+        database.withTransaction {
+            val allNodes = nodeDao.getNodesOnce()
+            val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
+            if (targetNode.parentId == newParentId || newParentId == nodeId) return@withTransaction
+
+            if (newParentId != null && allNodes.none { it.id == newParentId }) {
+                return@withTransaction
+            }
+
+            val childrenByParent = allNodes.groupBy { it.parentId }
+            val descendantIds = buildSet {
+                fun collect(currentId: String) {
+                    childrenByParent[currentId].orEmpty().forEach { child ->
+                        if (add(child.id)) {
+                            collect(child.id)
+                        }
+                    }
+                }
+                collect(targetNode.id)
+            }
+            if (newParentId in descendantIds) return@withTransaction
+
+            val now = System.currentTimeMillis()
+            nodeDao.updateNode(
+                targetNode.copy(
+                    parentId = newParentId,
+                    updateTime = now,
+                    syncStatus = SyncStatus.bump(targetNode.syncStatus),
+                ),
+            )
+        }
+    }
+
     suspend fun deleteNodeSubtree(nodeId: String) {
         val now = System.currentTimeMillis()
         database.withTransaction {

@@ -3,6 +3,7 @@ package com.gleanread.android.feature.knowledge_tree
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.MoveNodeSheetUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
@@ -48,6 +49,7 @@ val DeleteDialogUiStateSaver: Saver<DeleteDialogUiState?, Any> = listSaver(
                 it.target.nodeId,
                 it.target.title,
                 it.target.childCount,
+                it.target.parentNodeId.orEmpty(),
                 it.descendantCount,
             )
         } ?: emptyList()
@@ -61,8 +63,34 @@ val DeleteDialogUiStateSaver: Saver<DeleteDialogUiState?, Any> = listSaver(
                     nodeId = restored[0] as String,
                     title = restored[1] as String,
                     childCount = restored[2] as Int,
+                    parentNodeId = (restored[3] as String).ifBlank { null },
                 ),
-                descendantCount = restored[3] as Int,
+                descendantCount = restored[4] as Int,
+            )
+        }
+    },
+)
+
+val MoveNodeSheetUiStateSaver: Saver<MoveNodeSheetUiState?, Any> = listSaver(
+    save = { state ->
+        state?.let {
+            listOf(
+                it.targetNodeId,
+                it.targetNodeTitle,
+                it.sourceParentNodeId.orEmpty(),
+                it.currentParentNodeId.orEmpty(),
+            )
+        } ?: emptyList()
+    },
+    restore = { restored ->
+        if (restored.isEmpty()) {
+            null
+        } else {
+            MoveNodeSheetUiState(
+                targetNodeId = restored[0] as String,
+                targetNodeTitle = restored[1] as String,
+                sourceParentNodeId = (restored[2] as String).ifBlank { null },
+                currentParentNodeId = (restored[3] as String).ifBlank { null },
             )
         }
     },

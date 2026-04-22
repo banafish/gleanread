@@ -24,9 +24,11 @@ import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeBranc
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchContent
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearchTopBar
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeTopBar
+import com.gleanread.android.feature.knowledge_tree.component.MoveNodeBottomSheet
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeBranchUiState
+import com.gleanread.android.feature.knowledge_tree.model.MoveNodeSheetUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
@@ -50,6 +52,7 @@ fun KnowledgeTreeBranchScreen(
     onExpandAll: () -> Unit,
     onCollapseAll: () -> Unit,
     onOpenAddChildDialog: (NodeActionTarget) -> Unit,
+    onOpenMoveNodeSheet: (NodeActionTarget) -> Unit,
     onOpenRenameDialog: (NodeActionTarget) -> Unit,
     onOpenDeleteDialog: (NodeActionTarget) -> Unit,
     onOpenCurrentAddChildDialog: () -> Unit,
@@ -60,6 +63,11 @@ fun KnowledgeTreeBranchScreen(
     deleteDialogState: DeleteDialogUiState?,
     onDismissDeleteDialog: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
+    moveNodeSheetState: MoveNodeSheetUiState?,
+    onDismissMoveNodeSheet: () -> Unit,
+    onMoveNodeSheetNavigate: (String?) -> Unit,
+    onOpenMoveNodeCreateDialog: () -> Unit,
+    onConfirmMoveNodeSheet: () -> Unit,
 ) {
     val rootTitle = stringResource(R.string.knowledge_tree_root_title)
     val showSearchResults = isSearchVisible && searchQuery.trim().isNotEmpty()
@@ -132,6 +140,7 @@ fun KnowledgeTreeBranchScreen(
                             onOpenDetail = onOpenNode,
                             onOpenBranch = onOpenBranch,
                             onAddChild = onOpenAddChildDialog,
+                            onMove = onOpenMoveNodeSheet,
                             onRename = onOpenRenameDialog,
                             onDelete = onOpenDeleteDialog,
                         )
@@ -168,6 +177,18 @@ fun KnowledgeTreeBranchScreen(
             onConfirm = onConfirmDeleteDialog,
         )
     }
+
+    moveNodeSheetState?.let { state ->
+        MoveNodeBottomSheet(
+            snapshot = snapshot,
+            state = state,
+            rootTitle = rootTitle,
+            onDismiss = onDismissMoveNodeSheet,
+            onCreateNode = onOpenMoveNodeCreateDialog,
+            onConfirm = onConfirmMoveNodeSheet,
+            onNavigateToParent = onMoveNodeSheetNavigate,
+        )
+    }
 }
 
 @Preview(showBackground = true)
@@ -199,6 +220,7 @@ private fun KnowledgeTreeBranchScreenPreview() {
             onExpandAll = {},
             onCollapseAll = {},
             onOpenAddChildDialog = {},
+            onOpenMoveNodeSheet = {},
             onOpenRenameDialog = {},
             onOpenDeleteDialog = {},
             onOpenCurrentAddChildDialog = {},
@@ -209,6 +231,11 @@ private fun KnowledgeTreeBranchScreenPreview() {
             deleteDialogState = null,
             onDismissDeleteDialog = {},
             onConfirmDeleteDialog = {},
+            moveNodeSheetState = null,
+            onDismissMoveNodeSheet = {},
+            onMoveNodeSheetNavigate = {},
+            onOpenMoveNodeCreateDialog = {},
+            onConfirmMoveNodeSheet = {},
         )
     }
 }

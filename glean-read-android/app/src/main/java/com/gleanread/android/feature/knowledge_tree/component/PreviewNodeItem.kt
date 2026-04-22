@@ -25,6 +25,7 @@ fun PreviewNodeItem(
     onOpenDetail: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
     onAddChild: (NodeActionTarget) -> Unit,
+    onMove: (NodeActionTarget) -> Unit,
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
 ) {
@@ -87,6 +88,7 @@ fun PreviewNodeItem(
             NodeActionMenu(
                 onEnterBranch = { onOpenBranch(node.nodeId) },
                 onAddChild = { onAddChild(node.actionTarget) },
+                onMove = { onMove(node.actionTarget) },
                 onRename = { onRename(node.actionTarget) },
                 onDelete = { onDelete(node.actionTarget) },
             )
@@ -100,6 +102,7 @@ fun PreviewNodeItem(
                     onOpenDetail = onOpenDetail,
                     onOpenBranch = onOpenBranch,
                     onAddChild = onAddChild,
+                    onMove = onMove,
                     onRename = onRename,
                     onDelete = onDelete,
                 )

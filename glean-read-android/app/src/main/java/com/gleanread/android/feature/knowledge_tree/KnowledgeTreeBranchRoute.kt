@@ -17,7 +17,9 @@ fun KnowledgeTreeBranchRoute(
     onBack: () -> Unit,
     onOpenNode: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
+    onCreateRootNode: (String, (String) -> Unit) -> Unit,
     onCreateChildNode: (String, String, (String) -> Unit) -> Unit,
+    onMoveNode: (String, String?, () -> Unit) -> Unit,
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
 ) {
@@ -54,6 +56,7 @@ fun KnowledgeTreeBranchRoute(
         onExpandAll = { controller.setExpandedIds(collectExpandableIds(snapshot, nodeId)) },
         onCollapseAll = { controller.setExpandedIds(emptySet()) },
         onOpenAddChildDialog = controller.openAddChildDialog,
+        onOpenMoveNodeSheet = controller.openMoveNodeSheet,
         onOpenRenameDialog = controller.openRenameDialog,
         onOpenDeleteDialog = { target ->
             controller.openDeleteDialog(
@@ -71,7 +74,14 @@ fun KnowledgeTreeBranchRoute(
             when (val dialogState = controller.nodeDialogState) {
                 null -> Unit
                 else -> when (dialogState.type) {
-                    NodeDialogType.ADD_ROOT -> Unit
+                    NodeDialogType.ADD_ROOT -> {
+                        onCreateRootNode(dialogState.inputValue) { createdId ->
+                            if (createdId.isNotBlank()) {
+                                controller.expandNode(createdId)
+                            }
+                        }
+                    }
+
                     NodeDialogType.ADD_CHILD -> {
                         dialogState.parentNodeId?.let { parentId ->
                             onCreateChildNode(parentId, dialogState.inputValue) {
@@ -96,6 +106,27 @@ fun KnowledgeTreeBranchRoute(
                 onDeleteNode(targetId) {}
             }
             controller.dismissDeleteDialog()
+        },
+        moveNodeSheetState = controller.moveNodeSheetState,
+        onDismissMoveNodeSheet = controller.dismissMoveNodeSheet,
+        onMoveNodeSheetNavigate = controller.updateMoveNodeSheetParent,
+        onOpenMoveNodeCreateDialog = {
+            openMoveSheetCreateNodeDialog(
+                snapshot = snapshot,
+                state = controller.moveNodeSheetState,
+                openAddRootDialog = controller.openAddRootDialog,
+                openAddChildDialog = controller.openAddChildDialog,
+            )
+        },
+        onConfirmMoveNodeSheet = {
+            controller.moveNodeSheetState?.let { moveState ->
+                onMoveNode(moveState.targetNodeId, moveState.currentParentNodeId) {
+                    moveState.currentParentNodeId?.let { parentNodeId ->
+                        controller.expandNode(parentNodeId)
+                    }
+                }
+            }
+            controller.dismissMoveNodeSheet()
         },
     )
 }

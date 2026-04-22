@@ -4,4 +4,5 @@ data class NodeActionTarget(
     val nodeId: String,
     val title: String,
     val childCount: Int,
+    val parentNodeId: String?,
 )

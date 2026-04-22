@@ -30,6 +30,7 @@ fun BranchNodeItem(
     onOpenDetail: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
     onAddChild: (NodeActionTarget) -> Unit,
+    onMove: (NodeActionTarget) -> Unit,
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
 ) {
@@ -48,6 +49,7 @@ fun BranchNodeItem(
                     onOpenDetail = onOpenDetail,
                     onOpenBranch = onOpenBranch,
                     onAddChild = onAddChild,
+                    onMove = onMove,
                     onRename = onRename,
                     onDelete = onDelete,
                     titleStyle = MaterialTheme.typography.titleMedium,
@@ -67,6 +69,7 @@ fun BranchNodeItem(
                                 onOpenDetail = onOpenDetail,
                                 onOpenBranch = onOpenBranch,
                                 onAddChild = onAddChild,
+                                onMove = onMove,
                                 onRename = onRename,
                                 onDelete = onDelete,
                             )
@@ -89,6 +92,7 @@ fun BranchNodeItem(
             onOpenDetail = onOpenDetail,
             onOpenBranch = onOpenBranch,
             onAddChild = onAddChild,
+            onMove = onMove,
             onRename = onRename,
             onDelete = onDelete,
             titleStyle = MaterialTheme.typography.bodyMedium,
@@ -102,6 +106,7 @@ fun BranchNodeItem(
                     onOpenDetail = onOpenDetail,
                     onOpenBranch = onOpenBranch,
                     onAddChild = onAddChild,
+                    onMove = onMove,
                     onRename = onRename,
                     onDelete = onDelete,
                 )
@@ -117,6 +122,7 @@ private fun BranchNodeRow(
     onOpenDetail: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
     onAddChild: (NodeActionTarget) -> Unit,
+    onMove: (NodeActionTarget) -> Unit,
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
     titleStyle: TextStyle,
@@ -177,6 +183,7 @@ private fun BranchNodeRow(
         NodeActionMenu(
             onEnterBranch = { onOpenBranch(node.nodeId) },
             onAddChild = { onAddChild(node.actionTarget) },
+            onMove = { onMove(node.actionTarget) },
             onRename = { onRename(node.actionTarget) },
             onDelete = { onDelete(node.actionTarget) },
         )

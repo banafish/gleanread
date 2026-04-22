@@ -121,6 +121,14 @@
     <string name="knowledge_tree_expand_node">展开节点</string>
     <string name="knowledge_tree_inbox">Inbox</string>
     <string name="knowledge_tree_more">更多</string>
+    <string name="knowledge_tree_move_action">移动</string>
+    <string name="knowledge_tree_move_already_here">当前已经是该位置，无需再次移动。</string>
+    <string name="knowledge_tree_move_children_count">%1$d 个子节点</string>
+    <string name="knowledge_tree_move_confirm_hint">进入目标节点后，点击右上角确定完成移动。</string>
+    <string name="knowledge_tree_move_destination_empty">空节点</string>
+    <string name="knowledge_tree_move_empty_list">当前目标下没有可继续进入的子节点。</string>
+    <string name="knowledge_tree_move_excerpt_count">%1$d 条摘录</string>
+    <string name="knowledge_tree_move_to">移动到</string>
     <string name="knowledge_tree_node_actions">节点操作</string>
     <string name="knowledge_tree_node_name_placeholder">请输入节点名称</string>
     <string name="knowledge_tree_node_results">节点结果</string>

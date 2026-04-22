@@ -233,6 +233,7 @@ fun MainApp() {
                         onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
                         onCreateRootNode = mainViewModel::createRootNode,
                         onCreateChildNode = mainViewModel::createChildNode,
+                        onMoveNode = mainViewModel::moveNode,
                         onRenameNode = mainViewModel::renameNode,
                         onDeleteNode = mainViewModel::deleteNodeSubtree,
                     )
@@ -248,7 +249,9 @@ fun MainApp() {
                         onBack = { navController.popBackStack() },
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                         onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
+                        onCreateRootNode = mainViewModel::createRootNode,
                         onCreateChildNode = mainViewModel::createChildNode,
+                        onMoveNode = mainViewModel::moveNode,
                         onRenameNode = mainViewModel::renameNode,
                         onDeleteNode = mainViewModel::deleteNodeSubtree,
                     )

@@ -3,6 +3,7 @@ package com.gleanread.android.feature.knowledge_tree.component
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DriveFileMove
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -27,6 +28,7 @@ import com.gleanread.android.R
 fun NodeActionMenu(
     onEnterBranch: () -> Unit,
     onAddChild: () -> Unit,
+    onMove: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -35,6 +37,7 @@ fun NodeActionMenu(
     val enterBranchLabel = stringResource(R.string.knowledge_tree_enter_branch)
     val addChildLabel = stringResource(R.string.knowledge_tree_add_child_node)
     val renameLabel = stringResource(R.string.knowledge_tree_rename_action)
+    val moveLabel = stringResource(R.string.knowledge_tree_move_action)
     val deleteLabel = stringResource(R.string.knowledge_tree_delete_action)
 
     Box {
@@ -86,6 +89,19 @@ fun NodeActionMenu(
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                        )
+                    },
+                )
+                DropdownMenuItem(
+                    text = { Text(moveLabel) },
+                    onClick = {
+                        expanded = false
+                        onMove()
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.DriveFileMove,
                             contentDescription = null,
                         )
                     },
