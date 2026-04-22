@@ -152,6 +152,22 @@ class KnowledgeTreeRepository(
         )
     }
 
+    suspend fun moveExcerptToInbox(excerptId: String) {
+        val excerpt = excerptDao.findExcerptById(excerptId) ?: return
+        if (excerpt.treeNodeId == null || excerpt.isDeleted) return
+
+        val now = System.currentTimeMillis()
+        excerptDao.updateExcerpts(
+            listOf(
+                excerpt.copy(
+                    treeNodeId = null,
+                    updateTime = now,
+                    syncStatus = SyncStatus.bump(excerpt.syncStatus),
+                ),
+            ),
+        )
+    }
+
     private fun excerptTitle(excerpt: ExcerptEntity): String {
         return excerpt.sourceTitle?.takeIf { it.isNotBlank() }
             ?: excerpt.content.take(18).trim() + if (excerpt.content.length > 18) "..." else ""

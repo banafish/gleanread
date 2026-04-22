@@ -17,6 +17,7 @@ fun NodeDetailRoute(
     onBack: () -> Unit,
     onOpenGraph: () -> Unit,
     onUpdateOutline: (String, String) -> Unit,
+    onMoveExcerptToInbox: (String) -> Unit,
     onOpenNode: (String) -> Unit,
     onPreviewExcerpt: (String) -> Unit,
     onAddExcerpt: () -> Unit,
@@ -32,6 +33,7 @@ fun NodeDetailRoute(
     }
     var editing by rememberSaveable(nodeId) { mutableStateOf(false) }
     var localOutline by rememberSaveable(nodeId) { mutableStateOf(node.outlineMarkdown) }
+    var revealedExcerptId by rememberSaveable(nodeId) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(nodeId, node.outlineMarkdown, editing) {
         if (!editing && localOutline != node.outlineMarkdown) {
@@ -45,6 +47,7 @@ fun NodeDetailRoute(
         backlinks = backlinks,
         editing = editing,
         localOutline = localOutline,
+        revealedExcerptId = revealedExcerptId,
         searchSuggestions = searchSuggestions,
         onBack = onBack,
         onOpenGraph = onOpenGraph,
@@ -58,6 +61,18 @@ fun NodeDetailRoute(
         onOpenLinkedTarget = onOpenLinkedTarget,
         onOpenNode = onOpenNode,
         onPreviewExcerpt = onPreviewExcerpt,
+        onRevealExcerptActions = { revealedExcerptId = it },
+        onDismissExcerptActions = { excerptId ->
+            if (revealedExcerptId == excerptId) {
+                revealedExcerptId = null
+            }
+        },
+        onRemoveExcerptFromNode = { excerptId ->
+            if (revealedExcerptId == excerptId) {
+                revealedExcerptId = null
+            }
+            onMoveExcerptToInbox(excerptId)
+        },
         onAddExcerpt = onAddExcerpt,
     )
 }

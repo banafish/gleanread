@@ -100,7 +100,9 @@
     <string name="node_detail_edit_outline">编辑大纲</string>
     <string name="node_detail_excerpt_header">关联摘录（%1$d）</string>
     <string name="node_detail_open_graph">打开关系图</string>
+    <string name="node_detail_outline_title">知识大纲</string>
     <string name="node_detail_outline_placeholder">为这个节点写点总结、上下文或可执行建议</string>
+    <string name="node_detail_remove_excerpt_from_node">移出当前节点</string>
     <string name="node_detail_save_outline">保存大纲</string>
 
     <string name="knowledge_tree_add_child_node">新增子节点</string>

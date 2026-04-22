@@ -303,6 +303,7 @@ fun MainApp() {
                         onBack = { navController.popBackStack() },
                         onOpenGraph = { navController.navigate(MainRoutes.graph(nodeId)) },
                         onUpdateOutline = mainViewModel::updateNodeOutline,
+                        onMoveExcerptToInbox = mainViewModel::moveExcerptToInbox,
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                         onPreviewExcerpt = { previewExcerptId = it },
                         onAddExcerpt = { quickCaptureViewModel.openForNode(nodeId) },
@@ -493,4 +494,3 @@ private fun SelectionActionBar(
         }
     }
 }
-

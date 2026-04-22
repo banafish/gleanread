@@ -91,6 +91,12 @@ class MainAppViewModel(
         }
     }
 
+    fun moveExcerptToInbox(excerptId: String) {
+        viewModelScope.launch {
+            knowledgeTreeRepository.moveExcerptToInbox(excerptId)
+        }
+    }
+
     suspend fun searchSuggestions(query: String): List<LinkSuggestion> {
         return knowledgeTreeRepository.searchSuggestions(query)
     }
