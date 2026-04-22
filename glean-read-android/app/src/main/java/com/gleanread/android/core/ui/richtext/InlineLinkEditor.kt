@@ -22,9 +22,10 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -182,33 +183,46 @@ fun InlineLinkEditor(
             keyboardController?.show()
         }
     }
+    val fieldModifier = Modifier
+        .fillMaxWidth()
+        .focusRequester(focusRequester)
+        .onFocusChanged { state ->
+            if (!state.isFocused) suggestions = emptyList()
+        }
+    val onFieldValueChange: (TextFieldValue) -> Unit = { next ->
+        fieldValue = next
+        onRawTextChange(next.text)
+        val query = currentInlineQuery(next.text, next.selection.start)
+        searchJob?.cancel()
+        if (query != null) {
+            searchJob = scope.launch {
+                delay(300)
+                suggestions = searchSuggestions(query)
+            }
+        } else {
+            suggestions = emptyList()
+        }
+    }
 
     Column(modifier = modifier) {
-        OutlinedTextField(
+        TextField(
             value = fieldValue,
-            onValueChange = { next ->
-                fieldValue = next
-                onRawTextChange(next.text)
-                val query = currentInlineQuery(next.text, next.selection.start)
-                searchJob?.cancel()
-                if (query != null) {
-                    searchJob = scope.launch {
-                        delay(300)
-                        suggestions = searchSuggestions(query)
-                    }
-                } else {
-                    suggestions = emptyList()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(focusRequester)
-                .onFocusChanged { state ->
-                    if (!state.isFocused) suggestions = emptyList()
-                },
+            onValueChange = onFieldValueChange,
+            modifier = fieldModifier,
             minLines = minLines,
             placeholder = { Text(placeholder) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
+            shape = RoundedCornerShape(24.dp),
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                errorContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent,
+                errorIndicatorColor = Color.Transparent,
+            ),
         )
 
         if (suggestions.isNotEmpty()) {
