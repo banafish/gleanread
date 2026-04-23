@@ -49,6 +49,7 @@ fun KnowledgeTreeBranchScreen(
     onToggleNode: (String) -> Unit,
     onOpenNode: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
+    onOpenBreadcrumb: (String?) -> Unit,
     onExpandAll: () -> Unit,
     onCollapseAll: () -> Unit,
     onOpenAddChildDialog: (NodeActionTarget) -> Unit,
@@ -123,7 +124,10 @@ fun KnowledgeTreeBranchScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
-                    BreadcrumbBar(titles = uiState.breadcrumbTitles)
+                    BreadcrumbBar(
+                        breadcrumbs = uiState.breadcrumbs,
+                        onNavigateToBreadcrumb = onOpenBreadcrumb,
+                    )
                 }
                 if (uiState.isEmpty) {
                     item {
@@ -217,6 +221,7 @@ private fun KnowledgeTreeBranchScreenPreview() {
             onToggleNode = {},
             onOpenNode = {},
             onOpenBranch = {},
+            onOpenBreadcrumb = {},
             onExpandAll = {},
             onCollapseAll = {},
             onOpenAddChildDialog = {},

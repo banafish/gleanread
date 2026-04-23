@@ -9,14 +9,9 @@ data class MoveNodeSheetUiState(
 
 data class MoveNodeBottomSheetUiModel(
     val targetNodeTitle: String,
-    val breadcrumbs: List<MoveNodeBreadcrumbUiModel>,
+    val breadcrumbs: List<KnowledgeTreeBreadcrumbUiModel>,
     val destinations: List<MoveNodeDestinationUiModel>,
     val confirmEnabled: Boolean,
-)
-
-data class MoveNodeBreadcrumbUiModel(
-    val title: String,
-    val nodeId: String?,
 )
 
 data class MoveNodeDestinationUiModel(

@@ -61,7 +61,11 @@ class KnowledgeTreeUiStateFactoryTest {
 
         assertEquals(
             listOf(KNOWLEDGE_TREE_ROOT_TITLE, "root", "child"),
-            state.breadcrumbTitles,
+            state.breadcrumbs.map { it.title },
+        )
+        assertEquals(
+            listOf(null, "root", "child"),
+            state.breadcrumbs.map { it.nodeId },
         )
         assertFalse(state.isEmpty)
         assertEquals("grandchild", thirdLevel.title)

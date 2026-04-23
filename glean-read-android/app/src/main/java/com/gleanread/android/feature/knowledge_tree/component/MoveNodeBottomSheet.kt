@@ -1,8 +1,6 @@
 package com.gleanread.android.feature.knowledge_tree.component
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,12 +13,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
@@ -35,7 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -51,7 +45,6 @@ import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.ui.component.CaptureBottomSheet
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.feature.knowledge_tree.model.MoveNodeBottomSheetUiModel
-import com.gleanread.android.feature.knowledge_tree.model.MoveNodeBreadcrumbUiModel
 import com.gleanread.android.feature.knowledge_tree.model.MoveNodeSheetUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildMoveNodeBottomSheetUiModel
 
@@ -171,9 +164,9 @@ private fun MoveNodeBottomSheetContent(
                 }
             }
 
-            MoveNodeBreadcrumbRow(
+            BreadcrumbBar(
                 breadcrumbs = uiModel.breadcrumbs,
-                onNavigateToParent = onNavigateToParent,
+                onNavigateToBreadcrumb = onNavigateToParent,
             )
             Text(
                 text = stringResource(
@@ -263,59 +256,6 @@ private fun MoveNodeBottomSheetContent(
 }
 
 @Composable
-private fun MoveNodeBreadcrumbRow(
-    breadcrumbs: List<MoveNodeBreadcrumbUiModel>,
-    onNavigateToParent: (String?) -> Unit,
-) {
-    val root = breadcrumbs.firstOrNull() ?: return
-    val remaining = breadcrumbs.drop(1)
-    val remainingScrollState = rememberScrollState()
-
-    LaunchedEffect(remaining.size, remainingScrollState.maxValue) {
-        remainingScrollState.scrollTo(remainingScrollState.maxValue)
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        CompactBreadcrumbButton(
-            crumb = root,
-            enabled = remaining.isNotEmpty(),
-            onNavigateToParent = onNavigateToParent,
-        )
-        if (remaining.isNotEmpty()) {
-            CompactBreadcrumbChevron()
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Row(
-                    modifier = Modifier.horizontalScroll(remainingScrollState),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    remaining.forEachIndexed { index, crumb ->
-                        val isLast = index == remaining.lastIndex
-                        CompactBreadcrumbButton(
-                            crumb = crumb,
-                            enabled = !isLast,
-                            onNavigateToParent = onNavigateToParent,
-                        )
-                        if (!isLast) {
-                            CompactBreadcrumbChevron()
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun nodeSummaryText(
     childCount: Int,
     excerptCount: Int,
@@ -333,40 +273,6 @@ private fun nodeSummaryText(
     } else {
         parts.joinToString(" · ")
     }
-}
-
-@Composable
-private fun CompactBreadcrumbButton(
-    crumb: MoveNodeBreadcrumbUiModel,
-    enabled: Boolean,
-    onNavigateToParent: (String?) -> Unit,
-) {
-    Text(
-        text = crumb.title,
-        modifier = Modifier
-            .widthIn(max = 84.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled) { onNavigateToParent(crumb.nodeId) }
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        style = MaterialTheme.typography.labelLarge,
-        color = if (enabled) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-    )
-}
-
-@Composable
-private fun CompactBreadcrumbChevron() {
-    Icon(
-        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-        contentDescription = null,
-        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.size(16.dp),
-    )
 }
 
 @Preview(showBackground = true, heightDp = 760)

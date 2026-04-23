@@ -29,7 +29,7 @@ fun buildKnowledgeTreeBranchUiState(
     return KnowledgeTreeBranchUiState(
         currentNodeId = currentNode.id,
         title = currentNode.title,
-        breadcrumbTitles = buildKnowledgeTreePathTitles(snapshot, nodeId, rootTitle),
+        breadcrumbs = buildKnowledgeTreeBreadcrumbs(snapshot, nodeId, rootTitle),
         items = currentNode.childNodeIds.mapNotNull { childId ->
             buildBranchNode(
                 snapshot = snapshot,
@@ -49,14 +49,29 @@ fun buildKnowledgeTreePathTitles(
     nodeId: String,
     rootTitle: String,
 ): List<String> {
-    val titles = mutableListOf<String>()
+    return buildKnowledgeTreeBreadcrumbs(snapshot, nodeId, rootTitle).map { it.title }
+}
+
+fun buildKnowledgeTreeBreadcrumbs(
+    snapshot: WorkspaceSnapshot,
+    nodeId: String?,
+    rootTitle: String,
+): List<KnowledgeTreeBreadcrumbUiModel> {
+    if (nodeId == null) {
+        return listOf(KnowledgeTreeBreadcrumbUiModel(title = rootTitle, nodeId = null))
+    }
+
+    val crumbs = mutableListOf<KnowledgeTreeBreadcrumbUiModel>()
     var currentId: String? = nodeId
     while (currentId != null) {
-        val current = snapshot.flatNodes[currentId] ?: break
-        titles += current.title
-        currentId = current.parentId
+        val node = snapshot.flatNodes[currentId] ?: break
+        crumbs += KnowledgeTreeBreadcrumbUiModel(
+            title = node.title,
+            nodeId = node.id,
+        )
+        currentId = node.parentId
     }
-    return listOf(rootTitle) + titles.asReversed()
+    return listOf(KnowledgeTreeBreadcrumbUiModel(title = rootTitle, nodeId = null)) + crumbs.asReversed()
 }
 
 fun buildKnowledgeTreePathText(
@@ -89,7 +104,7 @@ fun buildMoveNodeBottomSheetUiModel(
 
     return MoveNodeBottomSheetUiModel(
         targetNodeTitle = state.targetNodeTitle,
-        breadcrumbs = buildMoveNodeBreadcrumbs(snapshot, currentParentNodeId, rootTitle),
+        breadcrumbs = buildKnowledgeTreeBreadcrumbs(snapshot, currentParentNodeId, rootTitle),
         destinations = childIds.mapNotNull { childId ->
             if (childId in excludedNodeIds) {
                 null
@@ -232,28 +247,6 @@ private fun FlatNodeUiModel.toActionTarget(): NodeActionTarget {
         childCount = childNodeIds.size,
         parentNodeId = parentId,
     )
-}
-
-private fun buildMoveNodeBreadcrumbs(
-    snapshot: WorkspaceSnapshot,
-    nodeId: String?,
-    rootTitle: String,
-): List<MoveNodeBreadcrumbUiModel> {
-    if (nodeId == null) {
-        return listOf(MoveNodeBreadcrumbUiModel(title = rootTitle, nodeId = null))
-    }
-
-    val crumbs = mutableListOf<MoveNodeBreadcrumbUiModel>()
-    var currentId: String? = nodeId
-    while (currentId != null) {
-        val node = snapshot.flatNodes[currentId] ?: break
-        crumbs += MoveNodeBreadcrumbUiModel(
-            title = node.title,
-            nodeId = node.id,
-        )
-        currentId = node.parentId
-    }
-    return listOf(MoveNodeBreadcrumbUiModel(title = rootTitle, nodeId = null)) + crumbs.asReversed()
 }
 
 private fun collectKnowledgeTreeSubtreeIds(

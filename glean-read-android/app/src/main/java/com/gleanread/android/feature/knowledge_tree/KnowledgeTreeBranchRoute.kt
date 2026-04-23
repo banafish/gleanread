@@ -15,6 +15,7 @@ fun KnowledgeTreeBranchRoute(
     snapshot: WorkspaceSnapshot,
     nodeId: String,
     onBack: () -> Unit,
+    onOpenRoot: () -> Unit,
     onOpenNode: (String) -> Unit,
     onOpenBranch: (String) -> Unit,
     onCreateRootNode: (String, (String) -> Unit) -> Unit,
@@ -53,6 +54,13 @@ fun KnowledgeTreeBranchRoute(
         onToggleNode = controller.toggleNode,
         onOpenNode = onOpenNode,
         onOpenBranch = onOpenBranch,
+        onOpenBreadcrumb = { breadcrumbNodeId ->
+            if (breadcrumbNodeId == null) {
+                onOpenRoot()
+            } else {
+                onOpenBranch(breadcrumbNodeId)
+            }
+        },
         onExpandAll = { controller.setExpandedIds(collectExpandableIds(snapshot, nodeId)) },
         onCollapseAll = { controller.setExpandedIds(emptySet()) },
         onOpenAddChildDialog = controller.openAddChildDialog,

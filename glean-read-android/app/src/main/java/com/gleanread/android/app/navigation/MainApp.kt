@@ -247,6 +247,13 @@ fun MainApp() {
                         snapshot = snapshot,
                         nodeId = nodeId,
                         onBack = { navController.popBackStack() },
+                        onOpenRoot = {
+                            if (!navController.popBackStack(MainRoutes.Tree, false)) {
+                                navController.navigate(MainRoutes.Tree) {
+                                    launchSingleTop = true
+                                }
+                            }
+                        },
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                         onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
                         onCreateRootNode = mainViewModel::createRootNode,
