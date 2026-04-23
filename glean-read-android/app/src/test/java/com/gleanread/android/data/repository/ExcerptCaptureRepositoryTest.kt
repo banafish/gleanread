@@ -12,9 +12,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
-class WorkspaceRepositoryQuickCaptureTest {
+class ExcerptCaptureRepositoryTest {
     private lateinit var database: WorkspaceDatabase
-    private lateinit var repository: WorkspaceRepository
+    private lateinit var repository: ExcerptCaptureRepository
 
     @Before
     fun setUp() {
@@ -22,7 +22,7 @@ class WorkspaceRepositoryQuickCaptureTest {
             ApplicationProvider.getApplicationContext(),
             WorkspaceDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repository = WorkspaceRepository(database)
+        repository = ExcerptCaptureRepository(database)
     }
 
     @After
@@ -43,7 +43,7 @@ class WorkspaceRepositoryQuickCaptureTest {
             archiveNodeId = null,
         )
 
-        val saved = database.workspaceDao().getExcerptsOnce().first { it.id == excerptId }
+        val saved = database.excerptDao().getExcerptsOnce().first { it.id == excerptId }
 
         assertEquals("https://mp.weixin.qq.com/s/test", saved.url)
         assertEquals("公众号标题", saved.sourceTitle)

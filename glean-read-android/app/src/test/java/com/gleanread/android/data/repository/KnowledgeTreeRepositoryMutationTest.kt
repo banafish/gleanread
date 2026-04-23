@@ -7,16 +7,16 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
-class WorkspaceRepositoryKnowledgeTreeMutationTest {
+class KnowledgeTreeRepositoryMutationTest {
     private lateinit var database: WorkspaceDatabase
-    private lateinit var repository: WorkspaceRepository
+    private lateinit var captureRepository: ExcerptCaptureRepository
+    private lateinit var treeRepository: KnowledgeTreeRepository
 
     @Before
     fun setUp() {
@@ -24,7 +24,8 @@ class WorkspaceRepositoryKnowledgeTreeMutationTest {
             ApplicationProvider.getApplicationContext(),
             WorkspaceDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repository = WorkspaceRepository(database)
+        captureRepository = ExcerptCaptureRepository(database)
+        treeRepository = KnowledgeTreeRepository(database)
     }
 
     @After
@@ -36,12 +37,12 @@ class WorkspaceRepositoryKnowledgeTreeMutationTest {
 
     @Test
     fun `createChildNode and renameNode update local tree`() = runBlocking {
-        val rootId = repository.createRootNode("根节点")
-        val childId = repository.createChildNode(rootId, "子节点")
+        val rootId = treeRepository.createRootNode("根节点")
+        val childId = treeRepository.createChildNode(rootId, "子节点")
 
-        repository.renameNode(childId, "已重命名子节点")
+        treeRepository.renameNode(childId, "已重命名子节点")
 
-        val savedChild = database.workspaceDao().findNodeById(childId)
+        val savedChild = database.nodeDao().findNodeById(childId)
 
         assertEquals(rootId, savedChild?.parentId)
         assertEquals("已重命名子节点", savedChild?.nodeTitle)
@@ -49,9 +50,9 @@ class WorkspaceRepositoryKnowledgeTreeMutationTest {
 
     @Test
     fun `deleteNodeSubtree removes subtree and sends archived excerpts back to inbox`() = runBlocking {
-        val rootId = repository.createRootNode("根节点")
-        val childId = repository.createChildNode(rootId, "子节点")
-        val excerptId = repository.saveQuickExcerpt(
+        val rootId = treeRepository.createRootNode("根节点")
+        val childId = treeRepository.createChildNode(rootId, "子节点")
+        val excerptId = captureRepository.saveQuickExcerpt(
             content = "挂载摘录",
             thought = "",
             url = null,
@@ -60,12 +61,14 @@ class WorkspaceRepositoryKnowledgeTreeMutationTest {
             archiveNodeId = childId,
         )
 
-        repository.deleteNodeSubtree(rootId)
+        treeRepository.deleteNodeSubtree(rootId)
 
-        val nodes = database.workspaceDao().getNodesOnce()
-        val excerpt = database.workspaceDao().getExcerptsOnce().first { it.id == excerptId }
+        val savedRoot = database.nodeDao().findNodeById(rootId)
+        val savedChild = database.nodeDao().findNodeById(childId)
+        val excerpt = database.excerptDao().findExcerptById(excerptId)
 
-        assertTrue(nodes.all { it.isDeleted })
-        assertNull(excerpt.treeNodeId)
+        assertEquals(true, savedRoot?.isDeleted)
+        assertEquals(true, savedChild?.isDeleted)
+        assertNull(excerpt?.treeNodeId)
     }
 }

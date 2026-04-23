@@ -1,4 +1,4 @@
-package com.gleanread.android.data.repository
+package com.gleanread.android.core.data
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -6,7 +6,7 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
-import com.gleanread.android.feature.workspace.data.WorkspaceSnapshotStore
+import com.gleanread.android.data.repository.SnapshotRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -17,9 +17,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
-class WorkspaceRepositorySuggestedTagsTest {
+class AppSnapshotStoreSuggestedTagsTest {
     private lateinit var database: WorkspaceDatabase
-    private lateinit var repository: WorkspaceRepository
+    private lateinit var store: AppSnapshotStore
 
     @Before
     fun setUp() {
@@ -27,7 +27,7 @@ class WorkspaceRepositorySuggestedTagsTest {
             ApplicationProvider.getApplicationContext(),
             WorkspaceDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repository = WorkspaceRepository(database)
+        store = AppSnapshotStore(SnapshotRepository(database))
     }
 
     @After
@@ -40,7 +40,7 @@ class WorkspaceRepositorySuggestedTagsTest {
     @Test
     fun `snapshot suggested tags keep hierarchical path`() = runBlocking {
         val now = 1L
-        database.workspaceDao().insertTag(
+        database.tagDao().insertTag(
             TagEntity(
                 id = "tag-1",
                 userId = LOCAL_USER_ID,
@@ -50,10 +50,10 @@ class WorkspaceRepositorySuggestedTagsTest {
                 createTime = now,
                 updateTime = now,
                 syncStatus = SyncStatus.SYNCED.code,
-            )
+            ),
         )
 
-        val snapshot = WorkspaceSnapshotStore(repository).snapshot.first()
+        val snapshot = store.snapshot.first()
 
         assertEquals(listOf("AI/大模型"), snapshot.suggestedTags.map { it.fullName })
         assertEquals(listOf("#大模型"), snapshot.suggestedTags.map { it.label })

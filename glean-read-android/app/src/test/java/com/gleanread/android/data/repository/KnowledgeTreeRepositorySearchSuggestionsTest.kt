@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
-class WorkspaceRepositorySearchSuggestionsTest {
+class KnowledgeTreeRepositorySearchSuggestionsTest {
     @Test
     fun `empty inline query should still return local suggestions`() {
         val suggestions = searchSuggestionsForInlineQuery(
