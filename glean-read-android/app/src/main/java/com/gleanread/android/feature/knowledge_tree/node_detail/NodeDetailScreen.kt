@@ -12,6 +12,7 @@ import androidx.compose.foundation.gestures.anchoredDraggable
 import androidx.compose.foundation.gestures.animateTo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -61,8 +62,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -390,19 +393,74 @@ private fun NodeExcerptCardSurface(
             )
             if (excerpt.tags.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    excerpt.tags.forEach { tag ->
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer,
-                        ) {
-                            Text(
-                                text = "#$tag",
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                            )
-                        }
+                NodeExcerptTags(tags = excerpt.tags)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NodeExcerptTags(
+    tags: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val density = LocalDensity.current
+        val textMeasurer = rememberTextMeasurer()
+        val tagTextStyle = MaterialTheme.typography.labelSmall.copy(
+            fontSize = NODE_DETAIL_EXCERPT_TAG_FONT_SIZE,
+        )
+        val availableWidthPx = with(density) { maxWidth.roundToPx() }
+        val tagSpacingPx = with(density) { NODE_DETAIL_EXCERPT_TAG_SPACING.roundToPx() }
+        val tagHorizontalPaddingPx = with(density) {
+            (NODE_DETAIL_EXCERPT_TAG_HORIZONTAL_PADDING * 2).roundToPx()
+        }
+        val visibleTags = remember(
+            tags,
+            textMeasurer,
+            availableWidthPx,
+            tagSpacingPx,
+            tagHorizontalPaddingPx,
+            tagTextStyle,
+        ) {
+            var occupiedWidthPx = 0
+            buildList {
+                tags.forEach { tag ->
+                    val tagWidthPx = textMeasurer.measure(
+                        text = AnnotatedString("#$tag"),
+                        style = tagTextStyle,
+                        overflow = TextOverflow.Clip,
+                        softWrap = false,
+                        maxLines = 1,
+                    ).size.width + tagHorizontalPaddingPx
+                    val spacingBeforePx = if (isEmpty()) 0 else tagSpacingPx
+                    if (occupiedWidthPx + spacingBeforePx + tagWidthPx <= availableWidthPx) {
+                        add(tag)
+                        occupiedWidthPx += spacingBeforePx + tagWidthPx
+                    }
+                }
+            }
+        }
+
+        if (visibleTags.isNotEmpty()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(NODE_DETAIL_EXCERPT_TAG_SPACING)) {
+                visibleTags.forEach { tag ->
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    ) {
+                        Text(
+                            text = "#$tag",
+                            modifier = Modifier.padding(
+                                horizontal = NODE_DETAIL_EXCERPT_TAG_HORIZONTAL_PADDING,
+                                vertical = NODE_DETAIL_EXCERPT_TAG_VERTICAL_PADDING,
+                            ),
+                            fontSize = NODE_DETAIL_EXCERPT_TAG_FONT_SIZE,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Clip,
+                        )
                     }
                 }
             }
@@ -505,3 +563,7 @@ private val NodeExcerptCardShape = RoundedCornerShape(18.dp)
 private val NODE_DETAIL_EXCERPT_ACTION_BUTTON_SIZE = 50.dp
 private val NODE_DETAIL_EXCERPT_ACTION_ICON_SIZE = 26.dp
 private val NODE_DETAIL_EXCERPT_ACTION_AREA_WIDTH = 72.dp
+private val NODE_DETAIL_EXCERPT_TAG_SPACING = 6.dp
+private val NODE_DETAIL_EXCERPT_TAG_HORIZONTAL_PADDING = 8.dp
+private val NODE_DETAIL_EXCERPT_TAG_VERTICAL_PADDING = 4.dp
+private val NODE_DETAIL_EXCERPT_TAG_FONT_SIZE = 11.sp
