@@ -57,7 +57,7 @@ import com.gleanread.android.R
 import com.gleanread.android.app.appContainer
 import com.gleanread.android.feature.capture.quick_capture.QuickCaptureViewModel
 import com.gleanread.android.feature.capture.quick_capture.component.QuickCaptureOverlay
-import com.gleanread.android.feature.excerpts.component.ExcerptPreviewDialog
+import com.gleanread.android.feature.excerpts.detail.ExcerptDetailRoute
 import com.gleanread.android.feature.excerpts.feed.FeedRoute
 import com.gleanread.android.feature.excerpts.feed.FeedViewModel
 import com.gleanread.android.feature.excerpts.summary.AiSummaryRoute
@@ -75,10 +75,12 @@ object MainRoutes {
     const val Tree = "tree"
     const val Tags = "tags"
     const val AiSummary = "ai-summary"
+    const val ExcerptPattern = "excerpt/{excerptId}"
     const val TreeBranchPattern = "tree/branch/{nodeId}"
     const val NodePattern = "node/{nodeId}"
     const val GraphPattern = "graph/{nodeId}"
 
+    fun excerpt(excerptId: String) = "excerpt/$excerptId"
     fun treeBranch(nodeId: String) = "tree/branch/$nodeId"
     fun node(nodeId: String) = "node/$nodeId"
     fun graph(nodeId: String) = "graph/$nodeId"
@@ -102,7 +104,6 @@ fun MainApp() {
     val quickCaptureUiState by quickCaptureViewModel.uiState.collectAsStateWithLifecycle()
     val aiSummaryDraft by aiSummaryViewModel.draft.collectAsStateWithLifecycle()
     val tagsUiState by tagsViewModel.uiState.collectAsStateWithLifecycle()
-    var previewExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
     var isAddTagDialogOpen by rememberSaveable { mutableStateOf(false) }
     var addTagInput by rememberSaveable { mutableStateOf("") }
 
@@ -223,7 +224,7 @@ fun MainApp() {
                         onLoadSample = mainViewModel::loadSampleData,
                         onStartRecording = quickCaptureViewModel::open,
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onPreviewExcerpt = { previewExcerptId = it },
+                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
                     )
                 }
                 composable(MainRoutes.Tree) {
@@ -302,6 +303,21 @@ fun MainApp() {
                     )
                 }
                 composable(
+                    route = MainRoutes.ExcerptPattern,
+                    arguments = listOf(navArgument("excerptId") { type = NavType.StringType }),
+                ) { backStackEntry ->
+                    val excerptId = backStackEntry.arguments?.getString("excerptId").orEmpty()
+                    ExcerptDetailRoute(
+                        snapshot = snapshot,
+                        excerptId = excerptId,
+                        searchSuggestions = mainViewModel::searchSuggestions,
+                        onBack = { navController.popBackStack() },
+                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                        onSaveExcerpt = mainViewModel::updateExcerpt,
+                    )
+                }
+                composable(
                     route = MainRoutes.NodePattern,
                     arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
                 ) { backStackEntry ->
@@ -315,7 +331,7 @@ fun MainApp() {
                         onUpdateOutline = mainViewModel::updateNodeOutline,
                         onMoveExcerptToInbox = mainViewModel::moveExcerptToInbox,
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onPreviewExcerpt = { previewExcerptId = it },
+                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
                         onAddExcerpt = { quickCaptureViewModel.openForNode(nodeId) },
                     )
                 }
@@ -329,7 +345,7 @@ fun MainApp() {
                         nodeId = nodeId,
                         onBack = { navController.popBackStack() },
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onPreviewExcerpt = { previewExcerptId = it },
+                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
                     )
                 }
             }
@@ -360,21 +376,6 @@ fun MainApp() {
                     onArchiveNodeSelect = quickCaptureViewModel::setArchiveNode,
                     onSave = { quickCaptureViewModel.save() },
                 )
-            }
-
-            previewExcerptId?.let { excerptId ->
-                snapshot.excerptsById[excerptId]?.let { excerpt ->
-                    ExcerptPreviewDialog(
-                        excerpt = excerpt,
-                        onDismiss = { previewExcerptId = null },
-                        onOpenNode = { nodeId ->
-                            previewExcerptId = null
-                            if (nodeId != null) {
-                                navController.navigate(MainRoutes.node(nodeId))
-                            }
-                        },
-                    )
-                }
             }
         }
     }

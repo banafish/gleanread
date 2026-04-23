@@ -81,7 +81,7 @@ internal fun ExcerptCard(
     onLongPress: () -> Unit,
     onClick: () -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
 ) {
     if (isSelectionMode) {
         ExcerptCardSurface(
@@ -91,7 +91,7 @@ internal fun ExcerptCard(
             onLongPress = onLongPress,
             onClick = onClick,
             onOpenNode = onOpenNode,
-            onPreviewExcerpt = onPreviewExcerpt,
+            onOpenExcerpt = onOpenExcerpt,
         )
         return
     }
@@ -175,7 +175,7 @@ internal fun ExcerptCard(
                     }
                 },
                 onOpenNode = onOpenNode,
-                onPreviewExcerpt = onPreviewExcerpt,
+                onOpenExcerpt = onOpenExcerpt,
             )
         }
     }
@@ -190,7 +190,7 @@ private fun ExcerptCardSurface(
     onLongPress: () -> Unit,
     onClick: () -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
 ) {
     val sourceLabel = excerptSourceLabel(excerpt)
     val createTimeLabel = excerptCreateTimeLabel(excerpt.createTime)
@@ -267,7 +267,7 @@ private fun ExcerptCardSurface(
                 onLinkClick = { targetId ->
                     if (targetId == excerpt.id) return@LinkAwareText
                     if (targetId.startsWith("excerpt-")) {
-                        onPreviewExcerpt(targetId)
+                        onOpenExcerpt(targetId)
                     } else {
                         onOpenNode(targetId)
                     }
@@ -289,7 +289,7 @@ private fun ExcerptCardSurface(
                             onLinkClick = { targetId ->
                                 if (targetId == excerpt.id) return@LinkAwareText
                                 if (targetId.startsWith("excerpt-")) {
-                                    onPreviewExcerpt(targetId)
+                                    onOpenExcerpt(targetId)
                                 } else {
                                     onOpenNode(targetId)
                                 }

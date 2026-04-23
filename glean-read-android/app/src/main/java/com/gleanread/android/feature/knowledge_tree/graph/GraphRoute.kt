@@ -9,7 +9,7 @@ fun GraphRoute(
     nodeId: String,
     onBack: () -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
 ) {
     val graph = snapshot.graphByNodeId[nodeId] ?: return
     val currentNode = snapshot.flatNodes[nodeId] ?: return
@@ -19,6 +19,6 @@ fun GraphRoute(
         title = currentNode.title,
         onBack = onBack,
         onOpenNode = onOpenNode,
-        onPreviewExcerpt = onPreviewExcerpt,
+        onOpenExcerpt = onOpenExcerpt,
     )
 }

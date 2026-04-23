@@ -20,7 +20,7 @@ fun FeedRoute(
     onLoadSample: () -> Unit,
     onStartRecording: () -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
 ) {
     if (snapshot.isEmpty) {
         FeedEmptyState(
@@ -83,7 +83,7 @@ fun FeedRoute(
         },
         onToggleSelection = onToggleSelection,
         onOpenNode = onOpenNode,
-        onPreviewExcerpt = onPreviewExcerpt,
+        onOpenExcerpt = onOpenExcerpt,
         onRevealExcerptActions = { excerptId -> revealedExcerptId = excerptId },
         onDismissExcerptActions = { excerptId ->
             if (revealedExcerptId == excerptId) {

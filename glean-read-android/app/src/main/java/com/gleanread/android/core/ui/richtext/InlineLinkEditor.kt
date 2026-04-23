@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,6 +50,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.onLongClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextRange
@@ -80,7 +82,19 @@ fun LinkAwareText(
     onLongClick: (() -> Unit)? = null,
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
+    textStyle: TextStyle = TextStyle.Default,
+    textColor: Color = Color.Unspecified,
 ) {
+    val resolvedTextStyle = if (textStyle == TextStyle.Default) {
+        MaterialTheme.typography.bodyLarge.copy(lineHeight = 22.sp)
+    } else {
+        textStyle
+    }
+    val resolvedTextColor = if (textColor == Color.Unspecified) {
+        MaterialTheme.colorScheme.onSurface
+    } else {
+        textColor
+    }
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
     val context = LocalContext.current
@@ -103,10 +117,7 @@ fun LinkAwareText(
 
     Text(
         text = annotated,
-        style = MaterialTheme.typography.bodyLarge.copy(
-            color = MaterialTheme.colorScheme.onSurface,
-            lineHeight = 22.sp,
-        ),
+        style = resolvedTextStyle.copy(color = resolvedTextColor),
         maxLines = maxLines,
         overflow = overflow,
         onTextLayout = { layoutResult = it },
@@ -157,6 +168,8 @@ fun InlineLinkEditor(
     modifier: Modifier = Modifier,
     minLines: Int = 4,
     autoFocus: Boolean = false,
+    containerColor: Color = Color.Unspecified,
+    textStyle: TextStyle = TextStyle.Default,
 ) {
     var fieldValue by remember {
         mutableStateOf(
@@ -171,6 +184,16 @@ fun InlineLinkEditor(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
     var searchJob by remember { mutableStateOf<Job?>(null) }
+    val resolvedContainerColor = if (containerColor == Color.Unspecified) {
+        MaterialTheme.colorScheme.surfaceContainerHigh
+    } else {
+        containerColor
+    }
+    val resolvedTextStyle = if (textStyle == TextStyle.Default) {
+        LocalTextStyle.current
+    } else {
+        textStyle
+    }
 
     LaunchedEffect(rawText) {
         if (rawText != fieldValue.text) {
@@ -213,11 +236,12 @@ fun InlineLinkEditor(
             placeholder = { Text(placeholder) },
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
             shape = RoundedCornerShape(24.dp),
+            textStyle = resolvedTextStyle,
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                errorContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedContainerColor = resolvedContainerColor,
+                unfocusedContainerColor = resolvedContainerColor,
+                disabledContainerColor = resolvedContainerColor,
+                errorContainerColor = resolvedContainerColor,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,

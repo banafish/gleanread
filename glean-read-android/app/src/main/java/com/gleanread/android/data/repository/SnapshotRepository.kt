@@ -1,6 +1,7 @@
 package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
+import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -54,6 +55,101 @@ class SnapshotRepository(
                 ),
             ),
         )
+    }
+
+    suspend fun updateExcerpt(
+        excerptId: String,
+        content: String,
+        thought: String,
+        sourceTitle: String?,
+        url: String?,
+        tagNames: Set<String>,
+        archiveNodeId: String?,
+    ): Boolean {
+        val trimmedContent = content.trim()
+        if (trimmedContent.isEmpty()) return false
+
+        var updated = false
+        database.withTransaction {
+            val excerpt = excerptDao.findExcerptById(excerptId) ?: return@withTransaction
+            val resolvedArchiveNodeId = when {
+                archiveNodeId == null -> null
+                nodeDao.findNodeById(archiveNodeId) != null -> archiveNodeId
+                else -> excerpt.treeNodeId
+            }
+            val normalizedTagNames = tagNames
+                .map(::normalizeTagName)
+                .filter(String::isNotEmpty)
+                .toSet()
+            val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
+            val targetTags = normalizedTagNames.mapNotNull(tagsByName::get)
+            val targetTagIds = targetTags.map(TagEntity::id).toSet()
+            val existingRelations = excerptTagDao.getExcerptTagsByExcerptId(excerptId)
+            val existingRelationsByTagId = existingRelations.associateBy(ExcerptTagEntity::tagId)
+            val now = System.currentTimeMillis()
+
+            excerptDao.updateExcerpts(
+                listOf(
+                    excerpt.copy(
+                        content = trimmedContent,
+                        userThought = thought.trim().takeIf { it.isNotEmpty() },
+                        sourceTitle = sourceTitle?.trim()?.takeIf { it.isNotEmpty() },
+                        url = url?.trim()?.takeIf { it.isNotEmpty() },
+                        treeNodeId = resolvedArchiveNodeId,
+                        updateTime = now,
+                        syncStatus = SyncStatus.bump(excerpt.syncStatus),
+                    ),
+                ),
+            )
+
+            val newRelations = mutableListOf<ExcerptTagEntity>()
+            val updatedRelations = mutableListOf<ExcerptTagEntity>()
+
+            targetTagIds.forEach { tagId ->
+                val existing = existingRelationsByTagId[tagId]
+                when {
+                    existing == null -> {
+                        newRelations += ExcerptTagEntity(
+                            id = EntityIdGenerator.newRelationId(),
+                            userId = LOCAL_USER_ID,
+                            excerptId = excerptId,
+                            tagId = tagId,
+                            createTime = now,
+                            updateTime = now,
+                            syncStatus = SyncStatus.PENDING_CREATE.code,
+                        )
+                    }
+
+                    existing.isDeleted -> {
+                        updatedRelations += existing.copy(
+                            isDeleted = false,
+                            updateTime = now,
+                            syncStatus = SyncStatus.bump(existing.syncStatus),
+                        )
+                    }
+                }
+            }
+
+            existingRelations
+                .filter { !it.isDeleted && it.tagId !in targetTagIds }
+                .forEach { relation ->
+                    updatedRelations += relation.copy(
+                        isDeleted = true,
+                        updateTime = now,
+                        syncStatus = SyncStatus.markDeleted(relation.syncStatus),
+                    )
+                }
+
+            if (newRelations.isNotEmpty()) {
+                excerptTagDao.insertExcerptTags(newRelations)
+            }
+            if (updatedRelations.isNotEmpty()) {
+                excerptTagDao.updateExcerptTags(updatedRelations)
+            }
+
+            updated = true
+        }
+        return updated
     }
 
     suspend fun createTag(rawTagName: String): String {
@@ -114,7 +210,7 @@ class SnapshotRepository(
     }
 
     private fun normalizeTagName(rawTagName: String): String {
-        val segments = rawTagName.split('/')
+        val segments = rawTagName.removePrefix("#").split('/')
             .map(String::trim)
             .filter(String::isNotEmpty)
 

@@ -84,7 +84,7 @@ fun GraphScreen(
     title: String,
     onBack: () -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -124,7 +124,7 @@ fun GraphScreen(
                 graph = graph,
                 modifier = Modifier.fillMaxSize(),
                 onOpenNode = onOpenNode,
-                onPreviewExcerpt = onPreviewExcerpt,
+                onOpenExcerpt = onOpenExcerpt,
             )
         }
     }
@@ -135,7 +135,7 @@ private fun GraphCanvas(
     graph: GraphUiModel,
     modifier: Modifier = Modifier,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
 ) {
     val colors = MaterialTheme.colorScheme
     val density = LocalDensity.current
@@ -271,7 +271,7 @@ private fun GraphCanvas(
                         .background(graphColor(node.kind, colors))
                         .combinedClickable {
                             when (node.kind) {
-                                GraphNodeKind.EXCERPT -> onPreviewExcerpt(node.id)
+                                GraphNodeKind.EXCERPT -> onOpenExcerpt(node.id)
                                 GraphNodeKind.CURRENT_NODE -> Unit
                                 else -> onOpenNode(node.id)
                             }
@@ -486,7 +486,7 @@ private fun GraphScreenPreview() {
             title = "Compose Architecture",
             onBack = {},
             onOpenNode = {},
-            onPreviewExcerpt = {},
+            onOpenExcerpt = {},
         )
     }
 }

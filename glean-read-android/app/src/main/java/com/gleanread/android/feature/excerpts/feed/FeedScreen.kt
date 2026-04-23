@@ -69,7 +69,7 @@ fun FeedScreen(
     onLongPress: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
     onRevealExcerptActions: (String) -> Unit,
     onDismissExcerptActions: (String) -> Unit,
     onDismissDeleteDialog: () -> Unit,
@@ -123,10 +123,12 @@ fun FeedScreen(
                     onClick = {
                         if (isSelectionMode) {
                             onToggleSelection(excerpt.id)
+                        } else {
+                            onOpenExcerpt(excerpt.id)
                         }
                     },
                     onOpenNode = onOpenNode,
-                    onPreviewExcerpt = onPreviewExcerpt,
+                    onOpenExcerpt = onOpenExcerpt,
                 )
                 Spacer(Modifier.height(14.dp))
             }
@@ -333,7 +335,7 @@ private fun FeedScreenPreview() {
             onLongPress = {},
             onToggleSelection = {},
             onOpenNode = {},
-            onPreviewExcerpt = {},
+            onOpenExcerpt = {},
             onRevealExcerptActions = {},
             onDismissExcerptActions = {},
             onDismissDeleteDialog = {},

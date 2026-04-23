@@ -94,7 +94,7 @@ fun NodeDetailScreen(
     onOutlineChange: (String) -> Unit,
     onOpenLinkedTarget: (String) -> Unit,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
     onRevealExcerptActions: (String) -> Unit,
     onDismissExcerptActions: (String) -> Unit,
     onRemoveExcerptFromNode: (String) -> Unit,
@@ -209,6 +209,7 @@ fun NodeDetailScreen(
                 onRevealDelete = { onRevealExcerptActions(excerpt.id) },
                 onDismissDelete = { onDismissExcerptActions(excerpt.id) },
                 onRemoveExcerptFromNode = { onRemoveExcerptFromNode(excerpt.id) },
+                onOpenExcerpt = { onOpenExcerpt(excerpt.id) },
                 onOpenLinkedTarget = onOpenLinkedTarget,
             )
         }
@@ -217,7 +218,7 @@ fun NodeDetailScreen(
             BacklinksCard(
                 backlinks = backlinks,
                 onOpenNode = onOpenNode,
-                onPreviewExcerpt = onPreviewExcerpt,
+                onOpenExcerpt = onOpenExcerpt,
             )
         }
     }
@@ -268,6 +269,7 @@ private fun NodeExcerptCard(
     onRevealDelete: () -> Unit,
     onDismissDelete: () -> Unit,
     onRemoveExcerptFromNode: () -> Unit,
+    onOpenExcerpt: () -> Unit,
     onOpenLinkedTarget: (String) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -326,6 +328,7 @@ private fun NodeExcerptCard(
         ) {
             NodeExcerptCardSurface(
                 excerpt = excerpt,
+                onOpenExcerpt = onOpenExcerpt,
                 onOpenLinkedTarget = onOpenLinkedTarget,
             )
         }
@@ -367,9 +370,11 @@ private fun NodeExcerptDeleteAction(
 @Composable
 private fun NodeExcerptCardSurface(
     excerpt: ExcerptUiModel,
+    onOpenExcerpt: () -> Unit,
     onOpenLinkedTarget: (String) -> Unit,
 ) {
     Card(
+        onClick = onOpenExcerpt,
         modifier = Modifier.fillMaxWidth(),
         shape = NodeExcerptCardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -381,6 +386,7 @@ private fun NodeExcerptCardSurface(
                     if (targetId == excerpt.id) return@LinkAwareText
                     onOpenLinkedTarget(targetId)
                 },
+                onClick = onOpenExcerpt,
             )
             if (excerpt.tags.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
@@ -408,7 +414,7 @@ private fun NodeExcerptCardSurface(
 private fun BacklinksCard(
     backlinks: List<BacklinkUiModel>,
     onOpenNode: (String) -> Unit,
-    onPreviewExcerpt: (String) -> Unit,
+    onOpenExcerpt: (String) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(24.dp),
@@ -442,7 +448,7 @@ private fun BacklinksCard(
                             if (backlink.sourceType == BacklinkType.NODE) {
                                 onOpenNode(backlink.sourceId)
                             } else {
-                                onPreviewExcerpt(backlink.sourceId)
+                                onOpenExcerpt(backlink.sourceId)
                             }
                         },
                     ) {
@@ -486,7 +492,7 @@ private fun NodeDetailScreenPreview() {
             onOutlineChange = {},
             onOpenLinkedTarget = {},
             onOpenNode = {},
-            onPreviewExcerpt = {},
+            onOpenExcerpt = {},
             onRevealExcerptActions = {},
             onDismissExcerptActions = {},
             onRemoveExcerptFromNode = {},

@@ -40,6 +40,31 @@ class MainAppViewModel(
         }
     }
 
+    fun updateExcerpt(
+        excerptId: String,
+        content: String,
+        thought: String,
+        sourceTitle: String?,
+        url: String?,
+        tagNames: Set<String>,
+        archiveNodeId: String?,
+        onUpdated: (Boolean) -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            onUpdated(
+                snapshotRepository.updateExcerpt(
+                    excerptId = excerptId,
+                    content = content,
+                    thought = thought,
+                    sourceTitle = sourceTitle,
+                    url = url,
+                    tagNames = tagNames,
+                    archiveNodeId = archiveNodeId,
+                ),
+            )
+        }
+    }
+
     fun createTag(tagName: String, onCreated: () -> Unit = {}) {
         if (tagName.isBlank()) return
         viewModelScope.launch {
