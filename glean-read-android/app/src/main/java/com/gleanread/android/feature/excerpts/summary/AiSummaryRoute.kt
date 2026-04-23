@@ -5,9 +5,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import com.gleanread.android.R
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
-import com.gleanread.android.feature.capture.quick_capture.component.NodePickerOverlay
+import com.gleanread.android.feature.knowledge_tree.NodeDialogUiStateSaver
+import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
+import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
+import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 
 @Composable
 fun AiSummaryRoute(
@@ -16,15 +21,19 @@ fun AiSummaryRoute(
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onClose: () -> Unit,
     onSave: () -> Unit,
+    onCreateRootNode: (String, (String) -> Unit) -> Unit,
+    onCreateChildNode: (String, String, (String) -> Unit) -> Unit,
     onSelectTargetNode: (String?) -> Unit,
-    onSelectParentNode: (String?) -> Unit,
     onMarkdownChange: (String) -> Unit,
-    onNewNodeTitleChange: (String) -> Unit,
 ) {
-    var showNodePicker by rememberSaveable { mutableStateOf(false) }
-    var createNewNode by rememberSaveable { mutableStateOf(false) }
+    var showMountNodeSheet by rememberSaveable { mutableStateOf(false) }
+    var currentMountNodeId by rememberSaveable { mutableStateOf<String?>(null) }
+    var nodeDialogState by rememberSaveable(stateSaver = NodeDialogUiStateSaver) {
+        mutableStateOf<NodeDialogUiState?>(null)
+    }
     val selectedExcerpts = draft.selectedExcerptIds.mapNotNull(snapshot.excerptsById::get)
     val selectedNodeTitle = draft.targetNodeId?.let { snapshot.flatNodes[it]?.title }
+    val rootTitle = stringResource(R.string.knowledge_tree_root_title)
 
     AiSummaryScreen(
         draft = draft,
@@ -33,30 +42,70 @@ fun AiSummaryRoute(
         searchSuggestions = searchSuggestions,
         onClose = onClose,
         onSave = onSave,
-        onOpenNodePicker = { showNodePicker = true },
+        onOpenMountNodeSheet = {
+            currentMountNodeId = draft.targetNodeId?.takeIf(snapshot.flatNodes::containsKey)
+            showMountNodeSheet = true
+        },
         onMarkdownChange = onMarkdownChange,
     )
 
-    if (showNodePicker) {
-        NodePickerOverlay(
+    if (showMountNodeSheet) {
+        AiSummaryMountNodeBottomSheet(
             snapshot = snapshot,
-            createNewNode = createNewNode,
-            draftTitle = draft.newNodeTitle,
+            currentNodeId = currentMountNodeId,
             selectedTargetNodeId = draft.targetNodeId,
-            selectedParentNodeId = draft.parentNodeId,
-            onDismiss = { showNodePicker = false },
-            onToggleCreate = { createNewNode = !createNewNode },
-            onSelectTarget = {
-                createNewNode = false
-                onSelectTargetNode(it)
-                showNodePicker = false
+            rootTitle = rootTitle,
+            onDismiss = { showMountNodeSheet = false },
+            onCreateNode = {
+                val parentNodeId = currentMountNodeId
+                nodeDialogState = if (parentNodeId == null) {
+                    NodeDialogUiState(type = NodeDialogType.ADD_ROOT)
+                } else {
+                    snapshot.flatNodes[parentNodeId]?.let { parentNode ->
+                        NodeDialogUiState(
+                            type = NodeDialogType.ADD_CHILD,
+                            parentNodeId = parentNode.id,
+                            parentNodeTitle = parentNode.title,
+                        )
+                    }
+                }
             },
-            onSelectParent = {
-                createNewNode = true
-                onSelectTargetNode(null)
-                onSelectParentNode(it)
+            onConfirm = {
+                currentMountNodeId?.let { nodeId ->
+                    onSelectTargetNode(nodeId)
+                    showMountNodeSheet = false
+                }
             },
-            onTitleChange = onNewNodeTitleChange,
+            onNavigateToNode = { currentMountNodeId = it },
+        )
+    }
+
+    nodeDialogState?.let { state ->
+        AddNodeDialog(
+            state = state,
+            onValueChange = { value ->
+                nodeDialogState = nodeDialogState?.copy(inputValue = value)
+            },
+            onDismiss = { nodeDialogState = null },
+            onConfirm = {
+                when (val dialogState = nodeDialogState) {
+                    null -> Unit
+                    else -> when (dialogState.type) {
+                        NodeDialogType.ADD_ROOT -> {
+                            onCreateRootNode(dialogState.inputValue) {}
+                        }
+
+                        NodeDialogType.ADD_CHILD -> {
+                            dialogState.parentNodeId?.let { parentNodeId ->
+                                onCreateChildNode(parentNodeId, dialogState.inputValue) {}
+                            }
+                        }
+
+                        NodeDialogType.RENAME -> Unit
+                    }
+                }
+                nodeDialogState = null
+            },
         )
     }
 }

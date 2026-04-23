@@ -76,17 +76,13 @@
     <string name="archive_picker_inbox">Inbox</string>
     <string name="archive_picker_title">选择总结位置</string>
 
-    <string name="node_picker_choose_existing">选择已有节点</string>
-    <string name="node_picker_create_new">新建节点</string>
-    <string name="node_picker_parent_hint">请选择新节点的父节点</string>
-    <string name="node_picker_parent_selected">父节点：%1$s</string>
-    <string name="node_picker_title">选择挂载节点</string>
-    <string name="node_picker_title_placeholder">输入新节点标题</string>
-
     <string name="ai_summary_choose_target">选择目标节点</string>
     <string name="ai_summary_excerpt_title">关联摘录（%1$d）</string>
+    <string name="ai_summary_mount_already_here">当前已经选择该节点。</string>
+    <string name="ai_summary_mount_confirm_hint">点击右上角确定挂载到当前节点，或继续进入子节点。</string>
+    <string name="ai_summary_mount_empty_list">当前节点下没有可继续进入的子节点。</string>
+    <string name="ai_summary_mount_root_hint">进入一个节点后可挂载到现有节点；点击新增可新建节点。</string>
     <string name="ai_summary_mount_title">挂载到节点</string>
-    <string name="ai_summary_new_node">新建节点：%1$s</string>
     <string name="ai_summary_outline_placeholder">让 AI 生成一个可编辑的大纲</string>
     <string name="ai_summary_outline_title">生成大纲</string>
     <string name="ai_summary_title">AI 总结</string>

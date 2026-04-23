@@ -295,10 +295,10 @@ fun MainApp() {
                                 navController.popBackStack(MainRoutes.Feed, false)
                             }
                         },
+                        onCreateRootNode = mainViewModel::createRootNode,
+                        onCreateChildNode = mainViewModel::createChildNode,
                         onSelectTargetNode = aiSummaryViewModel::selectTargetNode,
-                        onSelectParentNode = aiSummaryViewModel::selectParentNode,
                         onMarkdownChange = aiSummaryViewModel::updateMarkdown,
-                        onNewNodeTitleChange = aiSummaryViewModel::updateNewNodeTitle,
                     )
                 }
                 composable(

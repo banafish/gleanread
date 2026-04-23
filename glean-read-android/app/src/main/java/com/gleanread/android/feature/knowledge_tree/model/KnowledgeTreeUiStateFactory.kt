@@ -94,23 +94,46 @@ fun buildMoveNodeBottomSheetUiModel(
     }
 
     val excludedNodeIds = collectKnowledgeTreeSubtreeIds(snapshot, state.targetNodeId)
-    if (currentParentNodeId in excludedNodeIds) {
-        return null
-    }
-
-    val childIds = currentParentNodeId?.let { parentId ->
-        snapshot.flatNodes[parentId]?.childNodeIds.orEmpty()
-    } ?: snapshot.treeRoots.map { it.id }
+    val pickerUiModel = buildKnowledgeTreeNodePickerUiModel(
+        snapshot = snapshot,
+        currentNodeId = currentParentNodeId,
+        rootTitle = rootTitle,
+        excludedNodeIds = excludedNodeIds,
+    ) ?: return null
 
     return MoveNodeBottomSheetUiModel(
         targetNodeTitle = state.targetNodeTitle,
-        breadcrumbs = buildKnowledgeTreeBreadcrumbs(snapshot, currentParentNodeId, rootTitle),
+        breadcrumbs = pickerUiModel.breadcrumbs,
+        destinations = pickerUiModel.destinations,
+        confirmEnabled = currentParentNodeId != state.sourceParentNodeId,
+    )
+}
+
+fun buildKnowledgeTreeNodePickerUiModel(
+    snapshot: WorkspaceSnapshot,
+    currentNodeId: String?,
+    rootTitle: String,
+    excludedNodeIds: Set<String> = emptySet(),
+): KnowledgeTreeNodePickerUiModel? {
+    if (currentNodeId != null && !snapshot.flatNodes.containsKey(currentNodeId)) {
+        return null
+    }
+    if (currentNodeId in excludedNodeIds) {
+        return null
+    }
+
+    val childIds = currentNodeId?.let { parentId ->
+        snapshot.flatNodes[parentId]?.childNodeIds.orEmpty()
+    } ?: snapshot.treeRoots.map { it.id }
+
+    return KnowledgeTreeNodePickerUiModel(
+        breadcrumbs = buildKnowledgeTreeBreadcrumbs(snapshot, currentNodeId, rootTitle),
         destinations = childIds.mapNotNull { childId ->
             if (childId in excludedNodeIds) {
                 null
             } else {
                 snapshot.flatNodes[childId]?.let { node ->
-                    MoveNodeDestinationUiModel(
+                    KnowledgeTreeNodePickerDestinationUiModel(
                         nodeId = node.id,
                         title = node.title,
                         childCount = node.childNodeIds.size,
@@ -119,7 +142,6 @@ fun buildMoveNodeBottomSheetUiModel(
                 }
             }
         },
-        confirmEnabled = currentParentNodeId != state.sourceParentNodeId,
     )
 }
 

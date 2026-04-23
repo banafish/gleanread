@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountTree
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
@@ -65,14 +64,13 @@ fun AiSummaryScreen(
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onClose: () -> Unit,
     onSave: () -> Unit,
-    onOpenNodePicker: () -> Unit,
+    onOpenMountNodeSheet: () -> Unit,
     onMarkdownChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val canSave = draft.markdown.isNotBlank() &&
-        (draft.targetNodeId != null || draft.newNodeTitle.isNotBlank())
+    val canSave = draft.markdown.isNotBlank() && draft.targetNodeId != null
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -184,7 +182,7 @@ fun AiSummaryScreen(
                     onClick = {
                         focusManager.clearFocus(force = true)
                         keyboardController?.hide()
-                        onOpenNodePicker()
+                        onOpenMountNodeSheet()
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -197,20 +195,8 @@ fun AiSummaryScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        if (selectedNodeTitle == null && draft.newNodeTitle.isBlank()) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                            )
-                            Spacer(Modifier.width(6.dp))
-                        }
                         Text(
-                            text = selectedNodeTitle ?: if (draft.newNodeTitle.isNotBlank()) {
-                                stringResource(R.string.ai_summary_new_node, draft.newNodeTitle)
-                            } else {
-                                stringResource(R.string.ai_summary_choose_target)
-                            },
+                            text = selectedNodeTitle ?: stringResource(R.string.ai_summary_choose_target),
                             textAlign = TextAlign.Left,
                         )
                     }
@@ -277,9 +263,8 @@ private fun AiSummaryScreenPreview() {
             searchSuggestions = { emptyList() },
             onClose = {},
             onSave = {},
-            onOpenNodePicker = {},
+            onOpenMountNodeSheet = {},
             onMarkdownChange = {},
         )
     }
 }
-

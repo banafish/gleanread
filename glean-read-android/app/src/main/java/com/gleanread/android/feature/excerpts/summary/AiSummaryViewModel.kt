@@ -15,8 +15,6 @@ data class AiSummaryDraft(
     val markdown: String = "",
     val isGenerating: Boolean = false,
     val targetNodeId: String? = null,
-    val parentNodeId: String? = null,
-    val newNodeTitle: String = "",
 )
 
 class AiSummaryViewModel(
@@ -37,7 +35,6 @@ class AiSummaryViewModel(
                 state.copy(
                     title = generated.title,
                     markdown = generated.markdown,
-                    newNodeTitle = generated.title,
                     isGenerating = false,
                 )
             }
@@ -48,16 +45,8 @@ class AiSummaryViewModel(
         _draft.update { it.copy(markdown = value) }
     }
 
-    fun updateNewNodeTitle(value: String) {
-        _draft.update { it.copy(newNodeTitle = value) }
-    }
-
     fun selectTargetNode(nodeId: String?) {
         _draft.update { it.copy(targetNodeId = nodeId) }
-    }
-
-    fun selectParentNode(nodeId: String?) {
-        _draft.update { it.copy(parentNodeId = nodeId) }
     }
 
     fun clear() {
@@ -66,17 +55,18 @@ class AiSummaryViewModel(
 
     fun save(onSaved: (String) -> Unit = {}) {
         val draft = _draft.value
+        val targetNodeId = draft.targetNodeId ?: return
         if (draft.selectedExcerptIds.isEmpty() || draft.markdown.isBlank()) return
         viewModelScope.launch {
             val nodeId = aiSummaryRepository.saveAiSummary(
                 selectedExcerptIds = draft.selectedExcerptIds,
                 outlineMarkdown = draft.markdown,
-                targetNodeId = draft.targetNodeId,
-                newNodeTitle = draft.newNodeTitle.takeIf { draft.targetNodeId == null },
-                parentNodeId = draft.parentNodeId,
+                targetNodeId = targetNodeId,
             )
-            _draft.value = AiSummaryDraft()
-            onSaved(nodeId)
+            if (nodeId.isNotBlank()) {
+                _draft.value = AiSummaryDraft()
+                onSaved(nodeId)
+            }
         }
     }
 }
