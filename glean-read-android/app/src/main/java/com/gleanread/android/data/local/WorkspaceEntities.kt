@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.gleanread.android.data.model.SyncStatus
 
 @Entity(
     tableName = "knowledge_tree_node",
@@ -18,7 +19,7 @@ data class KnowledgeTreeNodeEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
-    @ColumnInfo(name = "sync_status") val syncStatus: Int,
+    @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
 )
 
 @Entity(
@@ -34,7 +35,7 @@ data class TagEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
-    @ColumnInfo(name = "sync_status") val syncStatus: Int,
+    @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
 )
 
 @Entity(
@@ -52,7 +53,7 @@ data class ExcerptEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
-    @ColumnInfo(name = "sync_status") val syncStatus: Int,
+    @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
 )
 
 @Entity(
@@ -67,5 +68,5 @@ data class ExcerptTagEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
-    @ColumnInfo(name = "sync_status") val syncStatus: Int,
+    @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
 )

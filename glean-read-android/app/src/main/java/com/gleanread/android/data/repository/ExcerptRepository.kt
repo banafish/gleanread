@@ -7,57 +7,27 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 
-class SnapshotRepository(
+/**
+ * 统一的摘录 CRUD 仓库。
+ *
+ * 合并了原 SnapshotRepository 和 ExcerptCaptureRepository 中摘录相关的逻辑，
+ * 消除重复的创建/更新/删除实现。
+ */
+class ExcerptRepository(
     private val database: WorkspaceDatabase,
 ) {
     private val excerptDao = database.excerptDao()
-    private val nodeDao = database.nodeDao()
     private val tagDao = database.tagDao()
     private val excerptTagDao = database.excerptTagDao()
+    private val nodeDao = database.nodeDao()
 
-    val localSnapshot = combine(
-        excerptDao.observeExcerpts(),
-        nodeDao.observeNodes(),
-        tagDao.observeTags(),
-        excerptTagDao.observeExcerptTags(),
-    ) { excerpts, nodes, tags, relations ->
-        WorkspaceLocalSnapshot(
-            excerpts = excerpts,
-            nodes = nodes,
-            tags = tags,
-            relations = relations,
-        )
-    }.distinctUntilChanged()
-
-    suspend fun seedSampleData() {
-        val hasData = excerptDao.countExcerpts() > 0 || nodeDao.countNodes() > 0 || tagDao.countTags() > 0
-        if (hasData) return
-        val now = System.currentTimeMillis()
-        database.withTransaction {
-            nodeDao.insertNodes(SampleSeedData.nodes(now))
-            tagDao.insertTags(SampleSeedData.tags(now))
-            excerptDao.insertExcerpts(SampleSeedData.excerpts(now))
-            excerptTagDao.insertExcerptTags(SampleSeedData.excerptTags(now))
-        }
-    }
-
-    suspend fun deleteExcerpt(excerptId: String) {
-        val excerpt = excerptDao.findExcerptById(excerptId) ?: return
-        val now = System.currentTimeMillis()
-        excerptDao.updateExcerpts(
-            listOf(
-                excerpt.copy(
-                    isDeleted = true,
-                    updateTime = now,
-                    syncStatus = SyncStatus.markDeleted(excerpt.syncStatus),
-                ),
-            ),
-        )
-    }
-
+    /**
+     * 创建摘录并关联 tag。
+     *
+     * @param autoCreateTags 是否自动创建不存在的 tag（快速捕获场景）。
+     *                       为 false 时只使用已存在的 tag（编辑器场景）。
+     */
     suspend fun createExcerpt(
         content: String,
         thought: String,
@@ -65,6 +35,7 @@ class SnapshotRepository(
         url: String?,
         tagNames: Set<String>,
         archiveNodeId: String?,
+        autoCreateTags: Boolean = false,
     ): String {
         val trimmedContent = content.trim()
         if (trimmedContent.isEmpty()) return ""
@@ -73,12 +44,7 @@ class SnapshotRepository(
         val now = System.currentTimeMillis()
         database.withTransaction {
             val resolvedArchiveNodeId = archiveNodeId?.takeIf { nodeDao.findNodeById(it) != null }
-            val normalizedTagNames = tagNames
-                .map(::normalizeTagName)
-                .filter(String::isNotEmpty)
-                .toSet()
-            val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
-            val targetTags = normalizedTagNames.mapNotNull(tagsByName::get)
+            val targetTags = resolveTags(tagNames, now, autoCreateTags)
 
             excerptDao.insertExcerpt(
                 ExcerptEntity(
@@ -91,7 +57,7 @@ class SnapshotRepository(
                     treeNodeId = resolvedArchiveNodeId,
                     createTime = now,
                     updateTime = now,
-                    syncStatus = SyncStatus.PENDING_CREATE.code,
+                    syncStatus = SyncStatus.PENDING_CREATE,
                 ),
             )
 
@@ -105,7 +71,7 @@ class SnapshotRepository(
                             tagId = tag.id,
                             createTime = now,
                             updateTime = now,
-                            syncStatus = SyncStatus.PENDING_CREATE.code,
+                            syncStatus = SyncStatus.PENDING_CREATE,
                         )
                     },
                 )
@@ -141,7 +107,7 @@ class SnapshotRepository(
             val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
             val targetTags = normalizedTagNames.mapNotNull(tagsByName::get)
             val targetTagIds = targetTags.map(TagEntity::id).toSet()
-            val existingRelations = excerptTagDao.getExcerptTagsByExcerptId(excerptId)
+            val existingRelations = excerptTagDao.getAllExcerptTagsByExcerptId(excerptId)
             val existingRelationsByTagId = existingRelations.associateBy(ExcerptTagEntity::tagId)
             val now = System.currentTimeMillis()
 
@@ -173,7 +139,7 @@ class SnapshotRepository(
                             tagId = tagId,
                             createTime = now,
                             updateTime = now,
-                            syncStatus = SyncStatus.PENDING_CREATE.code,
+                            syncStatus = SyncStatus.PENDING_CREATE,
                         )
                     }
 
@@ -209,72 +175,74 @@ class SnapshotRepository(
         return updated
     }
 
-    suspend fun createTag(rawTagName: String): String {
-        val normalizedTagName = normalizeTagName(rawTagName)
-        if (normalizedTagName.isEmpty()) return ""
-
+    suspend fun deleteExcerpt(excerptId: String) {
+        val excerpt = excerptDao.findExcerptById(excerptId) ?: return
         val now = System.currentTimeMillis()
-        val existing = tagDao.findTagByName(LOCAL_USER_ID, normalizedTagName)
+        excerptDao.updateExcerpts(
+            listOf(
+                excerpt.copy(
+                    isDeleted = true,
+                    updateTime = now,
+                    syncStatus = SyncStatus.markDeleted(excerpt.syncStatus),
+                ),
+            ),
+        )
+    }
 
-        return if (existing == null) {
-            val tagId = EntityIdGenerator.newTagId()
-            tagDao.insertTag(
+    /**
+     * 解析 tag 名称列表为 TagEntity 列表。
+     *
+     * @param autoCreate 为 true 时自动创建不存在的 tag 并更新已有 tag 的热度权重。
+     */
+    private suspend fun resolveTags(
+        tagNames: Set<String>,
+        now: Long,
+        autoCreate: Boolean,
+    ): List<TagEntity> {
+        val normalizedNames = tagNames
+            .map(::normalizeTagName)
+            .filter(String::isNotEmpty)
+            .distinct()
+
+        if (!autoCreate) {
+            val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
+            return normalizedNames.mapNotNull(tagsByName::get)
+        }
+
+        return normalizedNames.map { tagName ->
+            val existing = tagDao.findTagByName(LOCAL_USER_ID, tagName)
+            if (existing == null) {
                 TagEntity(
-                    id = tagId,
+                    id = EntityIdGenerator.newTagId(),
                     userId = LOCAL_USER_ID,
-                    tagName = normalizedTagName,
+                    tagName = tagName,
                     colorIcon = null,
                     heatWeight = 1,
                     createTime = now,
                     updateTime = now,
-                    syncStatus = SyncStatus.PENDING_CREATE.code,
-                ),
-            )
-            tagId
-        } else {
-            if (existing.isDeleted) {
-                tagDao.updateTag(
-                    existing.copy(
-                        tagName = normalizedTagName,
-                        isDeleted = false,
-                        heatWeight = existing.heatWeight.coerceAtLeast(1),
-                        updateTime = now,
-                        syncStatus = SyncStatus.bump(existing.syncStatus),
-                    ),
-                )
+                    syncStatus = SyncStatus.PENDING_CREATE,
+                ).also { tagDao.insertTag(it) }
+            } else {
+                existing.copy(
+                    heatWeight = existing.heatWeight + 1,
+                    updateTime = now,
+                    syncStatus = SyncStatus.bump(existing.syncStatus),
+                ).also { tagDao.updateTag(it) }
             }
-            existing.id
         }
     }
 
-    suspend fun deleteTags(tagIds: Set<String>) {
-        if (tagIds.isEmpty()) return
+    companion object {
+        fun normalizeTagName(rawTagName: String): String {
+            val segments = rawTagName.removePrefix("#").split('/')
+                .map(String::trim)
+                .filter(String::isNotEmpty)
 
-        val now = System.currentTimeMillis()
-        database.withTransaction {
-            val tagsToDelete = tagDao.getTagsOnce().filter { tagIds.contains(it.id) }
-            if (tagsToDelete.isEmpty()) return@withTransaction
-            tagDao.updateTags(
-                tagsToDelete.map { tag ->
-                    tag.copy(
-                        isDeleted = true,
-                        updateTime = now,
-                        syncStatus = SyncStatus.markDeleted(tag.syncStatus),
-                    )
-                },
-            )
-        }
-    }
-
-    private fun normalizeTagName(rawTagName: String): String {
-        val segments = rawTagName.removePrefix("#").split('/')
-            .map(String::trim)
-            .filter(String::isNotEmpty)
-
-        return when {
-            segments.isEmpty() -> ""
-            segments.size == 1 -> segments.first()
-            else -> "${segments.first()}/${segments[1]}"
+            return when {
+                segments.isEmpty() -> ""
+                segments.size == 1 -> segments.first()
+                else -> "${segments.first()}/${segments[1]}"
+            }
         }
     }
 }

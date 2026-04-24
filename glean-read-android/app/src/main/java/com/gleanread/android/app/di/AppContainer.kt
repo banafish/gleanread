@@ -1,13 +1,16 @@
-﻿package com.gleanread.android.app.di
+package com.gleanread.android.app.di
 
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
+import androidx.room.Room
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.core.data.AppSnapshotStore
 import com.gleanread.android.data.repository.AiSummaryRepository
-import com.gleanread.android.data.repository.ExcerptCaptureRepository
+import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
-import com.gleanread.android.data.repository.SnapshotRepository
+import com.gleanread.android.data.repository.SeedDataInitializer
+import com.gleanread.android.data.repository.TagRepository
+import com.gleanread.android.data.repository.WorkspaceSnapshotProvider
 import com.gleanread.android.feature.capture.fast_capture.FastCaptureViewModel
 import com.gleanread.android.feature.excerpts.feed.FeedViewModel
 import com.gleanread.android.feature.excerpts.summary.AiSummaryViewModel
@@ -18,18 +21,33 @@ class AppContainer(
     context: Context,
 ) {
     private val appContext = context.applicationContext
-    private val workspaceDatabase: WorkspaceDatabase by lazy { WorkspaceDatabase.get(appContext) }
 
-    val snapshotRepository: SnapshotRepository by lazy {
-        SnapshotRepository(workspaceDatabase)
+    private val workspaceDatabase: WorkspaceDatabase by lazy {
+        Room.databaseBuilder(
+            appContext,
+            WorkspaceDatabase::class.java,
+            "glean_workspace.db",
+        ).build()
+    }
+
+    val excerptRepository: ExcerptRepository by lazy {
+        ExcerptRepository(workspaceDatabase)
+    }
+
+    val tagRepository: TagRepository by lazy {
+        TagRepository(workspaceDatabase)
     }
 
     val knowledgeTreeRepository: KnowledgeTreeRepository by lazy {
         KnowledgeTreeRepository(workspaceDatabase)
     }
 
-    val excerptCaptureRepository: ExcerptCaptureRepository by lazy {
-        ExcerptCaptureRepository(workspaceDatabase)
+    val snapshotProvider: WorkspaceSnapshotProvider by lazy {
+        WorkspaceSnapshotProvider(workspaceDatabase)
+    }
+
+    val seedDataInitializer: SeedDataInitializer by lazy {
+        SeedDataInitializer(workspaceDatabase)
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {
@@ -37,14 +55,16 @@ class AppContainer(
     }
 
     val appSnapshotStore: AppSnapshotStore by lazy {
-        AppSnapshotStore(snapshotRepository)
+        AppSnapshotStore(snapshotProvider)
     }
 
     val mainAppViewModelFactory: ViewModelProvider.Factory by lazy {
         AppViewModelFactory {
             MainAppViewModel(
-                snapshotRepository = snapshotRepository,
+                excerptRepository = excerptRepository,
+                tagRepository = tagRepository,
                 knowledgeTreeRepository = knowledgeTreeRepository,
+                seedDataInitializer = seedDataInitializer,
                 snapshotStore = appSnapshotStore,
             )
         }
@@ -63,7 +83,11 @@ class AppContainer(
     }
 
     val fastCaptureViewModelFactory: ViewModelProvider.Factory by lazy {
-        AppViewModelFactory { FastCaptureViewModel(excerptCaptureRepository) }
+        AppViewModelFactory {
+            FastCaptureViewModel(
+                tagRepository = tagRepository,
+                excerptRepository = excerptRepository,
+            )
+        }
     }
 }
-

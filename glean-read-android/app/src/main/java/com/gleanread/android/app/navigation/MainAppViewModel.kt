@@ -1,20 +1,24 @@
-﻿package com.gleanread.android.app.navigation
+package com.gleanread.android.app.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gleanread.android.core.data.AppSnapshotStore
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
-import com.gleanread.android.data.repository.SnapshotRepository
+import com.gleanread.android.data.repository.SeedDataInitializer
+import com.gleanread.android.data.repository.TagRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class MainAppViewModel(
-    private val snapshotRepository: SnapshotRepository,
+    private val excerptRepository: ExcerptRepository,
+    private val tagRepository: TagRepository,
     private val knowledgeTreeRepository: KnowledgeTreeRepository,
+    private val seedDataInitializer: SeedDataInitializer,
     snapshotStore: AppSnapshotStore,
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(WorkspaceSnapshot.Empty)
@@ -30,13 +34,13 @@ class MainAppViewModel(
 
     fun loadSampleData() {
         viewModelScope.launch {
-            snapshotRepository.seedSampleData()
+            seedDataInitializer.seedSampleData()
         }
     }
 
     fun deleteExcerpt(excerptId: String) {
         viewModelScope.launch {
-            snapshotRepository.deleteExcerpt(excerptId)
+            excerptRepository.deleteExcerpt(excerptId)
         }
     }
 
@@ -51,7 +55,7 @@ class MainAppViewModel(
     ) {
         viewModelScope.launch {
             onCreated(
-                snapshotRepository.createExcerpt(
+                excerptRepository.createExcerpt(
                     content = content,
                     thought = thought,
                     sourceTitle = sourceTitle,
@@ -75,7 +79,7 @@ class MainAppViewModel(
     ) {
         viewModelScope.launch {
             onUpdated(
-                snapshotRepository.updateExcerpt(
+                excerptRepository.updateExcerpt(
                     excerptId = excerptId,
                     content = content,
                     thought = thought,
@@ -91,7 +95,7 @@ class MainAppViewModel(
     fun createTag(tagName: String, onCreated: () -> Unit = {}) {
         if (tagName.isBlank()) return
         viewModelScope.launch {
-            snapshotRepository.createTag(tagName)
+            tagRepository.createTag(tagName)
             onCreated()
         }
     }
@@ -99,7 +103,7 @@ class MainAppViewModel(
     fun deleteTags(tagIds: Set<String>, onDeleted: () -> Unit = {}) {
         if (tagIds.isEmpty()) return
         viewModelScope.launch {
-            snapshotRepository.deleteTags(tagIds)
+            tagRepository.deleteTags(tagIds)
             onDeleted()
         }
     }
@@ -156,4 +160,3 @@ class MainAppViewModel(
         return knowledgeTreeRepository.searchSuggestions(query)
     }
 }
-

@@ -15,9 +15,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
-class SnapshotRepositoryTest {
+class ExcerptRepositoryTest {
     private lateinit var database: WorkspaceDatabase
-    private lateinit var repository: SnapshotRepository
+    private lateinit var excerptRepository: ExcerptRepository
     private lateinit var treeRepository: KnowledgeTreeRepository
 
     @Before
@@ -26,7 +26,7 @@ class SnapshotRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             WorkspaceDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repository = SnapshotRepository(database)
+        excerptRepository = ExcerptRepository(database)
         treeRepository = KnowledgeTreeRepository(database)
     }
 
@@ -51,11 +51,11 @@ class SnapshotRepositoryTest {
                 heatWeight = 1,
                 createTime = now,
                 updateTime = now,
-                syncStatus = SyncStatus.PENDING_CREATE.code,
+                syncStatus = SyncStatus.PENDING_CREATE,
             ),
         )
 
-        val excerptId = repository.createExcerpt(
+        val excerptId = excerptRepository.createExcerpt(
             content = "  摘录正文  ",
             thought = "  我的想法  ",
             sourceTitle = "  来源标题  ",
@@ -65,7 +65,7 @@ class SnapshotRepositoryTest {
         )
 
         val saved = database.excerptDao().findExcerptById(excerptId)
-        val relations = database.excerptTagDao().getExcerptTagsByExcerptId(excerptId)
+        val relations = database.excerptTagDao().getAllExcerptTagsByExcerptId(excerptId)
 
         assertEquals("摘录正文", saved?.content)
         assertEquals("我的想法", saved?.userThought)
@@ -74,5 +74,27 @@ class SnapshotRepositoryTest {
         assertEquals(nodeId, saved?.treeNodeId)
         assertEquals(1, relations.size)
         assertEquals(tagId, relations.single().tagId)
+    }
+
+    @Test
+    fun `createExcerpt with autoCreateTags creates new tags`() = runBlocking {
+        val excerptId = excerptRepository.createExcerpt(
+            content = "摘录正文",
+            thought = "用户想法",
+            url = "https://mp.weixin.qq.com/s/test",
+            sourceTitle = "公众号标题",
+            tagNames = setOf("newTag"),
+            archiveNodeId = null,
+            autoCreateTags = true,
+        )
+
+        val saved = database.excerptDao().findExcerptById(excerptId)
+        val relations = database.excerptTagDao().getAllExcerptTagsByExcerptId(excerptId)
+        val tag = database.tagDao().findTagByName(LOCAL_USER_ID, "newTag")
+
+        assertEquals("https://mp.weixin.qq.com/s/test", saved?.url)
+        assertEquals("公众号标题", saved?.sourceTitle)
+        assertEquals(1, relations.size)
+        assertEquals(tag?.id, relations.single().tagId)
     }
 }

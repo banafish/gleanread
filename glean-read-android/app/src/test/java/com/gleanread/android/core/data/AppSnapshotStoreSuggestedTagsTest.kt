@@ -6,7 +6,7 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
-import com.gleanread.android.data.repository.SnapshotRepository
+import com.gleanread.android.data.repository.WorkspaceSnapshotProvider
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -27,7 +27,7 @@ class AppSnapshotStoreSuggestedTagsTest {
             ApplicationProvider.getApplicationContext(),
             WorkspaceDatabase::class.java,
         ).allowMainThreadQueries().build()
-        store = AppSnapshotStore(SnapshotRepository(database))
+        store = AppSnapshotStore(WorkspaceSnapshotProvider(database))
     }
 
     @After
@@ -49,7 +49,7 @@ class AppSnapshotStoreSuggestedTagsTest {
                 heatWeight = 3,
                 createTime = now,
                 updateTime = now,
-                syncStatus = SyncStatus.SYNCED.code,
+                syncStatus = SyncStatus.SYNCED,
             ),
         )
 

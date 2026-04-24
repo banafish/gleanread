@@ -2,6 +2,7 @@ package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.model.OutlineDraft
 import com.gleanread.android.data.model.SyncStatus
 
 class AiSummaryRepository(

@@ -43,6 +43,6 @@ class TagProjectionFactoryTest {
         heatWeight = heatWeight,
         createTime = 1L,
         updateTime = 1L,
-        syncStatus = SyncStatus.SYNCED.code,
+        syncStatus = SyncStatus.SYNCED,
     )
 }

@@ -1,8 +1,9 @@
-﻿package com.gleanread.android.feature.capture.fast_capture
+package com.gleanread.android.feature.capture.fast_capture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gleanread.android.data.repository.ExcerptCaptureRepository
+import com.gleanread.android.data.repository.ExcerptRepository
+import com.gleanread.android.data.repository.TagRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,14 +17,15 @@ data class FastCaptureUiState(
 )
 
 class FastCaptureViewModel(
-    private val captureRepository: ExcerptCaptureRepository,
+    private val tagRepository: TagRepository,
+    private val excerptRepository: ExcerptRepository,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(FastCaptureUiState())
     val uiState: StateFlow<FastCaptureUiState> = _uiState.asStateFlow()
 
     init {
         viewModelScope.launch {
-            captureRepository.observeAvailableTagNames().collect { availableTags ->
+            tagRepository.observeAvailableTagNames().collect { availableTags ->
                 _uiState.update { it.copy(availableTags = availableTags) }
             }
         }
@@ -42,13 +44,14 @@ class FastCaptureViewModel(
             _uiState.update { it.copy(isSaving = true, isSaved = false) }
 
             runCatching {
-                captureRepository.saveQuickExcerpt(
+                excerptRepository.createExcerpt(
                     content = content,
                     thought = thought,
                     url = url,
                     sourceTitle = sourceTitle,
-                    tagNames = tagNames.toList(),
+                    tagNames = tagNames,
                     archiveNodeId = null,
+                    autoCreateTags = true,
                 )
             }.onSuccess {
                 _uiState.update { it.copy(isSaving = false, isSaved = true) }
@@ -58,4 +61,3 @@ class FastCaptureViewModel(
         }
     }
 }
-

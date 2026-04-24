@@ -9,11 +9,11 @@ import com.gleanread.android.data.model.SyncStatus
 
 object SampleSeedData {
     fun nodes(now: Long): List<KnowledgeTreeNodeEntity> = listOf(
-        KnowledgeTreeNodeEntity("node-growth", LOCAL_USER_ID, null, "🧠 个人成长", "围绕个人成长建立长期知识体系。", now - 80_000, now - 30_000, syncStatus = SyncStatus.SYNCED.code),
-        KnowledgeTreeNodeEntity("node-time", LOCAL_USER_ID, "node-growth", "⏱️ 时间管理", "聚焦高频时间管理方法。", now - 70_000, now - 30_000, syncStatus = SyncStatus.SYNCED.code),
-        KnowledgeTreeNodeEntity("node-reading", LOCAL_USER_ID, "node-growth", "📖 阅读方法", "主题阅读是快速建立领域认知的核心方法。", now - 60_000, now - 20_000, syncStatus = SyncStatus.SYNCED.code),
-        KnowledgeTreeNodeEntity("node-tech", LOCAL_USER_ID, null, "💻 技术开发", "记录技术栈、架构和产品实现经验。", now - 50_000, now - 20_000, syncStatus = SyncStatus.SYNCED.code),
-        KnowledgeTreeNodeEntity("node-invest", LOCAL_USER_ID, null, "💰 投资理财", "整理投资框架和复盘笔记。", now - 40_000, now - 10_000, syncStatus = SyncStatus.SYNCED.code),
+        KnowledgeTreeNodeEntity("node-growth", LOCAL_USER_ID, null, "🧠 个人成长", "围绕个人成长建立长期知识体系。", now - 80_000, now - 30_000, syncStatus = SyncStatus.SYNCED),
+        KnowledgeTreeNodeEntity("node-time", LOCAL_USER_ID, "node-growth", "⏱️ 时间管理", "聚焦高频时间管理方法。", now - 70_000, now - 30_000, syncStatus = SyncStatus.SYNCED),
+        KnowledgeTreeNodeEntity("node-reading", LOCAL_USER_ID, "node-growth", "📖 阅读方法", "主题阅读是快速建立领域认知的核心方法。", now - 60_000, now - 20_000, syncStatus = SyncStatus.SYNCED),
+        KnowledgeTreeNodeEntity("node-tech", LOCAL_USER_ID, null, "💻 技术开发", "记录技术栈、架构和产品实现经验。", now - 50_000, now - 20_000, syncStatus = SyncStatus.SYNCED),
+        KnowledgeTreeNodeEntity("node-invest", LOCAL_USER_ID, null, "💰 投资理财", "整理投资框架和复盘笔记。", now - 40_000, now - 10_000, syncStatus = SyncStatus.SYNCED),
     )
 
     fun tags(now: Long): List<TagEntity> = listOf(
@@ -39,7 +39,7 @@ object SampleSeedData {
             treeNodeId = null,
             createTime = now - 35_000,
             updateTime = now - 35_000,
-            syncStatus = SyncStatus.SYNCED.code,
+            syncStatus = SyncStatus.SYNCED,
         ),
         ExcerptEntity(
             id = "excerpt-prompt",
@@ -51,7 +51,7 @@ object SampleSeedData {
             treeNodeId = null,
             createTime = now - 34_000,
             updateTime = now - 34_000,
-            syncStatus = SyncStatus.SYNCED.code,
+            syncStatus = SyncStatus.SYNCED,
         ),
         ExcerptEntity(
             id = "excerpt-zk",
@@ -63,7 +63,7 @@ object SampleSeedData {
             treeNodeId = null,
             createTime = now - 33_000,
             updateTime = now - 33_000,
-            syncStatus = SyncStatus.SYNCED.code,
+            syncStatus = SyncStatus.SYNCED,
         ),
         ExcerptEntity(
             id = "excerpt-sq3r",
@@ -75,7 +75,7 @@ object SampleSeedData {
             treeNodeId = "node-reading",
             createTime = now - 32_000,
             updateTime = now - 32_000,
-            syncStatus = SyncStatus.SYNCED.code,
+            syncStatus = SyncStatus.SYNCED,
         ),
         ExcerptEntity(
             id = "excerpt-feynman",
@@ -87,7 +87,7 @@ object SampleSeedData {
             treeNodeId = "node-reading",
             createTime = now - 31_000,
             updateTime = now - 31_000,
-            syncStatus = SyncStatus.SYNCED.code,
+            syncStatus = SyncStatus.SYNCED,
         ),
     )
 
@@ -109,7 +109,7 @@ object SampleSeedData {
         heatWeight = heatWeight,
         createTime = now,
         updateTime = now,
-        syncStatus = SyncStatus.SYNCED.code,
+        syncStatus = SyncStatus.SYNCED,
     )
 
     private fun relation(id: String, excerptId: String, tagId: String, now: Long) = ExcerptTagEntity(
@@ -119,6 +119,6 @@ object SampleSeedData {
         tagId = tagId,
         createTime = now,
         updateTime = now,
-        syncStatus = SyncStatus.SYNCED.code,
+        syncStatus = SyncStatus.SYNCED,
     )
 }

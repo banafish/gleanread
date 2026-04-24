@@ -7,6 +7,7 @@ import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
+import com.gleanread.android.data.model.LocalSuggestionCandidate
 import com.gleanread.android.data.model.SyncStatus
 
 class KnowledgeTreeRepository(
@@ -57,7 +58,7 @@ class KnowledgeTreeRepository(
                 outlineMarkdown = "",
                 createTime = now,
                 updateTime = now,
-                syncStatus = SyncStatus.PENDING_CREATE.code,
+                syncStatus = SyncStatus.PENDING_CREATE,
             ),
         )
         return nodeId
@@ -78,7 +79,7 @@ class KnowledgeTreeRepository(
                 outlineMarkdown = "",
                 createTime = now,
                 updateTime = now,
-                syncStatus = SyncStatus.PENDING_CREATE.code,
+                syncStatus = SyncStatus.PENDING_CREATE,
             ),
         )
         return nodeId
@@ -204,16 +205,16 @@ class KnowledgeTreeRepository(
 
     private fun excerptTitle(excerpt: ExcerptEntity): String {
         return excerpt.sourceTitle?.takeIf { it.isNotBlank() }
-            ?: excerpt.content.take(18).trim() + if (excerpt.content.length > 18) "..." else ""
+            ?: excerpt.content.take(EXCERPT_TITLE_MAX_LENGTH).trim() +
+            if (excerpt.content.length > EXCERPT_TITLE_MAX_LENGTH) "..." else ""
+    }
+
+    companion object {
+        private const val EXCERPT_TITLE_MAX_LENGTH = 18
+        private const val SUGGESTION_PER_TYPE_LIMIT = 6
+        private const val SUGGESTION_TOTAL_LIMIT = 8
     }
 }
-
-data class LocalSuggestionCandidate(
-    val id: String,
-    val title: String,
-    val preview: String,
-    val type: LinkSuggestionType,
-)
 
 fun searchSuggestionsForInlineQuery(
     query: String,
@@ -230,13 +231,16 @@ fun searchSuggestionsForInlineQuery(
 
     val nodes = nodeSuggestions.asSequence()
         .filter(::matches)
-        .take(6)
+        .take(SEARCH_SUGGESTION_PER_TYPE_LIMIT)
         .map { LinkSuggestion(it.id, it.title, it.preview, it.type) }
         .toList()
     val excerpts = excerptSuggestions.asSequence()
         .filter(::matches)
-        .take(6)
+        .take(SEARCH_SUGGESTION_PER_TYPE_LIMIT)
         .map { LinkSuggestion(it.id, it.title, it.preview, it.type) }
         .toList()
-    return (nodes + excerpts).take(8)
+    return (nodes + excerpts).take(SEARCH_SUGGESTION_TOTAL_LIMIT)
 }
+
+private const val SEARCH_SUGGESTION_PER_TYPE_LIMIT = 6
+private const val SEARCH_SUGGESTION_TOTAL_LIMIT = 8

@@ -15,7 +15,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class KnowledgeTreeRepositoryMutationTest {
     private lateinit var database: WorkspaceDatabase
-    private lateinit var captureRepository: ExcerptCaptureRepository
+    private lateinit var excerptRepository: ExcerptRepository
     private lateinit var treeRepository: KnowledgeTreeRepository
 
     @Before
@@ -24,7 +24,7 @@ class KnowledgeTreeRepositoryMutationTest {
             ApplicationProvider.getApplicationContext(),
             WorkspaceDatabase::class.java,
         ).allowMainThreadQueries().build()
-        captureRepository = ExcerptCaptureRepository(database)
+        excerptRepository = ExcerptRepository(database)
         treeRepository = KnowledgeTreeRepository(database)
     }
 
@@ -52,12 +52,12 @@ class KnowledgeTreeRepositoryMutationTest {
     fun `deleteNodeSubtree removes subtree and sends archived excerpts back to inbox`() = runBlocking {
         val rootId = treeRepository.createRootNode("根节点")
         val childId = treeRepository.createChildNode(rootId, "子节点")
-        val excerptId = captureRepository.saveQuickExcerpt(
+        val excerptId = excerptRepository.createExcerpt(
             content = "挂载摘录",
             thought = "",
             url = null,
             sourceTitle = null,
-            tagNames = emptyList(),
+            tagNames = emptySet(),
             archiveNodeId = childId,
         )
 

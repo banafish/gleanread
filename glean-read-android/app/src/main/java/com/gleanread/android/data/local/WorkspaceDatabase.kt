@@ -1,9 +1,8 @@
 package com.gleanread.android.data.local
 
-import android.content.Context
 import androidx.room.Database
-import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 
 @Database(
     entities = [
@@ -15,24 +14,10 @@ import androidx.room.RoomDatabase
     version = 1,
     exportSchema = false,
 )
+@TypeConverters(SyncStatusConverter::class)
 abstract class WorkspaceDatabase : RoomDatabase() {
     abstract fun excerptDao(): ExcerptDao
     abstract fun nodeDao(): KnowledgeTreeNodeDao
     abstract fun tagDao(): TagDao
     abstract fun excerptTagDao(): ExcerptTagDao
-
-    companion object {
-        @Volatile
-        private var instance: WorkspaceDatabase? = null
-
-        fun get(context: Context): WorkspaceDatabase {
-            return instance ?: synchronized(this) {
-                instance ?: Room.databaseBuilder(
-                    context.applicationContext,
-                    WorkspaceDatabase::class.java,
-                    "glean_workspace.db",
-                ).build().also { instance = it }
-            }
-        }
-    }
 }

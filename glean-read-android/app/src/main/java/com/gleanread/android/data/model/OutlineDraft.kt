@@ -1,4 +1,4 @@
-package com.gleanread.android.data.repository
+package com.gleanread.android.data.model
 
 data class OutlineDraft(
     val title: String,

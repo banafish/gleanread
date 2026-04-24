@@ -1,4 +1,4 @@
-package com.gleanread.android.data.repository
+package com.gleanread.android.data.model
 
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity

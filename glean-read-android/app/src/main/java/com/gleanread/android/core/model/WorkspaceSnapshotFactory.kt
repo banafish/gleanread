@@ -1,6 +1,6 @@
 package com.gleanread.android.core.model
 
-import com.gleanread.android.data.repository.WorkspaceLocalSnapshot
+import com.gleanread.android.data.model.WorkspaceLocalSnapshot
 
 class WorkspaceSnapshotFactory {
     private val excerptUiMapper = ExcerptUiMapper()
