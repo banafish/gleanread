@@ -1,4 +1,4 @@
-﻿@file:OptIn(ExperimentalMaterial3Api::class)
+@file:OptIn(ExperimentalMaterial3Api::class)
 
 package com.gleanread.android.feature.knowledge_tree.node_detail
 
@@ -47,6 +47,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -104,14 +105,10 @@ fun NodeDetailScreen(
     onAddExcerpt: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        contentPadding = PaddingValues(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        item(key = "top_bar") {
+    Scaffold(
+        modifier = modifier,
+        containerColor = Color.Transparent,
+        topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -142,7 +139,18 @@ fun NodeDetailScreen(
                 ),
                 windowInsets = WindowInsets(0),
             )
-        }
+        },
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(
+                top = innerPadding.calculateTopPadding(),
+                bottom = innerPadding.calculateBottomPadding() + 32.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
 
         item(key = "outline_header") {
             NodeDetailSectionHeader(
@@ -224,6 +232,7 @@ fun NodeDetailScreen(
                 onOpenExcerpt = onOpenExcerpt,
             )
         }
+    }
     }
 }
 
