@@ -2,6 +2,7 @@
 
 package com.gleanread.android.app.navigation
 
+import android.net.Uri
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -55,9 +56,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gleanread.android.R
 import com.gleanread.android.app.appContainer
-import com.gleanread.android.feature.capture.quick_capture.QuickCaptureViewModel
-import com.gleanread.android.feature.capture.quick_capture.component.QuickCaptureOverlay
 import com.gleanread.android.feature.excerpts.detail.ExcerptDetailRoute
+import com.gleanread.android.feature.excerpts.detail.NewExcerptRoute
 import com.gleanread.android.feature.excerpts.feed.FeedRoute
 import com.gleanread.android.feature.excerpts.feed.FeedViewModel
 import com.gleanread.android.feature.excerpts.summary.AiSummaryRoute
@@ -75,10 +75,17 @@ object MainRoutes {
     const val Tree = "tree"
     const val Tags = "tags"
     const val AiSummary = "ai-summary"
+    const val NewExcerptPattern = "new-excerpt?archiveNodeId={archiveNodeId}"
     const val ExcerptPattern = "excerpt/{excerptId}"
     const val TreeBranchPattern = "tree/branch/{nodeId}"
     const val NodePattern = "node/{nodeId}"
     const val GraphPattern = "graph/{nodeId}"
+
+    fun newExcerpt(archiveNodeId: String? = null): String {
+        return archiveNodeId
+            ?.let { "new-excerpt?archiveNodeId=${Uri.encode(it)}" }
+            ?: "new-excerpt"
+    }
 
     fun excerpt(excerptId: String) = "excerpt/$excerptId"
     fun treeBranch(nodeId: String) = "tree/branch/$nodeId"
@@ -91,8 +98,6 @@ fun MainApp() {
     val appContainer = LocalContext.current.appContainer
     val mainViewModel: MainAppViewModel = viewModel(factory = appContainer.mainAppViewModelFactory)
     val feedViewModel: FeedViewModel = viewModel(factory = appContainer.feedViewModelFactory)
-    val quickCaptureViewModel: QuickCaptureViewModel =
-        viewModel(factory = appContainer.quickCaptureViewModelFactory)
     val aiSummaryViewModel: AiSummaryViewModel = viewModel(factory = appContainer.aiSummaryViewModelFactory)
     val tagsViewModel: TagsViewModel = viewModel(factory = appContainer.tagsViewModelFactory)
 
@@ -101,7 +106,6 @@ fun MainApp() {
     val route = currentEntry?.destination?.route ?: MainRoutes.Feed
     val snapshot by mainViewModel.snapshot.collectAsStateWithLifecycle()
     val feedUiState by feedViewModel.uiState.collectAsStateWithLifecycle()
-    val quickCaptureUiState by quickCaptureViewModel.uiState.collectAsStateWithLifecycle()
     val aiSummaryDraft by aiSummaryViewModel.draft.collectAsStateWithLifecycle()
     val tagsUiState by tagsViewModel.uiState.collectAsStateWithLifecycle()
     var isAddTagDialogOpen by rememberSaveable { mutableStateOf(false) }
@@ -143,7 +147,7 @@ fun MainApp() {
                         if (route == MainRoutes.Tags) {
                             openAddTagDialog()
                         } else {
-                            quickCaptureViewModel.open()
+                            navController.navigate(MainRoutes.newExcerpt())
                         }
                     },
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -222,7 +226,7 @@ fun MainApp() {
                         onLongPress = feedViewModel::enterSelectionMode,
                         onToggleSelection = feedViewModel::toggleExcerptSelection,
                         onLoadSample = mainViewModel::loadSampleData,
-                        onStartRecording = quickCaptureViewModel::open,
+                        onStartRecording = { navController.navigate(MainRoutes.newExcerpt()) },
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                         onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
                     )
@@ -303,6 +307,31 @@ fun MainApp() {
                     )
                 }
                 composable(
+                    route = MainRoutes.NewExcerptPattern,
+                    arguments = listOf(
+                        navArgument("archiveNodeId") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                    ),
+                ) { backStackEntry ->
+                    val archiveNodeId = backStackEntry.arguments?.getString("archiveNodeId")
+                    NewExcerptRoute(
+                        snapshot = snapshot,
+                        initialArchiveNodeId = archiveNodeId,
+                        searchSuggestions = mainViewModel::searchSuggestions,
+                        onBack = { navController.popBackStack() },
+                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                        onCreatedExcerpt = { excerptId ->
+                            navController.popBackStack()
+                            navController.navigate(MainRoutes.excerpt(excerptId))
+                        },
+                        onCreateExcerpt = mainViewModel::createExcerpt,
+                    )
+                }
+                composable(
                     route = MainRoutes.ExcerptPattern,
                     arguments = listOf(navArgument("excerptId") { type = NavType.StringType }),
                 ) { backStackEntry ->
@@ -332,7 +361,7 @@ fun MainApp() {
                         onMoveExcerptToInbox = mainViewModel::moveExcerptToInbox,
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                         onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
-                        onAddExcerpt = { quickCaptureViewModel.openForNode(nodeId) },
+                        onAddExcerpt = { navController.navigate(MainRoutes.newExcerpt(nodeId)) },
                     )
                 }
                 composable(
@@ -363,20 +392,6 @@ fun MainApp() {
                 )
             }
 
-            if (quickCaptureUiState.isOpen) {
-                QuickCaptureOverlay(
-                    snapshot = snapshot,
-                    draft = quickCaptureUiState.draft,
-                    searchSuggestions = mainViewModel::searchSuggestions,
-                    onDismiss = quickCaptureViewModel::close,
-                    onContentChange = quickCaptureViewModel::updateContent,
-                    onThoughtChange = quickCaptureViewModel::updateThought,
-                    onUrlChange = quickCaptureViewModel::updateUrl,
-                    onTagToggle = quickCaptureViewModel::toggleTag,
-                    onArchiveNodeSelect = quickCaptureViewModel::setArchiveNode,
-                    onSave = { quickCaptureViewModel.save() },
-                )
-            }
         }
     }
 }

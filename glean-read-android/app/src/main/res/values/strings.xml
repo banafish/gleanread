@@ -65,6 +65,7 @@
     <string name="excerpt_preview_open_node">打开节点</string>
     <string name="excerpt_preview_title">摘录详情</string>
     <string name="excerpt_detail_title">摘录详情</string>
+    <string name="excerpt_detail_create_title">新增摘录</string>
     <string name="excerpt_detail_edit_title">编辑摘录</string>
     <string name="excerpt_detail_edit_action">编辑摘录</string>
     <string name="excerpt_detail_created_at">创建于 %1$s</string>
@@ -90,16 +91,7 @@
     <string name="excerpt_detail_edit_location_empty">当前节点下没有更多可进入的子节点。</string>
     <string name="excerpt_detail_edit_location_inbox_hint">取消挂载，让摘录回到 Inbox</string>
 
-    <string name="quick_capture_content_placeholder">输入摘录内容，支持插入 [[节点]] 或 [[摘录]]</string>
-    <string name="quick_capture_link_hint">可在正文和想法里插入节点或摘录链接</string>
-    <string name="quick_capture_submit">保存摘录</string>
-    <string name="quick_capture_suggested_tags">推荐标签</string>
-    <string name="quick_capture_thought_placeholder">记下你的想法、判断或下一步</string>
-    <string name="quick_capture_title">快速摘录</string>
-    <string name="quick_capture_url_placeholder">粘贴来源链接</string>
-
     <string name="archive_picker_inbox">Inbox</string>
-    <string name="archive_picker_title">选择总结位置</string>
 
     <string name="ai_summary_choose_target">选择目标节点</string>
     <string name="ai_summary_excerpt_title">关联摘录（%1$d）</string>

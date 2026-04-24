@@ -9,7 +9,6 @@ import com.gleanread.android.data.repository.ExcerptCaptureRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
 import com.gleanread.android.data.repository.SnapshotRepository
 import com.gleanread.android.feature.capture.fast_capture.FastCaptureViewModel
-import com.gleanread.android.feature.capture.quick_capture.QuickCaptureViewModel
 import com.gleanread.android.feature.excerpts.feed.FeedViewModel
 import com.gleanread.android.feature.excerpts.summary.AiSummaryViewModel
 import com.gleanread.android.app.navigation.MainAppViewModel
@@ -53,10 +52,6 @@ class AppContainer(
 
     val feedViewModelFactory: ViewModelProvider.Factory by lazy {
         AppViewModelFactory { FeedViewModel() }
-    }
-
-    val quickCaptureViewModelFactory: ViewModelProvider.Factory by lazy {
-        AppViewModelFactory { QuickCaptureViewModel(excerptCaptureRepository) }
     }
 
     val aiSummaryViewModelFactory: ViewModelProvider.Factory by lazy {

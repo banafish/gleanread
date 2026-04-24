@@ -1,6 +1,7 @@
 package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
+import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
@@ -55,6 +56,62 @@ class SnapshotRepository(
                 ),
             ),
         )
+    }
+
+    suspend fun createExcerpt(
+        content: String,
+        thought: String,
+        sourceTitle: String?,
+        url: String?,
+        tagNames: Set<String>,
+        archiveNodeId: String?,
+    ): String {
+        val trimmedContent = content.trim()
+        if (trimmedContent.isEmpty()) return ""
+
+        val excerptId = EntityIdGenerator.newDraftExcerptId()
+        val now = System.currentTimeMillis()
+        database.withTransaction {
+            val resolvedArchiveNodeId = archiveNodeId?.takeIf { nodeDao.findNodeById(it) != null }
+            val normalizedTagNames = tagNames
+                .map(::normalizeTagName)
+                .filter(String::isNotEmpty)
+                .toSet()
+            val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
+            val targetTags = normalizedTagNames.mapNotNull(tagsByName::get)
+
+            excerptDao.insertExcerpt(
+                ExcerptEntity(
+                    id = excerptId,
+                    userId = LOCAL_USER_ID,
+                    content = trimmedContent,
+                    userThought = thought.trim().takeIf { it.isNotEmpty() },
+                    sourceTitle = sourceTitle?.trim()?.takeIf { it.isNotEmpty() },
+                    url = url?.trim()?.takeIf { it.isNotEmpty() },
+                    treeNodeId = resolvedArchiveNodeId,
+                    createTime = now,
+                    updateTime = now,
+                    syncStatus = SyncStatus.PENDING_CREATE.code,
+                ),
+            )
+
+            if (targetTags.isNotEmpty()) {
+                excerptTagDao.insertExcerptTags(
+                    targetTags.map { tag ->
+                        ExcerptTagEntity(
+                            id = EntityIdGenerator.newRelationId(),
+                            userId = LOCAL_USER_ID,
+                            excerptId = excerptId,
+                            tagId = tag.id,
+                            createTime = now,
+                            updateTime = now,
+                            syncStatus = SyncStatus.PENDING_CREATE.code,
+                        )
+                    },
+                )
+            }
+        }
+        return excerptId
     }
 
     suspend fun updateExcerpt(

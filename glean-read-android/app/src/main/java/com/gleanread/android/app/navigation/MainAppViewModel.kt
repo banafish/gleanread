@@ -40,6 +40,29 @@ class MainAppViewModel(
         }
     }
 
+    fun createExcerpt(
+        content: String,
+        thought: String,
+        sourceTitle: String?,
+        url: String?,
+        tagNames: Set<String>,
+        archiveNodeId: String?,
+        onCreated: (String) -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            onCreated(
+                snapshotRepository.createExcerpt(
+                    content = content,
+                    thought = thought,
+                    sourceTitle = sourceTitle,
+                    url = url,
+                    tagNames = tagNames,
+                    archiveNodeId = archiveNodeId,
+                ),
+            )
+        }
+    }
+
     fun updateExcerpt(
         excerptId: String,
         content: String,

@@ -1,8 +1,6 @@
 package com.gleanread.android.feature.excerpts.detail
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -10,49 +8,44 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import com.gleanread.android.R
+import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeNodePickerUiModel
 
 @Composable
-fun ExcerptDetailRoute(
+fun NewExcerptRoute(
     snapshot: WorkspaceSnapshot,
-    excerptId: String,
+    initialArchiveNodeId: String?,
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onBack: () -> Unit,
     onOpenNode: (String) -> Unit,
     onOpenExcerpt: (String) -> Unit,
-    onSaveExcerpt: (
-        excerptId: String,
+    onCreatedExcerpt: (String) -> Unit,
+    onCreateExcerpt: (
         content: String,
         thought: String,
         sourceTitle: String?,
         url: String?,
         tagNames: Set<String>,
         archiveNodeId: String?,
-        onUpdated: (Boolean) -> Unit,
+        onCreated: (String) -> Unit,
     ) -> Unit,
 ) {
-    val excerpt = snapshot.excerptsById[excerptId] ?: return
     val rootTitle = stringResource(R.string.knowledge_tree_root_title)
-    val baselineDraft = remember(
-        excerpt.content,
-        excerpt.thought,
-        excerpt.sourceTitle,
-        excerpt.url,
-        excerpt.tags,
-        excerpt.archivedNodeId,
+    val resolvedInitialArchiveNodeId = remember(snapshot.flatNodes, initialArchiveNodeId) {
+        initialArchiveNodeId?.takeIf(snapshot.flatNodes::containsKey)
+    }
+    var draft by rememberSaveable(
+        resolvedInitialArchiveNodeId,
+        stateSaver = ExcerptEditorDraft.Saver,
     ) {
-        ExcerptEditorDraft.from(excerpt)
+        mutableStateOf(ExcerptEditorDraft.empty(resolvedInitialArchiveNodeId))
     }
-    var isEditing by rememberSaveable(excerptId) { mutableStateOf(false) }
-    var draft by rememberSaveable(excerptId, stateSaver = ExcerptEditorDraft.Saver) {
-        mutableStateOf(baselineDraft)
-    }
-    var isTagPickerOpen by rememberSaveable(excerptId) { mutableStateOf(false) }
-    var isMountPickerOpen by rememberSaveable(excerptId) { mutableStateOf(false) }
-    var mountPickerCurrentNodeId by rememberSaveable(excerptId) {
-        mutableStateOf(excerpt.archivedNodeId)
+    var isTagPickerOpen by rememberSaveable(resolvedInitialArchiveNodeId) { mutableStateOf(false) }
+    var isMountPickerOpen by rememberSaveable(resolvedInitialArchiveNodeId) { mutableStateOf(false) }
+    var mountPickerCurrentNodeId by rememberSaveable(resolvedInitialArchiveNodeId) {
+        mutableStateOf(resolvedInitialArchiveNodeId)
     }
     val mountPickerUiModel = remember(snapshot, mountPickerCurrentNodeId, rootTitle) {
         buildKnowledgeTreeNodePickerUiModel(
@@ -64,39 +57,29 @@ fun ExcerptDetailRoute(
     val selectedArchiveNodeTitle = draft.archiveNodeId?.let { nodeId ->
         snapshot.flatNodes[nodeId]?.title
     }
-    val resetEditor = {
-        draft = baselineDraft
-        isEditing = false
-        isTagPickerOpen = false
-        isMountPickerOpen = false
-        mountPickerCurrentNodeId = excerpt.archivedNodeId
+    val placeholderExcerpt = remember(draft.archiveNodeId, selectedArchiveNodeTitle) {
+        ExcerptUiModel(
+            id = NewExcerptPlaceholderId,
+            content = "",
+            thought = "",
+            url = null,
+            sourceTitle = null,
+            tags = emptyList(),
+            archivedNodeId = draft.archiveNodeId,
+            archivedNodeTitle = selectedArchiveNodeTitle,
+            createTime = 0L,
+        )
     }
-    val canSave = draft.content.trim().isNotBlank() && draft != baselineDraft
+    val canSave = draft.content.trim().isNotBlank()
     val onOpenLinkedTarget: (String) -> Unit = { targetId ->
         when {
-            targetId == excerpt.id -> Unit
             snapshot.excerptsById.containsKey(targetId) -> onOpenExcerpt(targetId)
             snapshot.flatNodes.containsKey(targetId) -> onOpenNode(targetId)
         }
     }
 
-    LaunchedEffect(baselineDraft, isEditing) {
-        if (!isEditing && draft != baselineDraft) {
-            draft = baselineDraft
-        }
-    }
-    LaunchedEffect(excerpt.archivedNodeId, isEditing, isMountPickerOpen) {
-        if (!isEditing && !isMountPickerOpen && mountPickerCurrentNodeId != excerpt.archivedNodeId) {
-            mountPickerCurrentNodeId = excerpt.archivedNodeId
-        }
-    }
-
-    BackHandler(enabled = isEditing) {
-        resetEditor()
-    }
-
     ExcerptDetailScreen(
-        excerpt = excerpt,
+        excerpt = placeholderExcerpt,
         content = draft.content,
         thought = draft.thought,
         sourceTitle = draft.sourceTitle,
@@ -107,33 +90,27 @@ fun ExcerptDetailRoute(
         tagGroups = snapshot.tagGroups,
         breadcrumbs = mountPickerUiModel.breadcrumbs,
         destinations = mountPickerUiModel.destinations,
-        isEditing = isEditing,
+        isEditing = true,
+        isCreateMode = true,
         canSave = canSave,
         isTagPickerOpen = isTagPickerOpen,
         isMountPickerOpen = isMountPickerOpen,
         mountPickerCurrentNodeId = mountPickerCurrentNodeId,
         searchSuggestions = searchSuggestions,
         onBack = onBack,
-        onCloseEditing = resetEditor,
-        onStartEditing = {
-            draft = baselineDraft
-            mountPickerCurrentNodeId = excerpt.archivedNodeId
-            isEditing = true
-        },
+        onCloseEditing = onBack,
+        onStartEditing = {},
         onSave = {
-            onSaveExcerpt(
-                excerptId,
+            onCreateExcerpt(
                 draft.content.trim(),
                 draft.thought.trim(),
                 draft.sourceTitle.trim().takeIf { it.isNotBlank() },
                 draft.url.trim().takeIf { it.isNotBlank() },
                 draft.selectedTagNames.toSet(),
                 draft.archiveNodeId,
-            ) { updated ->
-                if (updated) {
-                    isEditing = false
-                    isTagPickerOpen = false
-                    isMountPickerOpen = false
+            ) { createdExcerptId ->
+                if (createdExcerptId.isNotBlank()) {
+                    onCreatedExcerpt(createdExcerptId)
                 }
             }
         },
@@ -168,3 +145,5 @@ fun ExcerptDetailRoute(
         },
     )
 }
+
+private const val NewExcerptPlaceholderId = "new-excerpt"

@@ -84,6 +84,7 @@ fun ExcerptDetailScreen(
     breadcrumbs: List<KnowledgeTreeBreadcrumbUiModel>,
     destinations: List<KnowledgeTreeNodePickerDestinationUiModel>,
     isEditing: Boolean,
+    isCreateMode: Boolean = false,
     canSave: Boolean,
     isTagPickerOpen: Boolean,
     isMountPickerOpen: Boolean,
@@ -128,8 +129,11 @@ fun ExcerptDetailScreen(
                 title = {
                     Text(
                         text = stringResource(
-                            if (isEditing) R.string.excerpt_detail_edit_title
-                            else R.string.excerpt_detail_title,
+                            when {
+                                isCreateMode -> R.string.excerpt_detail_create_title
+                                isEditing -> R.string.excerpt_detail_edit_title
+                                else -> R.string.excerpt_detail_title
+                            },
                         ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -268,6 +272,8 @@ private fun ExcerptMetadataSection(
     onOpenTagPicker: () -> Unit,
     onOpenMountPicker: () -> Unit,
 ) {
+    val createTimeText = remember(createTime) { formatExcerptCreateTime(createTime) }
+
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -306,15 +312,14 @@ private fun ExcerptMetadataSection(
             }
         }
     }
-    Spacer(Modifier.height(10.dp))
-    Text(
-        text = stringResource(
-            R.string.excerpt_detail_created_at,
-            remember(createTime) { formatExcerptCreateTime(createTime) },
-        ),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    if (createTimeText.isNotBlank()) {
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = stringResource(R.string.excerpt_detail_created_at, createTimeText),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
