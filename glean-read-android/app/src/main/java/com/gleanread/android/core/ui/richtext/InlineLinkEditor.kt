@@ -33,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,7 +99,12 @@ fun LinkAwareText(
     val linkColor = MaterialTheme.colorScheme.primary
     val annotated = remember(rawText, linkColor) { buildInlineAnnotatedString(rawText, linkColor) }
     val context = LocalContext.current
-    val accessibilityActions = remember(annotated, onLinkClick, context) {
+    val latestOnLinkClick = rememberUpdatedState(onLinkClick)
+    val latestOnClick = rememberUpdatedState(onClick)
+    val latestOnLongClick = rememberUpdatedState(onLongClick)
+    val hasClick = onClick != null
+    val hasLongClick = onLongClick != null
+    val accessibilityActions = remember(annotated, context) {
         annotated.getStringAnnotations(
             tag = "inline-link",
             start = 0,
@@ -108,55 +114,59 @@ fun LinkAwareText(
             CustomAccessibilityAction(
                 label = context.getString(R.string.richtext_open_link_action, label),
             ) {
-                onLinkClick(annotation.item)
+                latestOnLinkClick.value(annotation.item)
                 true
             }
         }
     }
-    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val layoutResultHolder = remember { TextLayoutResultHolder() }
 
     Text(
         text = annotated,
         style = resolvedTextStyle.copy(color = resolvedTextColor),
         maxLines = maxLines,
         overflow = overflow,
-        onTextLayout = { layoutResult = it },
+        onTextLayout = { layoutResultHolder.value = it },
         modifier = modifier
             .semantics {
                 if (accessibilityActions.isNotEmpty()) {
                     customActions = accessibilityActions
                 }
-                if (onClick != null) {
+                if (hasClick) {
                     this.onClick {
-                        onClick()
+                        latestOnClick.value?.invoke()
                         true
                     }
                 }
-                if (onLongClick != null) {
+                if (hasLongClick) {
                     this.onLongClick {
-                        onLongClick()
+                        latestOnLongClick.value?.invoke()
                         true
                     }
                 }
             }
-            .pointerInput(annotated, onClick, onLongClick) {
+            .pointerInput(annotated, hasClick, hasLongClick) {
                 detectTapGestures(
                     onTap = { offset ->
-                        val annotation = layoutResult?.let { result ->
+                        val annotation = layoutResultHolder.value?.let { result ->
                             val position = result.getOffsetForPosition(offset)
                             annotated.getStringAnnotations("inline-link", position, position)
                                 .firstOrNull()
                         }
                         if (annotation != null) {
-                            onLinkClick(annotation.item)
+                            latestOnLinkClick.value(annotation.item)
                         } else {
-                            onClick?.invoke()
+                            latestOnClick.value?.invoke()
                         }
                     },
-                    onLongPress = { onLongClick?.invoke() },
+                    onLongPress = { latestOnLongClick.value?.invoke() },
                 )
             },
     )
+}
+
+private class TextLayoutResultHolder {
+    var value: TextLayoutResult? = null
 }
 
 @Composable
@@ -315,8 +325,20 @@ fun buildInlineAnnotatedString(
     rawText: String,
     linkColor: Color = Color.Unspecified,
 ): AnnotatedString {
-    val structuredLinks = extractStructuredLinks(rawText)
-    val display = toDisplayInlineText(rawText)
+    if (!rawText.contains(INLINE_LINK_MARKER)) {
+        return AnnotatedString(rawText)
+    }
+
+    val structuredLinks = if (rawText.contains(STRUCTURED_INLINE_LINK_MARKER)) {
+        extractStructuredLinks(rawText)
+    } else {
+        emptyList()
+    }
+    val display = if (structuredLinks.isNotEmpty()) {
+        toDisplayInlineText(rawText)
+    } else {
+        rawText
+    }
     val builder = AnnotatedString.Builder(display)
     var searchStart = 0
 
@@ -355,3 +377,6 @@ fun buildInlineAnnotatedString(
 
     return builder.toAnnotatedString()
 }
+
+private const val INLINE_LINK_MARKER = "[["
+private const val STRUCTURED_INLINE_LINK_MARKER = "[[id:"

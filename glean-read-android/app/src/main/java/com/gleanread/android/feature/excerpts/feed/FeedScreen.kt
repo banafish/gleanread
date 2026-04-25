@@ -109,7 +109,11 @@ fun FeedScreen(
                 Spacer(Modifier.height(14.dp))
             }
 
-            items(items = filteredExcerpts, key = { it.id }) { excerpt ->
+            items(
+                items = filteredExcerpts,
+                key = { it.id },
+                contentType = { "excerpt_card" },
+            ) { excerpt ->
                 ExcerptCard(
                     excerpt = excerpt,
                     isSelectionMode = isSelectionMode,

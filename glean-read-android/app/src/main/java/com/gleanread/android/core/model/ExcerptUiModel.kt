@@ -1,5 +1,8 @@
 package com.gleanread.android.core.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class ExcerptUiModel(
     val id: String,
     val content: String,
