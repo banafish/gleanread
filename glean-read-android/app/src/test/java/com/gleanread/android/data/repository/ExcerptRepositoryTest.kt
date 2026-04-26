@@ -100,4 +100,31 @@ class ExcerptRepositoryTest {
         assertEquals(1, relations.size)
         assertEquals(tag?.id, relations.single().tagId)
     }
+
+    @Test
+    fun `createExcerpt uses current account user id for excerpt tags and relations`() = runBlocking {
+        val accountUserId = "user-account-1"
+        val accountRepository = ExcerptRepository(
+            database = database,
+            currentUserIdProvider = CurrentUserIdProvider { accountUserId },
+        )
+
+        val excerptId = accountRepository.createExcerpt(
+            content = "账号摘录",
+            thought = "",
+            url = null,
+            sourceTitle = null,
+            tagNames = setOf("accountTag"),
+            archiveNodeId = null,
+            autoCreateTags = true,
+        )
+
+        val saved = database.excerptDao().findExcerptById(excerptId)
+        val tag = database.tagDao().findTagByName(accountUserId, "accountTag")
+        val relations = database.excerptTagDao().getAllExcerptTagsByExcerptId(excerptId)
+
+        assertEquals(accountUserId, saved?.userId)
+        assertEquals(accountUserId, tag?.userId)
+        assertEquals(accountUserId, relations.single().userId)
+    }
 }

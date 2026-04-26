@@ -2,7 +2,6 @@ package com.gleanread.android.data.repository
 
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
-import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
@@ -15,6 +14,7 @@ import kotlinx.coroutines.flow.map
 class TagRepository(
     private val database: WorkspaceDatabase,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
     private val tagDao = database.tagDao()
 
@@ -28,14 +28,15 @@ class TagRepository(
 
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val existing = tagDao.findTagByName(LOCAL_USER_ID, normalizedTagName)
+        val ownerUserId = currentUserIdProvider.currentUserId()
+        val existing = tagDao.findTagByName(ownerUserId, normalizedTagName)
 
         return if (existing == null) {
             val tagId = EntityIdGenerator.newTagId()
             tagDao.insertTag(
                 TagEntity(
                     id = tagId,
-                    userId = LOCAL_USER_ID,
+                    userId = ownerUserId,
                     tagName = normalizedTagName,
                     colorIcon = null,
                     heatWeight = 1,
@@ -51,6 +52,7 @@ class TagRepository(
             if (existing.isDeleted) {
                 tagDao.updateTag(
                     existing.copy(
+                        userId = ownerUserId,
                         tagName = normalizedTagName,
                         isDeleted = false,
                         heatWeight = existing.heatWeight.coerceAtLeast(1),
@@ -71,11 +73,13 @@ class TagRepository(
 
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         val tagsToDelete = tagDao.getTagsOnce().filter { tagIds.contains(it.id) }
         if (tagsToDelete.isEmpty()) return
         tagDao.updateTags(
             tagsToDelete.map { tag ->
                 tag.copy(
+                    userId = ownerUserId,
                     isDeleted = true,
                     updateTime = now,
                     deviceId = deviceId,

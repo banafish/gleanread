@@ -49,6 +49,23 @@ class KnowledgeTreeRepositoryMutationTest {
     }
 
     @Test
+    fun `tree mutations use current account user id`() = runBlocking {
+        val accountUserId = "user-account-1"
+        val accountTreeRepository = KnowledgeTreeRepository(
+            database = database,
+            currentUserIdProvider = CurrentUserIdProvider { accountUserId },
+        )
+
+        val rootId = accountTreeRepository.createRootNode("账号根节点")
+        accountTreeRepository.renameNode(rootId, "账号根节点-重命名")
+
+        val savedRoot = database.nodeDao().findNodeById(rootId)
+
+        assertEquals(accountUserId, savedRoot?.userId)
+        assertEquals("账号根节点-重命名", savedRoot?.nodeTitle)
+    }
+
+    @Test
     fun `deleteNodeSubtree removes subtree and sends archived excerpts back to inbox`() = runBlocking {
         val rootId = treeRepository.createRootNode("根节点")
         val childId = treeRepository.createChildNode(rootId, "子节点")

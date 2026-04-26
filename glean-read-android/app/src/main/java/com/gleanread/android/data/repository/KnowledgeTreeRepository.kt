@@ -6,7 +6,6 @@ import com.gleanread.android.core.richtext.LinkSuggestionType
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
-import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.LocalSuggestionCandidate
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
@@ -15,6 +14,7 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class KnowledgeTreeRepository(
     private val database: WorkspaceDatabase,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
     private val excerptDao = database.excerptDao()
     private val nodeDao = database.nodeDao()
@@ -53,10 +53,11 @@ class KnowledgeTreeRepository(
         val now = System.currentTimeMillis()
         val nodeId = EntityIdGenerator.newNodeId()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
-                userId = LOCAL_USER_ID,
+                userId = ownerUserId,
                 parentId = null,
                 nodeTitle = trimmed,
                 outlineMarkdown = "",
@@ -77,10 +78,11 @@ class KnowledgeTreeRepository(
         val now = System.currentTimeMillis()
         val nodeId = EntityIdGenerator.newNodeId()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
-                userId = LOCAL_USER_ID,
+                userId = ownerUserId,
                 parentId = parentNode.id,
                 nodeTitle = trimmed,
                 outlineMarkdown = "",
@@ -100,8 +102,10 @@ class KnowledgeTreeRepository(
         val node = nodeDao.findNodeById(nodeId) ?: return
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         nodeDao.updateNode(
             node.copy(
+                userId = ownerUserId,
                 nodeTitle = trimmed,
                 updateTime = now,
                 deviceId = deviceId,
@@ -137,8 +141,10 @@ class KnowledgeTreeRepository(
 
             val now = System.currentTimeMillis()
             val deviceId = deviceIdProvider.currentDeviceId()
+            val ownerUserId = currentUserIdProvider.currentUserId()
             nodeDao.updateNode(
                 targetNode.copy(
+                    userId = ownerUserId,
                     parentId = newParentId,
                     updateTime = now,
                     deviceId = deviceId,
@@ -153,6 +159,7 @@ class KnowledgeTreeRepository(
     suspend fun deleteNodeSubtree(nodeId: String) {
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         database.withTransaction {
             val allNodes = nodeDao.getNodesOnce()
             val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
@@ -169,6 +176,7 @@ class KnowledgeTreeRepository(
                 nodeDao.updateNodes(
                     subtreeNodes.map { node ->
                         node.copy(
+                            userId = ownerUserId,
                             isDeleted = true,
                             updateTime = now,
                             deviceId = deviceId,
@@ -185,6 +193,7 @@ class KnowledgeTreeRepository(
                     excerptDao.updateExcerpts(
                         affectedExcerpts.map { excerpt ->
                             excerpt.copy(
+                                userId = ownerUserId,
                                 treeNodeId = null,
                                 updateTime = now,
                                 deviceId = deviceId,
@@ -203,8 +212,10 @@ class KnowledgeTreeRepository(
         val node = nodeDao.findNodeById(nodeId) ?: return
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         nodeDao.updateNode(
             node.copy(
+                userId = ownerUserId,
                 outlineMarkdown = rawMarkdown,
                 updateTime = now,
                 deviceId = deviceId,
@@ -221,9 +232,11 @@ class KnowledgeTreeRepository(
 
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         excerptDao.updateExcerpts(
             listOf(
                 excerpt.copy(
+                    userId = ownerUserId,
                     treeNodeId = null,
                     updateTime = now,
                     deviceId = deviceId,

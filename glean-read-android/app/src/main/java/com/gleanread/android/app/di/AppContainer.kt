@@ -9,10 +9,12 @@ import com.gleanread.android.data.auth.SupabaseSessionStore
 import com.gleanread.android.data.local.MIGRATION_1_2
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.core.data.AppSnapshotStore
+import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.remote.SupabaseConfig
 import com.gleanread.android.data.remote.SupabaseHttpClientFactory
 import com.gleanread.android.data.remote.SupabaseRealtimeClientFactory
 import com.gleanread.android.data.repository.AiSummaryRepository
+import com.gleanread.android.data.repository.CurrentUserIdProvider
 import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
 import com.gleanread.android.data.repository.SeedDataInitializer
@@ -79,6 +81,12 @@ class AppContainer(
         )
     }
 
+    private val currentUserIdProvider: CurrentUserIdProvider by lazy {
+        CurrentUserIdProvider {
+            supabaseSessionStore.session.value?.userId ?: LOCAL_USER_ID
+        }
+    }
+
     val supabaseAuthRepository: SupabaseAuthRepository by lazy {
         SupabaseAuthRepository(
             config = supabaseConfig,
@@ -112,15 +120,15 @@ class AppContainer(
     }
 
     val excerptRepository: ExcerptRepository by lazy {
-        ExcerptRepository(workspaceDatabase, deviceIdentityStore)
+        ExcerptRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
     }
 
     val tagRepository: TagRepository by lazy {
-        TagRepository(workspaceDatabase, deviceIdentityStore)
+        TagRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
     }
 
     val knowledgeTreeRepository: KnowledgeTreeRepository by lazy {
-        KnowledgeTreeRepository(workspaceDatabase, deviceIdentityStore)
+        KnowledgeTreeRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
     }
 
     val snapshotProvider: WorkspaceSnapshotProvider by lazy {
@@ -132,7 +140,7 @@ class AppContainer(
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {
-        AiSummaryRepository(workspaceDatabase, deviceIdentityStore)
+        AiSummaryRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
     }
 
     val appSnapshotStore: AppSnapshotStore by lazy {

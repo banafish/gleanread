@@ -10,6 +10,7 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class AiSummaryRepository(
     private val database: WorkspaceDatabase,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
     private val outlineGenerator: OutlineGenerator = LocalOutlineGenerator(),
 ) {
     private val excerptDao = database.excerptDao()
@@ -31,11 +32,13 @@ class AiSummaryRepository(
         if (selectedExcerptIds.isEmpty()) return ""
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         var savedNodeId = ""
         database.withTransaction {
             val node = nodeDao.findNodeById(resolvedNodeId) ?: return@withTransaction
             nodeDao.updateNode(
                 node.copy(
+                    userId = ownerUserId,
                     outlineMarkdown = outlineMarkdown,
                     updateTime = now,
                     deviceId = deviceId,
@@ -49,6 +52,7 @@ class AiSummaryRepository(
             excerptDao.updateExcerpts(
                 excerpts.map { excerpt ->
                     excerpt.copy(
+                        userId = ownerUserId,
                         treeNodeId = resolvedNodeId,
                         updateTime = now,
                         deviceId = deviceId,

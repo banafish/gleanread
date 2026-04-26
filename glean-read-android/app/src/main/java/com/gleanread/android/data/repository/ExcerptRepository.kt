@@ -5,7 +5,6 @@ import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
-import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
@@ -19,6 +18,7 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class ExcerptRepository(
     private val database: WorkspaceDatabase,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
     private val excerptDao = database.excerptDao()
     private val tagDao = database.tagDao()
@@ -46,14 +46,15 @@ class ExcerptRepository(
         val excerptId = EntityIdGenerator.newDraftExcerptId()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         database.withTransaction {
             val resolvedArchiveNodeId = archiveNodeId?.takeIf { nodeDao.findNodeById(it) != null }
-            val targetTags = resolveTags(tagNames, now, autoCreateTags)
+            val targetTags = resolveTags(tagNames, now, autoCreateTags, ownerUserId)
 
             excerptDao.insertExcerpt(
                 ExcerptEntity(
                     id = excerptId,
-                    userId = LOCAL_USER_ID,
+                    userId = ownerUserId,
                     content = trimmedContent,
                     userThought = thought.trim().takeIf { it.isNotEmpty() },
                     sourceTitle = sourceTitle?.trim()?.takeIf { it.isNotEmpty() },
@@ -72,7 +73,7 @@ class ExcerptRepository(
                     targetTags.map { tag ->
                         ExcerptTagEntity(
                             id = EntityIdGenerator.newRelationId(),
-                            userId = LOCAL_USER_ID,
+                            userId = ownerUserId,
                             excerptId = excerptId,
                             tagId = tag.id,
                             createTime = now,
@@ -101,6 +102,7 @@ class ExcerptRepository(
         if (trimmedContent.isEmpty()) return false
 
         var updated = false
+        val ownerUserId = currentUserIdProvider.currentUserId()
         database.withTransaction {
             val excerpt = excerptDao.findExcerptById(excerptId) ?: return@withTransaction
             val resolvedArchiveNodeId = when {
@@ -112,7 +114,9 @@ class ExcerptRepository(
                 .map(::normalizeTagName)
                 .filter(String::isNotEmpty)
                 .toSet()
-            val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
+            val tagsByName = tagDao.getTagsOnce()
+                .filter { it.userId == ownerUserId }
+                .associateBy(TagEntity::tagName)
             val targetTags = normalizedTagNames.mapNotNull(tagsByName::get)
             val targetTagIds = targetTags.map(TagEntity::id).toSet()
             val existingRelations = excerptTagDao.getAllExcerptTagsByExcerptId(excerptId)
@@ -123,6 +127,7 @@ class ExcerptRepository(
             excerptDao.updateExcerpts(
                 listOf(
                     excerpt.copy(
+                        userId = ownerUserId,
                         content = trimmedContent,
                         userThought = thought.trim().takeIf { it.isNotEmpty() },
                         sourceTitle = sourceTitle?.trim()?.takeIf { it.isNotEmpty() },
@@ -146,7 +151,7 @@ class ExcerptRepository(
                     existing == null -> {
                         newRelations += ExcerptTagEntity(
                             id = EntityIdGenerator.newRelationId(),
-                            userId = LOCAL_USER_ID,
+                            userId = ownerUserId,
                             excerptId = excerptId,
                             tagId = tagId,
                             createTime = now,
@@ -159,6 +164,7 @@ class ExcerptRepository(
 
                     existing.isDeleted -> {
                         updatedRelations += existing.copy(
+                            userId = ownerUserId,
                             isDeleted = false,
                             updateTime = now,
                             deviceId = deviceId,
@@ -174,6 +180,7 @@ class ExcerptRepository(
                 .filter { !it.isDeleted && it.tagId !in targetTagIds }
                 .forEach { relation ->
                     updatedRelations += relation.copy(
+                        userId = ownerUserId,
                         isDeleted = true,
                         updateTime = now,
                         deviceId = deviceId,
@@ -199,9 +206,11 @@ class ExcerptRepository(
         val excerpt = excerptDao.findExcerptById(excerptId) ?: return
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        val ownerUserId = currentUserIdProvider.currentUserId()
         excerptDao.updateExcerpts(
             listOf(
                 excerpt.copy(
+                    userId = ownerUserId,
                     isDeleted = true,
                     updateTime = now,
                     deviceId = deviceId,
@@ -222,6 +231,7 @@ class ExcerptRepository(
         tagNames: Set<String>,
         now: Long,
         autoCreate: Boolean,
+        ownerUserId: String,
     ): List<TagEntity> {
         val normalizedNames = tagNames
             .map(::normalizeTagName)
@@ -229,17 +239,19 @@ class ExcerptRepository(
             .distinct()
 
         if (!autoCreate) {
-            val tagsByName = tagDao.getTagsOnce().associateBy(TagEntity::tagName)
+            val tagsByName = tagDao.getTagsOnce()
+                .filter { it.userId == ownerUserId }
+                .associateBy(TagEntity::tagName)
             return normalizedNames.mapNotNull(tagsByName::get)
         }
 
         return normalizedNames.map { tagName ->
-            val existing = tagDao.findTagByName(LOCAL_USER_ID, tagName)
+            val existing = tagDao.findTagByName(ownerUserId, tagName)
             if (existing == null) {
                 val deviceId = deviceIdProvider.currentDeviceId()
                 TagEntity(
                     id = EntityIdGenerator.newTagId(),
-                    userId = LOCAL_USER_ID,
+                    userId = ownerUserId,
                     tagName = tagName,
                     colorIcon = null,
                     heatWeight = 1,
@@ -251,6 +263,7 @@ class ExcerptRepository(
                 ).also { tagDao.insertTag(it) }
             } else {
                 existing.copy(
+                    userId = ownerUserId,
                     heatWeight = existing.heatWeight + 1,
                     updateTime = now,
                     deviceId = deviceIdProvider.currentDeviceId(),
