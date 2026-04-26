@@ -4,9 +4,12 @@ import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.OutlineDraft
 import com.gleanread.android.data.model.SyncStatus
+import com.gleanread.android.data.sync.DeviceIdProvider
+import com.gleanread.android.data.sync.LocalDeviceIdProvider
 
 class AiSummaryRepository(
     private val database: WorkspaceDatabase,
+    private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val outlineGenerator: OutlineGenerator = LocalOutlineGenerator(),
 ) {
     private val excerptDao = database.excerptDao()
@@ -27,6 +30,7 @@ class AiSummaryRepository(
         val resolvedNodeId = targetNodeId.takeIf { it.isNotBlank() } ?: return ""
         if (selectedExcerptIds.isEmpty()) return ""
         val now = System.currentTimeMillis()
+        val deviceId = deviceIdProvider.currentDeviceId()
         var savedNodeId = ""
         database.withTransaction {
             val node = nodeDao.findNodeById(resolvedNodeId) ?: return@withTransaction
@@ -34,7 +38,10 @@ class AiSummaryRepository(
                 node.copy(
                     outlineMarkdown = outlineMarkdown,
                     updateTime = now,
+                    deviceId = deviceId,
                     syncStatus = SyncStatus.bump(node.syncStatus),
+                    syncError = null,
+                    localDirtyTime = now,
                 )
             )
 
@@ -44,7 +51,10 @@ class AiSummaryRepository(
                     excerpt.copy(
                         treeNodeId = resolvedNodeId,
                         updateTime = now,
+                        deviceId = deviceId,
                         syncStatus = SyncStatus.bump(excerpt.syncStatus),
+                        syncError = null,
+                        localDirtyTime = now,
                     )
                 },
             )

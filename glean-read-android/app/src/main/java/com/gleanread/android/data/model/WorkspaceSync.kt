@@ -7,6 +7,9 @@ enum class SyncStatus(val code: Int) {
     PENDING_CREATE(1),
     PENDING_UPDATE(2),
     PENDING_DELETE(3),
+    SYNCING(4),
+    FAILED(5),
+    CONFLICT(6),
     ;
 
     companion object {
@@ -20,6 +23,12 @@ enum class SyncStatus(val code: Int) {
 
         fun markDeleted(current: SyncStatus): SyncStatus {
             return if (current == PENDING_CREATE) PENDING_CREATE else PENDING_DELETE
+        }
+
+        fun fromStoredValue(value: String): SyncStatus {
+            return runCatching { valueOf(value) }.getOrElse {
+                value.toIntOrNull()?.let(::fromCode) ?: SYNCED
+            }
         }
     }
 }

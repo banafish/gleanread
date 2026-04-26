@@ -19,7 +19,12 @@ data class KnowledgeTreeNodeEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
     @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
+    @ColumnInfo(name = "last_sync_time") val lastSyncTime: Long? = null,
+    @ColumnInfo(name = "sync_error") val syncError: String? = null,
+    @ColumnInfo(name = "retry_count") val retryCount: Int = 0,
+    @ColumnInfo(name = "local_dirty_time") val localDirtyTime: Long? = null,
 )
 
 @Entity(
@@ -35,7 +40,12 @@ data class TagEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
     @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
+    @ColumnInfo(name = "last_sync_time") val lastSyncTime: Long? = null,
+    @ColumnInfo(name = "sync_error") val syncError: String? = null,
+    @ColumnInfo(name = "retry_count") val retryCount: Int = 0,
+    @ColumnInfo(name = "local_dirty_time") val localDirtyTime: Long? = null,
 )
 
 @Entity(
@@ -53,7 +63,12 @@ data class ExcerptEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
     @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
+    @ColumnInfo(name = "last_sync_time") val lastSyncTime: Long? = null,
+    @ColumnInfo(name = "sync_error") val syncError: String? = null,
+    @ColumnInfo(name = "retry_count") val retryCount: Int = 0,
+    @ColumnInfo(name = "local_dirty_time") val localDirtyTime: Long? = null,
 )
 
 @Entity(
@@ -68,5 +83,10 @@ data class ExcerptTagEntity(
     @ColumnInfo(name = "create_time") val createTime: Long,
     @ColumnInfo(name = "update_time") val updateTime: Long,
     @ColumnInfo(name = "is_deleted") val isDeleted: Boolean = false,
+    @ColumnInfo(name = "device_id") val deviceId: String? = null,
     @ColumnInfo(name = "sync_status") val syncStatus: SyncStatus,
+    @ColumnInfo(name = "last_sync_time") val lastSyncTime: Long? = null,
+    @ColumnInfo(name = "sync_error") val syncError: String? = null,
+    @ColumnInfo(name = "retry_count") val retryCount: Int = 0,
+    @ColumnInfo(name = "local_dirty_time") val localDirtyTime: Long? = null,
 )

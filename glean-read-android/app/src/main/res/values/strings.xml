@@ -13,6 +13,7 @@
     <string name="main_add_content_description">新增摘录</string>
     <string name="main_ai_archive_action">AI 总结</string>
     <string name="main_nav_feed">摘录流</string>
+    <string name="main_nav_settings">设置</string>
     <string name="main_nav_tags">标签</string>
     <string name="main_nav_tree">知识树</string>
     <string name="main_selected_count">已选中 %1$d 条</string>
@@ -174,6 +175,28 @@
     <string name="fast_capture_tag_search_empty">没有找到匹配的标签，试试其他关键词。</string>
     <string name="fast_capture_thought_placeholder">此刻你的想法是...</string>
     <string name="fast_capture_title">极速摘录</string>
+
+    <string name="settings_account_title">账号</string>
+    <string name="settings_email_label">邮箱</string>
+    <string name="settings_last_sync">最近同步：%1$s</string>
+    <string name="settings_logged_in_as">已登录：%1$s</string>
+    <string name="settings_logged_in_unknown">当前账号</string>
+    <string name="settings_ownership_body">请选择这台设备上现有本地数据的处理方式。选择前不会上传、覆盖或删除本地数据。</string>
+    <string name="settings_ownership_keep_local">保留本地</string>
+    <string name="settings_ownership_merge">合并到账号</string>
+    <string name="settings_ownership_title">本地数据归属</string>
+    <string name="settings_ownership_use_cloud">使用云端</string>
+    <string name="settings_password_label">密码</string>
+    <string name="settings_sign_in">登录</string>
+    <string name="settings_sign_out">退出登录</string>
+    <string name="settings_sync_attention">失败 %1$d 条，冲突 %2$d 条</string>
+    <string name="settings_sync_conflict_note">第一版已按覆盖策略处理冲突，后续可扩展人工解决。</string>
+    <string name="settings_sync_disabled">云同步未开启</string>
+    <string name="settings_sync_enabled">云同步已开启</string>
+    <string name="settings_sync_now">立即同步</string>
+    <string name="settings_sync_title">同步</string>
+    <string name="settings_syncing">同步中</string>
+    <string name="settings_title">设置</string>
 
     <string name="richtext_open_link_action">打开 %1$s</string>
     <string name="richtext_suggestion_title">联想结果</string>

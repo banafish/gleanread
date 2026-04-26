@@ -11,7 +11,7 @@ import androidx.room.TypeConverters
         ExcerptEntity::class,
         ExcerptTagEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 @TypeConverters(SyncStatusConverter::class)

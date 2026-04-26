@@ -15,6 +15,12 @@ interface ExcerptDao {
     @Query("SELECT * FROM excerpts WHERE is_deleted = 0 ORDER BY create_time DESC")
     suspend fun getExcerptsOnce(): List<ExcerptEntity>
 
+    @Query("SELECT * FROM excerpts ORDER BY create_time DESC")
+    suspend fun getAllExcerptsOnce(): List<ExcerptEntity>
+
+    @Query("SELECT * FROM excerpts WHERE sync_status IN (:syncStatuses) ORDER BY local_dirty_time ASC")
+    suspend fun findExcerptsBySyncStatuses(syncStatuses: List<String>): List<ExcerptEntity>
+
     @Query("SELECT * FROM excerpts WHERE id = :excerptId LIMIT 1")
     suspend fun findExcerptById(excerptId: String): ExcerptEntity?
 
@@ -27,9 +33,18 @@ interface ExcerptDao {
     @Update
     suspend fun updateExcerpts(excerpts: List<ExcerptEntity>)
 
+    @Update
+    suspend fun updateExcerpt(excerpt: ExcerptEntity)
+
     @Query("SELECT * FROM excerpts WHERE is_deleted = 0 AND tree_node_id IN (:nodeIds)")
     suspend fun findExcerptsByNodeIds(nodeIds: List<String>): List<ExcerptEntity>
 
     @Query("SELECT COUNT(*) FROM excerpts WHERE is_deleted = 0")
     suspend fun countExcerpts(): Int
+
+    @Query("SELECT COUNT(*) FROM excerpts WHERE user_id = :userId")
+    suspend fun countExcerptsByUserId(userId: String): Int
+
+    @Query("DELETE FROM excerpts")
+    suspend fun deleteAllExcerpts()
 }

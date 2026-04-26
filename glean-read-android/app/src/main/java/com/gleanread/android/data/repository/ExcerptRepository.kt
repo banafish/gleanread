@@ -7,6 +7,8 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
+import com.gleanread.android.data.sync.DeviceIdProvider
+import com.gleanread.android.data.sync.LocalDeviceIdProvider
 
 /**
  * 统一的摘录 CRUD 仓库。
@@ -16,6 +18,7 @@ import com.gleanread.android.data.model.SyncStatus
  */
 class ExcerptRepository(
     private val database: WorkspaceDatabase,
+    private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
 ) {
     private val excerptDao = database.excerptDao()
     private val tagDao = database.tagDao()
@@ -42,6 +45,7 @@ class ExcerptRepository(
 
         val excerptId = EntityIdGenerator.newDraftExcerptId()
         val now = System.currentTimeMillis()
+        val deviceId = deviceIdProvider.currentDeviceId()
         database.withTransaction {
             val resolvedArchiveNodeId = archiveNodeId?.takeIf { nodeDao.findNodeById(it) != null }
             val targetTags = resolveTags(tagNames, now, autoCreateTags)
@@ -57,7 +61,9 @@ class ExcerptRepository(
                     treeNodeId = resolvedArchiveNodeId,
                     createTime = now,
                     updateTime = now,
+                    deviceId = deviceId,
                     syncStatus = SyncStatus.PENDING_CREATE,
+                    localDirtyTime = now,
                 ),
             )
 
@@ -71,7 +77,9 @@ class ExcerptRepository(
                             tagId = tag.id,
                             createTime = now,
                             updateTime = now,
+                            deviceId = deviceId,
                             syncStatus = SyncStatus.PENDING_CREATE,
+                            localDirtyTime = now,
                         )
                     },
                 )
@@ -110,6 +118,7 @@ class ExcerptRepository(
             val existingRelations = excerptTagDao.getAllExcerptTagsByExcerptId(excerptId)
             val existingRelationsByTagId = existingRelations.associateBy(ExcerptTagEntity::tagId)
             val now = System.currentTimeMillis()
+            val deviceId = deviceIdProvider.currentDeviceId()
 
             excerptDao.updateExcerpts(
                 listOf(
@@ -120,7 +129,10 @@ class ExcerptRepository(
                         url = url?.trim()?.takeIf { it.isNotEmpty() },
                         treeNodeId = resolvedArchiveNodeId,
                         updateTime = now,
+                        deviceId = deviceId,
                         syncStatus = SyncStatus.bump(excerpt.syncStatus),
+                        syncError = null,
+                        localDirtyTime = now,
                     ),
                 ),
             )
@@ -139,7 +151,9 @@ class ExcerptRepository(
                             tagId = tagId,
                             createTime = now,
                             updateTime = now,
+                            deviceId = deviceId,
                             syncStatus = SyncStatus.PENDING_CREATE,
+                            localDirtyTime = now,
                         )
                     }
 
@@ -147,7 +161,10 @@ class ExcerptRepository(
                         updatedRelations += existing.copy(
                             isDeleted = false,
                             updateTime = now,
+                            deviceId = deviceId,
                             syncStatus = SyncStatus.bump(existing.syncStatus),
+                            syncError = null,
+                            localDirtyTime = now,
                         )
                     }
                 }
@@ -159,7 +176,10 @@ class ExcerptRepository(
                     updatedRelations += relation.copy(
                         isDeleted = true,
                         updateTime = now,
+                        deviceId = deviceId,
                         syncStatus = SyncStatus.markDeleted(relation.syncStatus),
+                        syncError = null,
+                        localDirtyTime = now,
                     )
                 }
 
@@ -178,12 +198,16 @@ class ExcerptRepository(
     suspend fun deleteExcerpt(excerptId: String) {
         val excerpt = excerptDao.findExcerptById(excerptId) ?: return
         val now = System.currentTimeMillis()
+        val deviceId = deviceIdProvider.currentDeviceId()
         excerptDao.updateExcerpts(
             listOf(
                 excerpt.copy(
                     isDeleted = true,
                     updateTime = now,
+                    deviceId = deviceId,
                     syncStatus = SyncStatus.markDeleted(excerpt.syncStatus),
+                    syncError = null,
+                    localDirtyTime = now,
                 ),
             ),
         )
@@ -212,6 +236,7 @@ class ExcerptRepository(
         return normalizedNames.map { tagName ->
             val existing = tagDao.findTagByName(LOCAL_USER_ID, tagName)
             if (existing == null) {
+                val deviceId = deviceIdProvider.currentDeviceId()
                 TagEntity(
                     id = EntityIdGenerator.newTagId(),
                     userId = LOCAL_USER_ID,
@@ -220,13 +245,18 @@ class ExcerptRepository(
                     heatWeight = 1,
                     createTime = now,
                     updateTime = now,
+                    deviceId = deviceId,
                     syncStatus = SyncStatus.PENDING_CREATE,
+                    localDirtyTime = now,
                 ).also { tagDao.insertTag(it) }
             } else {
                 existing.copy(
                     heatWeight = existing.heatWeight + 1,
                     updateTime = now,
+                    deviceId = deviceIdProvider.currentDeviceId(),
                     syncStatus = SyncStatus.bump(existing.syncStatus),
+                    syncError = null,
+                    localDirtyTime = now,
                 ).also { tagDao.updateTag(it) }
             }
         }

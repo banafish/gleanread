@@ -72,8 +72,11 @@ class ExcerptRepositoryTest {
         assertEquals("来源标题", saved?.sourceTitle)
         assertEquals("https://example.com/article", saved?.url)
         assertEquals(nodeId, saved?.treeNodeId)
+        assertEquals("local-device", saved?.deviceId)
+        assertEquals(SyncStatus.PENDING_CREATE, saved?.syncStatus)
         assertEquals(1, relations.size)
         assertEquals(tagId, relations.single().tagId)
+        assertEquals("local-device", relations.single().deviceId)
     }
 
     @Test

@@ -4,6 +4,8 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
+import com.gleanread.android.data.sync.DeviceIdProvider
+import com.gleanread.android.data.sync.LocalDeviceIdProvider
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -12,6 +14,7 @@ import kotlinx.coroutines.flow.map
  */
 class TagRepository(
     private val database: WorkspaceDatabase,
+    private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
 ) {
     private val tagDao = database.tagDao()
 
@@ -24,6 +27,7 @@ class TagRepository(
         if (normalizedTagName.isEmpty()) return ""
 
         val now = System.currentTimeMillis()
+        val deviceId = deviceIdProvider.currentDeviceId()
         val existing = tagDao.findTagByName(LOCAL_USER_ID, normalizedTagName)
 
         return if (existing == null) {
@@ -37,7 +41,9 @@ class TagRepository(
                     heatWeight = 1,
                     createTime = now,
                     updateTime = now,
+                    deviceId = deviceId,
                     syncStatus = SyncStatus.PENDING_CREATE,
+                    localDirtyTime = now,
                 ),
             )
             tagId
@@ -49,7 +55,10 @@ class TagRepository(
                         isDeleted = false,
                         heatWeight = existing.heatWeight.coerceAtLeast(1),
                         updateTime = now,
+                        deviceId = deviceId,
                         syncStatus = SyncStatus.bump(existing.syncStatus),
+                        syncError = null,
+                        localDirtyTime = now,
                     ),
                 )
             }
@@ -61,6 +70,7 @@ class TagRepository(
         if (tagIds.isEmpty()) return
 
         val now = System.currentTimeMillis()
+        val deviceId = deviceIdProvider.currentDeviceId()
         val tagsToDelete = tagDao.getTagsOnce().filter { tagIds.contains(it.id) }
         if (tagsToDelete.isEmpty()) return
         tagDao.updateTags(
@@ -68,7 +78,10 @@ class TagRepository(
                 tag.copy(
                     isDeleted = true,
                     updateTime = now,
+                    deviceId = deviceId,
                     syncStatus = SyncStatus.markDeleted(tag.syncStatus),
+                    syncError = null,
+                    localDirtyTime = now,
                 )
             },
         )

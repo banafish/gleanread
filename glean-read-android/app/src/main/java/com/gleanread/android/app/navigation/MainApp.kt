@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FloatingActionButton
@@ -66,6 +67,7 @@ import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeBranchRoute
 import com.gleanread.android.feature.knowledge_tree.KnowledgeTreeHomeRoute
 import com.gleanread.android.feature.knowledge_tree.graph.GraphRoute
 import com.gleanread.android.feature.knowledge_tree.node_detail.NodeDetailRoute
+import com.gleanread.android.feature.settings.SettingsRoute
 import com.gleanread.android.feature.tags.TagsRoute
 import com.gleanread.android.feature.tags.TagsViewModel
 import com.gleanread.android.feature.tags.component.AddTagDialog
@@ -74,6 +76,7 @@ object MainRoutes {
     const val Feed = "feed"
     const val Tree = "tree"
     const val Tags = "tags"
+    const val Settings = "settings"
     const val AiSummary = "ai-summary"
     const val NewExcerptPattern = "new-excerpt?archiveNodeId={archiveNodeId}"
     const val ExcerptPattern = "excerpt/{excerptId}"
@@ -111,7 +114,10 @@ fun MainApp() {
     var isAddTagDialogOpen by rememberSaveable { mutableStateOf(false) }
     var addTagInput by rememberSaveable { mutableStateOf("") }
 
-    val isMainRoute = route == MainRoutes.Feed || route == MainRoutes.Tree || route == MainRoutes.Tags
+    val isMainRoute = route == MainRoutes.Feed ||
+        route == MainRoutes.Tree ||
+        route == MainRoutes.Tags ||
+        route == MainRoutes.Settings
     val showEmptyGuide = route == MainRoutes.Feed && snapshot.isEmpty
     val showFab = (route == MainRoutes.Feed || route == MainRoutes.Tags) &&
         !feedUiState.isSelectionMode &&
@@ -285,6 +291,9 @@ fun MainApp() {
                         },
                     )
                 }
+                composable(MainRoutes.Settings) {
+                    SettingsRoute()
+                }
                 composable(MainRoutes.AiSummary) {
                     AiSummaryRoute(
                         snapshot = snapshot,
@@ -435,6 +444,17 @@ private fun BottomNavigationBar(
                 )
             },
             label = { Text(stringResource(R.string.main_nav_tags)) },
+        )
+        NavigationBarItem(
+            selected = currentRoute == MainRoutes.Settings,
+            onClick = { onNavigate(MainRoutes.Settings) },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.main_nav_settings),
+                )
+            },
+            label = { Text(stringResource(R.string.main_nav_settings)) },
         )
     }
 }

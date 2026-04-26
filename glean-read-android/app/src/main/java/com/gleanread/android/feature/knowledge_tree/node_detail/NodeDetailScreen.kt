@@ -3,6 +3,7 @@
 package com.gleanread.android.feature.knowledge_tree.node_detail
 
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.AnchoredDraggableState
@@ -286,16 +287,18 @@ private fun NodeExcerptCard(
 ) {
     val density = LocalDensity.current
     val actionAreaWidthPx = with(density) { NODE_DETAIL_EXCERPT_ACTION_AREA_WIDTH.toPx() }
-    val swipeState = remember(actionAreaWidthPx, density) {
+    val decayAnimationSpec = rememberSplineBasedDecay<Float>()
+    val swipeState = remember(actionAreaWidthPx, density, decayAnimationSpec) {
         AnchoredDraggableState(
             initialValue = NodeExcerptSwipeValue.Closed,
             anchors = DraggableAnchors {
                 NodeExcerptSwipeValue.Closed at 0f
                 NodeExcerptSwipeValue.DeleteRevealed at -actionAreaWidthPx
             },
-            positionalThreshold = { distance -> distance * 0.35f },
+            positionalThreshold = { distance: Float -> distance * 0.35f },
             velocityThreshold = { with(density) { 120.dp.toPx() } },
-            animationSpec = tween(durationMillis = 220),
+            snapAnimationSpec = tween(durationMillis = 220),
+            decayAnimationSpec = decayAnimationSpec,
         )
     }
     val offsetX = swipeState.offset.takeIf { !it.isNaN() }?.roundToInt() ?: 0

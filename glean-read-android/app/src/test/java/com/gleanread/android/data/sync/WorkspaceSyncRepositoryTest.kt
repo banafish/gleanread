@@ -1,0 +1,251 @@
+package com.gleanread.android.data.sync
+
+import android.content.Context
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import com.gleanread.android.data.auth.AuthSession
+import com.gleanread.android.data.auth.SupabaseSessionStore
+import com.gleanread.android.data.local.ExcerptEntity
+import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
+import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.model.SyncStatus
+import kotlinx.coroutines.runBlocking
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Before
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+@RunWith(RobolectricTestRunner::class)
+class WorkspaceSyncRepositoryTest {
+    private lateinit var context: Context
+    private lateinit var database: WorkspaceDatabase
+    private lateinit var sessionStore: SupabaseSessionStore
+    private lateinit var stateStore: WorkspaceSyncStateStore
+    private lateinit var remoteDataSource: FakeWorkspaceRemoteDataSource
+
+    @Before
+    fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
+        database = Room.inMemoryDatabaseBuilder(
+            context,
+            WorkspaceDatabase::class.java,
+        ).allowMainThreadQueries().build()
+        sessionStore = SupabaseSessionStore(context)
+        sessionStore.clearSession()
+        sessionStore.saveSession(
+            AuthSession(
+                accessToken = "token",
+                refreshToken = null,
+                userId = "user-1",
+                email = "user@example.com",
+                expiresAtMillis = null,
+            ),
+        )
+        stateStore = WorkspaceSyncStateStore(context)
+        stateStore.clear()
+        stateStore.setCloudSyncEnabled(true)
+        remoteDataSource = FakeWorkspaceRemoteDataSource()
+    }
+
+    @After
+    fun tearDown() {
+        database.close()
+        sessionStore.clearSession()
+        stateStore.clear()
+    }
+
+    @Test
+    fun `sync marks conflict and applies newer remote record before upload`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-1",
+                userId = "user-1",
+                content = "本地正文",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                lastSyncTime = 100L,
+                localDirtyTime = 200L,
+            ),
+        )
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "excerpt-1",
+                    userId = "user-1",
+                    content = "远端正文",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 100L,
+                    updateTime = 300L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+
+        val result = syncRepository().syncNow(repairMissingRemote = true)
+        val saved = database.excerptDao().findExcerptById("excerpt-1")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals("远端正文", saved?.content)
+        assertEquals(SyncStatus.CONFLICT, saved?.syncStatus)
+        assertEquals(0, remoteDataSource.uploadedExcerpts.size)
+    }
+
+    @Test
+    fun `sync repairs local synced records that are missing from remote`() = runBlocking {
+        database.nodeDao().insertNode(
+            KnowledgeTreeNodeEntity(
+                id = "node-1",
+                userId = "user-1",
+                parentId = null,
+                nodeTitle = "本地节点",
+                outlineMarkdown = null,
+                createTime = 100L,
+                updateTime = 100L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.SYNCED,
+                lastSyncTime = 100L,
+            ),
+        )
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-2",
+                userId = "user-1",
+                content = "本地摘录",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = "node-1",
+                createTime = 100L,
+                updateTime = 100L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.SYNCED,
+                lastSyncTime = 100L,
+            ),
+        )
+
+        val result = syncRepository().syncNow(repairMissingRemote = true)
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(listOf("node-1"), remoteDataSource.uploadedNodes.map(RemoteKnowledgeTreeNode::id))
+        assertEquals(listOf("excerpt-2"), remoteDataSource.uploadedExcerpts.map(RemoteExcerpt::id))
+    }
+
+    @Test
+    fun `sync does not repair missing remote records by default`() = runBlocking {
+        database.nodeDao().insertNode(
+            KnowledgeTreeNodeEntity(
+                id = "node-default",
+                userId = "user-1",
+                parentId = null,
+                nodeTitle = "默认不补传",
+                outlineMarkdown = null,
+                createTime = 100L,
+                updateTime = 100L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.SYNCED,
+                lastSyncTime = 100L,
+            ),
+        )
+
+        val result = syncRepository().syncNow()
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(0, remoteDataSource.uploadedNodes.size)
+    }
+
+    @Test
+    fun `sync reports failure when an upload batch fails`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-failed",
+                userId = "user-1",
+                content = "上传会失败",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                localDirtyTime = 200L,
+            ),
+        )
+        remoteDataSource.excerptUploadError = IllegalStateException("missing content column")
+
+        val result = syncRepository().syncNow()
+        val saved = database.excerptDao().findExcerptById("excerpt-failed")
+
+        assertTrue(result is WorkspaceSyncResult.Failure)
+        assertTrue((result as WorkspaceSyncResult.Failure).message.contains("missing content column"))
+        assertEquals(SyncStatus.FAILED, saved?.syncStatus)
+    }
+
+    private fun syncRepository(): WorkspaceSyncRepository {
+        return WorkspaceSyncRepository(
+            database = database,
+            remoteDataSource = remoteDataSource,
+            sessionStore = sessionStore,
+            stateStore = stateStore,
+        )
+    }
+}
+
+private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
+    var remoteSnapshot = RemoteWorkspaceSnapshot(
+        nodes = emptyList(),
+        tags = emptyList(),
+        excerpts = emptyList(),
+        excerptTags = emptyList(),
+    )
+    val uploadedExcerpts = mutableListOf<RemoteExcerpt>()
+    val uploadedNodes = mutableListOf<RemoteKnowledgeTreeNode>()
+    var excerptUploadError: Throwable? = null
+
+    override suspend fun upsertNodes(
+        accessToken: String,
+        nodes: List<RemoteKnowledgeTreeNode>,
+    ) {
+        uploadedNodes += nodes
+    }
+
+    override suspend fun upsertTags(
+        accessToken: String,
+        tags: List<RemoteTag>,
+    ) = Unit
+
+    override suspend fun upsertExcerpts(
+        accessToken: String,
+        excerpts: List<RemoteExcerpt>,
+    ) {
+        excerptUploadError?.let { throw it }
+        uploadedExcerpts += excerpts
+    }
+
+    override suspend fun upsertExcerptTags(
+        accessToken: String,
+        relations: List<RemoteExcerptTag>,
+    ) = Unit
+
+    override suspend fun fetchChanges(
+        accessToken: String,
+        userId: String,
+        updatedAfter: Long?,
+    ): RemoteWorkspaceSnapshot = remoteSnapshot
+}

@@ -5,8 +5,8 @@ import com.gleanread.android.data.model.SyncStatus
 
 class SyncStatusConverter {
     @TypeConverter
-    fun fromSyncStatus(status: SyncStatus): Int = status.code
+    fun fromSyncStatus(status: SyncStatus): String = status.name
 
     @TypeConverter
-    fun toSyncStatus(code: Int): SyncStatus = SyncStatus.fromCode(code)
+    fun toSyncStatus(value: String): SyncStatus = SyncStatus.fromStoredValue(value)
 }

@@ -15,6 +15,12 @@ interface TagDao {
     @Query("SELECT * FROM tags WHERE is_deleted = 0 ORDER BY heat_weight DESC, tag_name ASC")
     suspend fun getTagsOnce(): List<TagEntity>
 
+    @Query("SELECT * FROM tags ORDER BY heat_weight DESC, tag_name ASC")
+    suspend fun getAllTagsOnce(): List<TagEntity>
+
+    @Query("SELECT * FROM tags WHERE sync_status IN (:syncStatuses) ORDER BY local_dirty_time ASC")
+    suspend fun findTagsBySyncStatuses(syncStatuses: List<String>): List<TagEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTag(tag: TagEntity)
 
@@ -32,4 +38,10 @@ interface TagDao {
 
     @Query("SELECT COUNT(*) FROM tags WHERE is_deleted = 0")
     suspend fun countTags(): Int
+
+    @Query("SELECT COUNT(*) FROM tags WHERE user_id = :userId")
+    suspend fun countTagsByUserId(userId: String): Int
+
+    @Query("DELETE FROM tags")
+    suspend fun deleteAllTags()
 }

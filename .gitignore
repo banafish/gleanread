@@ -21,6 +21,7 @@ bin/
 
 # --- Android (glean-read-android) ---
 glean-read-android/.gradle/
+glean-read-android/.gradle-user*/
 glean-read-android/local.properties
 glean-read-android/captures/
 glean-read-android/**/*.apk
