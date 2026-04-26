@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gleanread.android.data.auth.AuthResult
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
+import com.gleanread.android.data.auth.MagicLinkRequestResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
@@ -62,31 +63,35 @@ class SettingsViewModel(
         viewModelScope.launch {
             formState.update { it.copy(isSubmitting = true, message = null) }
             when (val result = authRepository.signInWithEmailPassword(form.email, form.password)) {
-                is AuthResult.Success -> {
-                    val hasLocalData = authRepository.hasLocalUserData()
-                    if (hasLocalData) {
-                        formState.update {
-                            it.copy(
-                                isSubmitting = false,
-                                password = "",
-                                showOwnershipDialog = true,
-                                message = "请选择本地数据归属",
-                            )
-                        }
-                    } else {
-                        syncRepository.setCloudSyncEnabled(true)
-                        syncRepository.syncNow()
-                        formState.update {
-                            it.copy(
-                                isSubmitting = false,
-                                password = "",
-                                message = "已登录 ${result.session.email.orEmpty()}",
-                            )
-                        }
+                is AuthResult.Success -> handleSignInSuccess(result)
+
+                is AuthResult.Failure -> {
+                    formState.update {
+                        it.copy(isSubmitting = false, message = result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    fun sendMagicLink() {
+        val form = formState.value
+        if (form.isSubmitting) return
+
+        viewModelScope.launch {
+            formState.update { it.copy(isSubmitting = true, message = null) }
+            when (val result = authRepository.sendMagicLink(form.email)) {
+                MagicLinkRequestResult.Sent -> {
+                    formState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            password = "",
+                            message = "Magic Link 已发送，请打开邮箱中的登录链接",
+                        )
                     }
                 }
 
-                is AuthResult.Failure -> {
+                is MagicLinkRequestResult.Failure -> {
                     formState.update {
                         it.copy(isSubmitting = false, message = result.message)
                     }
@@ -159,6 +164,30 @@ class SettingsViewModel(
                 is WorkspaceSyncResult.Skipped -> result.message
             }
             formState.update { it.copy(message = message) }
+        }
+    }
+
+    private suspend fun handleSignInSuccess(result: AuthResult.Success) {
+        val hasLocalData = authRepository.hasLocalUserData()
+        if (hasLocalData) {
+            formState.update {
+                it.copy(
+                    isSubmitting = false,
+                    password = "",
+                    showOwnershipDialog = true,
+                    message = "请选择本地数据归属",
+                )
+            }
+        } else {
+            syncRepository.setCloudSyncEnabled(true)
+            syncRepository.syncNow()
+            formState.update {
+                it.copy(
+                    isSubmitting = false,
+                    password = "",
+                    message = "已登录 ${result.session.email.orEmpty()}",
+                )
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.gleanread.android.data.auth
 
+import android.net.Uri
 import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -8,20 +9,22 @@ import com.gleanread.android.data.remote.SupabaseConfig
 import com.gleanread.android.data.sync.DeviceIdProvider
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.ClientRequestException
-import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.bearerAuth
+import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 class SupabaseAuthRepository(
     private val config: SupabaseConfig,
@@ -31,6 +34,72 @@ class SupabaseAuthRepository(
     private val deviceIdProvider: DeviceIdProvider,
 ) {
     val session: StateFlow<AuthSession?> = sessionStore.session
+
+    suspend fun sendMagicLink(email: String): MagicLinkRequestResult {
+        if (!config.isConfigured) {
+            return MagicLinkRequestResult.Failure("Supabase 尚未配置")
+        }
+        val trimmedEmail = email.trim()
+        if (trimmedEmail.isEmpty()) {
+            return MagicLinkRequestResult.Failure("请输入邮箱")
+        }
+
+        return runCatching {
+            val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/otp") {
+                parameter("redirect_to", config.magicLinkRedirectUrl)
+                header("apikey", config.anonKey)
+                contentType(ContentType.Application.Json)
+                setBody(MagicLinkRequest(email = trimmedEmail))
+            }
+            val responseBody = httpResponse.bodyAsText()
+            if (!httpResponse.status.isSuccess()) {
+                return MagicLinkRequestResult.Failure(
+                    responseBody.toSupabaseAuthErrorMessage(defaultMessage = "发送 Magic Link 失败"),
+                )
+            }
+
+            MagicLinkRequestResult.Sent
+        }.getOrElse { error ->
+            MagicLinkRequestResult.Failure(error.message ?: "发送 Magic Link 失败")
+        }
+    }
+
+    suspend fun completeMagicLinkSignIn(uri: Uri?): AuthResult {
+        if (!config.isConfigured) {
+            return AuthResult.Failure("Supabase 尚未配置")
+        }
+        if (uri == null || !isMagicLinkRedirect(uri)) {
+            return AuthResult.Failure("Magic Link 回调地址无效")
+        }
+
+        val parameters = uri.authCallbackParameters()
+        parameters["error_description"]?.takeIf(String::isNotBlank)?.let { error ->
+            return AuthResult.Failure(error)
+        }
+        parameters["error"]?.takeIf(String::isNotBlank)?.let { error ->
+            return AuthResult.Failure(error)
+        }
+
+        val accessToken = parameters["access_token"].orEmpty()
+        if (accessToken.isBlank()) {
+            return AuthResult.Failure("Magic Link 缺少登录凭据")
+        }
+
+        return runCatching {
+            val user = fetchCurrentUser(accessToken)
+            val session = AuthSession(
+                accessToken = accessToken,
+                refreshToken = parameters["refresh_token"],
+                userId = user.id,
+                email = user.email,
+                expiresAtMillis = parameters.authExpiresAtMillis(),
+            )
+            sessionStore.saveSession(session)
+            AuthResult.Success(session)
+        }.getOrElse { error ->
+            AuthResult.Failure(error.message ?: "Magic Link 登录失败")
+        }
+    }
 
     suspend fun signInWithEmailPassword(email: String, password: String): AuthResult {
         if (!config.isConfigured) {
@@ -157,6 +226,20 @@ class SupabaseAuthRepository(
         }
     }
 
+    private suspend fun fetchCurrentUser(accessToken: String): AuthUserResponse {
+        val httpResponse = httpClient.get("${config.normalizedUrl}/auth/v1/user") {
+            header("apikey", config.anonKey)
+            bearerAuth(accessToken)
+        }
+        val responseBody = httpResponse.bodyAsText()
+        if (!httpResponse.status.isSuccess()) {
+            throw SupabaseAuthException(
+                responseBody.toSupabaseAuthErrorMessage(defaultMessage = "Magic Link 登录失败"),
+            )
+        }
+        return AuthJson.decodeFromString<AuthUserResponse>(responseBody)
+    }
+
     private fun Throwable.toAuthMessage(): String {
         return when (this) {
             is ClientRequestException -> "邮箱或密码不正确"
@@ -164,6 +247,17 @@ class SupabaseAuthRepository(
         }
     }
 
+    companion object {
+        fun isMagicLinkRedirect(uri: Uri): Boolean {
+            return uri.scheme == MAGIC_LINK_SCHEME &&
+                uri.host == MAGIC_LINK_HOST &&
+                uri.path == MAGIC_LINK_PATH
+        }
+
+        private const val MAGIC_LINK_SCHEME = "gleanread"
+        private const val MAGIC_LINK_HOST = "auth"
+        private const val MAGIC_LINK_PATH = "/callback"
+    }
 }
 
 internal val AuthJson = Json {
@@ -175,6 +269,12 @@ internal val AuthJson = Json {
 private data class EmailPasswordSignInRequest(
     val email: String,
     val password: String,
+)
+
+@Serializable
+private data class MagicLinkRequest(
+    val email: String,
+    @SerialName("create_user") val createUser: Boolean = true,
 )
 
 @Serializable
@@ -216,15 +316,46 @@ internal fun AuthTokenResponse.toSession(
     )
 }
 
-internal fun String.toSupabaseAuthErrorMessage(): String {
+internal fun String.toSupabaseAuthErrorMessage(defaultMessage: String = "登录失败，请检查邮箱和密码"): String {
     val remoteMessage = runCatching {
         AuthJson.decodeFromString<SupabaseAuthErrorResponse>(this).displayMessage
     }.getOrNull()
     return when {
-        remoteMessage.isNullOrBlank() -> "登录失败，请检查邮箱和密码"
+        remoteMessage.isNullOrBlank() -> defaultMessage
         remoteMessage.contains("Invalid login credentials", ignoreCase = true) -> "邮箱或密码不正确"
         remoteMessage.contains("Email not confirmed", ignoreCase = true) -> "邮箱尚未确认，请先完成邮箱验证"
         remoteMessage.contains("JWT expired", ignoreCase = true) -> "登录已过期，请重新登录"
         else -> remoteMessage
     }
 }
+
+private fun Uri.authCallbackParameters(): Map<String, String> {
+    return sequenceOf(encodedQuery, encodedFragment)
+        .filterNotNull()
+        .flatMap { encodedPart -> encodedPart.split("&").asSequence() }
+        .mapNotNull { pair ->
+            val separatorIndex = pair.indexOf('=')
+            if (separatorIndex <= 0) {
+                null
+            } else {
+                val key = pair.substring(0, separatorIndex).urlDecode()
+                val value = pair.substring(separatorIndex + 1).urlDecode()
+                key to value
+            }
+        }
+        .toMap()
+}
+
+private fun Map<String, String>.authExpiresAtMillis(
+    nowMillis: Long = System.currentTimeMillis(),
+): Long? {
+    val expiresInMillis = this["expires_in"]?.toLongOrNull()?.let { nowMillis + it * 1_000L }
+    val expiresAtMillis = this["expires_at"]?.toLongOrNull()?.let { it * 1_000L }
+    return expiresAtMillis ?: expiresInMillis
+}
+
+private fun String.urlDecode(): String {
+    return URLDecoder.decode(this, StandardCharsets.UTF_8.name())
+}
+
+private class SupabaseAuthException(message: String) : RuntimeException(message)

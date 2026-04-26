@@ -13,6 +13,11 @@ sealed interface AuthResult {
     data class Failure(val message: String) : AuthResult
 }
 
+sealed interface MagicLinkRequestResult {
+    data object Sent : MagicLinkRequestResult
+    data class Failure(val message: String) : MagicLinkRequestResult
+}
+
 enum class LocalDataOwnershipChoice {
     MERGE_TO_ACCOUNT,
     KEEP_LOCAL,

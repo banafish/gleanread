@@ -21,6 +21,7 @@ android {
         buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8080\"")
         buildConfigField("String", "SUPABASE_URL", "\"https://fnbyzxkjeeevttuvussm.supabase.co\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_RAZZmIfjBM2ExLzp7gy6gQ_FOp2OXLp\"")
+        buildConfigField("String", "SUPABASE_MAGIC_LINK_REDIRECT_URL", "\"gleanread://auth/callback\"")
     }
     buildFeatures {
         compose = true

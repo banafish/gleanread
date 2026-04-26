@@ -19,6 +19,7 @@ fun SettingsRoute() {
         onEmailChange = viewModel::updateEmail,
         onPasswordChange = viewModel::updatePassword,
         onSignIn = viewModel::signIn,
+        onSendMagicLink = viewModel::sendMagicLink,
         onSignOut = viewModel::signOut,
         onSyncNow = viewModel::syncNow,
         onMergeLocalData = { viewModel.chooseOwnership(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) },

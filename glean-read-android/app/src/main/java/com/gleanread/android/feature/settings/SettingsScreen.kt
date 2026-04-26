@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Login
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -48,6 +49,7 @@ fun SettingsScreen(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
+    onSendMagicLink: () -> Unit,
     onSignOut: () -> Unit,
     onSyncNow: () -> Unit,
     onMergeLocalData: () -> Unit,
@@ -74,6 +76,7 @@ fun SettingsScreen(
             onEmailChange = onEmailChange,
             onPasswordChange = onPasswordChange,
             onSignIn = onSignIn,
+            onSendMagicLink = onSendMagicLink,
             onSignOut = onSignOut,
         )
 
@@ -107,6 +110,7 @@ private fun AccountSection(
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onSignIn: () -> Unit,
+    onSendMagicLink: () -> Unit,
     onSignOut: () -> Unit,
 ) {
     Card(
@@ -168,6 +172,22 @@ private fun AccountSection(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.settings_sign_in))
                 }
+                OutlinedButton(
+                    onClick = onSendMagicLink,
+                    enabled = !uiState.isSubmitting,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Email,
+                        contentDescription = null,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.settings_send_magic_link))
+                }
+                Text(
+                    text = stringResource(R.string.settings_magic_link_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -333,6 +353,7 @@ private fun SettingsScreenPreview() {
             onEmailChange = {},
             onPasswordChange = {},
             onSignIn = {},
+            onSendMagicLink = {},
             onSignOut = {},
             onSyncNow = {},
             onMergeLocalData = {},

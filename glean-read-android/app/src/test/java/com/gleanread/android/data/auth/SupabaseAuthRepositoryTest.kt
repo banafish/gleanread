@@ -1,6 +1,7 @@
 package com.gleanread.android.data.auth
 
 import android.content.Context
+import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.gleanread.android.data.local.TagEntity
@@ -105,6 +106,72 @@ class SupabaseAuthRepositoryTest {
         ).signInWithEmailPassword("user@example.com", "wrong-password")
 
         assertEquals(AuthResult.Failure("邮箱或密码不正确"), result)
+        authClient.close()
+    }
+
+    @Test
+    fun `sendMagicLink posts otp request with redirect url`() = runBlocking {
+        var requestedPath = ""
+        var redirectTo = ""
+        val authClient = HttpClient(
+            MockEngine { request ->
+                requestedPath = request.url.encodedPath
+                redirectTo = request.url.parameters["redirect_to"].orEmpty()
+                respond(
+                    content = "{}",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        explicitNulls = false
+                    },
+                )
+            }
+        }
+
+        val result = repository(
+            config = SupabaseConfig(
+                url = "https://example.supabase.co",
+                anonKey = "anon-key",
+                magicLinkRedirectUrl = "gleanread://auth/callback",
+            ),
+            httpClient = authClient,
+        ).sendMagicLink("user@example.com")
+
+        assertEquals(MagicLinkRequestResult.Sent, result)
+        assertEquals("/auth/v1/otp", requestedPath)
+        assertEquals("gleanread://auth/callback", redirectTo)
+        authClient.close()
+    }
+
+    @Test
+    fun `completeMagicLinkSignIn fetches user and saves session`() = runBlocking {
+        sessionStore.clearSession()
+        val authClient = mockAuthClient(
+            status = HttpStatusCode.OK,
+            body = """{"id":"cloud-user","email":"user@example.com"}""",
+        )
+
+        val result = repository(
+            config = SupabaseConfig(url = "https://example.supabase.co", anonKey = "anon-key"),
+            httpClient = authClient,
+        ).completeMagicLinkSignIn(
+            Uri.parse(
+                "gleanread://auth/callback#access_token=access-token&refresh_token=refresh-token&expires_in=3600",
+            ),
+        )
+
+        assertTrue(result is AuthResult.Success)
+        val saved = sessionStore.session.value
+        assertEquals("access-token", saved?.accessToken)
+        assertEquals("refresh-token", saved?.refreshToken)
+        assertEquals("cloud-user", saved?.userId)
+        assertEquals("user@example.com", saved?.email)
         authClient.close()
     }
 
