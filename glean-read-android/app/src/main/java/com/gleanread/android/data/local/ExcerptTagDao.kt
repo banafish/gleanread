@@ -24,6 +24,9 @@ interface ExcerptTagDao {
     @Query("SELECT * FROM excerpt_tags WHERE excerpt_id = :excerptId")
     suspend fun getAllExcerptTagsByExcerptId(excerptId: String): List<ExcerptTagEntity>
 
+    @Query("SELECT * FROM excerpt_tags WHERE id = :relationId LIMIT 1")
+    suspend fun findExcerptTagById(relationId: String): ExcerptTagEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExcerptTags(relations: List<ExcerptTagEntity>)
 

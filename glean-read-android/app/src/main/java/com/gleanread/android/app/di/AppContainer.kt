@@ -154,6 +154,7 @@ class AppContainer(
                 tagRepository = tagRepository,
                 knowledgeTreeRepository = knowledgeTreeRepository,
                 seedDataInitializer = seedDataInitializer,
+                syncRepository = workspaceSyncRepository,
                 snapshotStore = appSnapshotStore,
             )
         }

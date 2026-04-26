@@ -108,6 +108,7 @@ fun MainApp() {
     val currentEntry by navController.currentBackStackEntryAsState()
     val route = currentEntry?.destination?.route ?: MainRoutes.Feed
     val snapshot by mainViewModel.snapshot.collectAsStateWithLifecycle()
+    val syncState by mainViewModel.syncState.collectAsStateWithLifecycle()
     val feedUiState by feedViewModel.uiState.collectAsStateWithLifecycle()
     val aiSummaryDraft by aiSummaryViewModel.draft.collectAsStateWithLifecycle()
     val tagsUiState by tagsViewModel.uiState.collectAsStateWithLifecycle()
@@ -232,6 +233,8 @@ fun MainApp() {
                         onLongPress = feedViewModel::enterSelectionMode,
                         onToggleSelection = feedViewModel::toggleExcerptSelection,
                         onLoadSample = mainViewModel::loadSampleData,
+                        isRefreshing = syncState.isSyncing,
+                        onRefresh = mainViewModel::syncNow,
                         onStartRecording = { navController.navigate(MainRoutes.newExcerpt()) },
                         onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                         onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
@@ -247,6 +250,8 @@ fun MainApp() {
                         onMoveNode = mainViewModel::moveNode,
                         onRenameNode = mainViewModel::renameNode,
                         onDeleteNode = mainViewModel::deleteNodeSubtree,
+                        isRefreshing = syncState.isSyncing,
+                        onRefresh = mainViewModel::syncNow,
                     )
                 }
                 composable(
@@ -272,6 +277,8 @@ fun MainApp() {
                         onMoveNode = mainViewModel::moveNode,
                         onRenameNode = mainViewModel::renameNode,
                         onDeleteNode = mainViewModel::deleteNodeSubtree,
+                        isRefreshing = syncState.isSyncing,
+                        onRefresh = mainViewModel::syncNow,
                     )
                 }
                 composable(MainRoutes.Tags) {
@@ -283,6 +290,8 @@ fun MainApp() {
                         onLongPressTag = tagsViewModel::enterSelectionMode,
                         onToggleTagSelection = tagsViewModel::toggleTagSelection,
                         onDismissDeleteDialog = tagsViewModel::dismissDeleteDialog,
+                        isRefreshing = syncState.isSyncing,
+                        onRefresh = mainViewModel::syncNow,
                         onConfirmDeleteDialog = {
                             mainViewModel.deleteTags(tagsUiState.pendingDeleteTagIds) {
                                 tagsViewModel.dismissDeleteDialog()

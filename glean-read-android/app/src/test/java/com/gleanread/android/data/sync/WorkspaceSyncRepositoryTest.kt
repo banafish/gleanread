@@ -10,6 +10,9 @@ import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.SyncStatus
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToJsonElement
+import kotlinx.serialization.json.jsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -170,6 +173,35 @@ class WorkspaceSyncRepositoryTest {
     }
 
     @Test
+    fun `realtime applies pushed row without fetching the remote snapshot`() = runBlocking {
+        val repository = syncRepository()
+        val remoteExcerpt = RemoteExcerpt(
+            id = "excerpt-realtime",
+            userId = "user-1",
+            content = "实时正文",
+            url = null,
+            sourceTitle = null,
+            userThought = "实时想法",
+            treeNodeId = null,
+            createTime = 100L,
+            updateTime = 200L,
+            isDeleted = false,
+            deviceId = "device-remote",
+        )
+
+        repository.applyRealtimeChange(
+            tableName = REMOTE_TABLE_EXCERPTS,
+            record = Json.encodeToJsonElement(remoteExcerpt).jsonObject,
+        )
+
+        val saved = database.excerptDao().findExcerptById("excerpt-realtime")
+        assertEquals("实时正文", saved?.content)
+        assertEquals("实时想法", saved?.userThought)
+        assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
+        assertEquals(0, remoteDataSource.fetchCount)
+    }
+
+    @Test
     fun `sync reports failure when an upload batch fails`() = runBlocking {
         database.excerptDao().insertExcerpt(
             ExcerptEntity(
@@ -217,6 +249,7 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
     val uploadedExcerpts = mutableListOf<RemoteExcerpt>()
     val uploadedNodes = mutableListOf<RemoteKnowledgeTreeNode>()
     var excerptUploadError: Throwable? = null
+    var fetchCount = 0
 
     override suspend fun upsertNodes(
         accessToken: String,
@@ -247,5 +280,8 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
         accessToken: String,
         userId: String,
         updatedAfter: Long?,
-    ): RemoteWorkspaceSnapshot = remoteSnapshot
+    ): RemoteWorkspaceSnapshot {
+        fetchCount += 1
+        return remoteSnapshot
+    }
 }

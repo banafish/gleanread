@@ -16,11 +16,14 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonObject
 
 class WorkspaceRealtimeSyncController(
     private val supabaseClient: SupabaseClient?,
@@ -88,13 +91,25 @@ class WorkspaceRealtimeSyncController(
         supabaseClient?.realtime?.setAuth(accessToken)
         val channel = supabaseClient?.channel("workspace-sync-$userId") ?: return
         try {
-            val changeFlows: List<Flow<PostgresAction>> = WorkspaceRealtimeTables.map { tableName ->
+            val changeFlows: List<Flow<WorkspaceRealtimeChange>> = WorkspaceRealtimeTables.map { tableName ->
                 channel.tableChangeFlow(tableName, userId)
             }
             coroutineScope {
                 val collectJob = launch {
-                    merge(*changeFlows.toTypedArray()).collectLatest {
-                        syncRepository.syncNow()
+                    merge(*changeFlows.toTypedArray()).collect { change ->
+                        val record = change.action.recordOrNull()
+                        if (record == null) {
+                            Log.d(TAG, "Realtime change ignored because payload has no record.")
+                            return@collect
+                        }
+                        runCatching {
+                            syncRepository.applyRealtimeChange(
+                                tableName = change.tableName,
+                                record = record,
+                            )
+                        }.onFailure { error ->
+                            Log.w(TAG, "Realtime change apply failed for ${change.tableName}.", error)
+                        }
                     }
                 }
                 try {
@@ -114,10 +129,25 @@ class WorkspaceRealtimeSyncController(
     private fun RealtimeChannel.tableChangeFlow(
         tableName: String,
         userId: String,
-    ): Flow<PostgresAction> = postgresChangeFlow<PostgresAction>(schema = "public") {
+    ): Flow<WorkspaceRealtimeChange> = postgresChangeFlow<PostgresAction>(schema = "public") {
         table = tableName
         filter("user_id", FilterOperator.EQ, userId)
+    }.map { action -> WorkspaceRealtimeChange(tableName, action) }
+
+    private fun PostgresAction.recordOrNull(): JsonObject? {
+        return when (this) {
+            is PostgresAction.Insert -> record
+            is PostgresAction.Update -> record
+            // The app syncs deletions as soft-delete updates, while physical DELETE payloads may only contain keys.
+            is PostgresAction.Delete -> null
+            is PostgresAction.Select -> record
+        }
     }
+
+    private data class WorkspaceRealtimeChange(
+        val tableName: String,
+        val action: PostgresAction,
+    )
 
     private data class RealtimeSession(
         val accessToken: String?,

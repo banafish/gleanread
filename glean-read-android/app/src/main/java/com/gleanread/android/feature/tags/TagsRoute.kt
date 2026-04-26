@@ -15,6 +15,8 @@ fun TagsRoute(
     onLongPressTag: (String) -> Unit,
     onToggleTagSelection: (String) -> Unit,
     onDismissDeleteDialog: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
 ) {
     val filteredTagGroups = remember(snapshot.tagGroups, uiState.searchQuery) {
@@ -41,6 +43,8 @@ fun TagsRoute(
         onLongPressTag = onLongPressTag,
         onToggleTagSelection = onToggleTagSelection,
         onDismissDeleteDialog = onDismissDeleteDialog,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         onConfirmDeleteDialog = onConfirmDeleteDialog,
     )
 }

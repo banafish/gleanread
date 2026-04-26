@@ -14,6 +14,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 
 class WorkspaceSyncRepository(
     private val database: WorkspaceDatabase,
@@ -71,6 +75,28 @@ class WorkspaceSyncRepository(
             }
         } finally {
             syncMutex.unlock()
+        }
+    }
+
+    suspend fun applyRealtimeChange(
+        tableName: String,
+        record: JsonObject,
+    ) {
+        syncMutex.withLock {
+            val now = System.currentTimeMillis()
+            database.withTransaction {
+                when (tableName) {
+                    REMOTE_TABLE_KNOWLEDGE_TREE_NODE -> applyRemoteNode(record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_TAGS -> applyRemoteTag(record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_EXCERPTS -> applyRemoteExcerpt(record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_EXCERPT_TAGS -> applyRemoteExcerptTag(record.decodeRealtimeRecord(), now)
+                    else -> return@withTransaction
+                }
+            }
+            _syncState.value = _syncState.value.copy(
+                lastSyncTime = now,
+                errorMessage = null,
+            )
         }
     }
 
@@ -243,6 +269,17 @@ class WorkspaceSyncRepository(
         )
     }
 
+    private suspend fun applyRemoteNode(remote: RemoteKnowledgeTreeNode, now: Long) {
+        val local = database.nodeDao().findNodeById(remote.id)
+        database.nodeDao().insertNode(
+            if (local != null && local.hasConflictWith(remote.updateTime)) {
+                resolveNodeConflict(local, remote, now)
+            } else {
+                remote.toEntity(SyncStatus.SYNCED, now)
+            },
+        )
+    }
+
     private suspend fun applyRemoteTags(remoteTags: List<RemoteTag>, now: Long) {
         if (remoteTags.isEmpty()) return
         val localById = database.tagDao().getAllTagsOnce().associateBy(TagEntity::id)
@@ -254,6 +291,17 @@ class WorkspaceSyncRepository(
                 } else {
                     remote.toEntity(SyncStatus.SYNCED, now)
                 }
+            },
+        )
+    }
+
+    private suspend fun applyRemoteTag(remote: RemoteTag, now: Long) {
+        val local = database.tagDao().findTagById(remote.id)
+        database.tagDao().insertTag(
+            if (local != null && local.hasConflictWith(remote.updateTime)) {
+                resolveTagConflict(local, remote, now)
+            } else {
+                remote.toEntity(SyncStatus.SYNCED, now)
             },
         )
     }
@@ -273,6 +321,17 @@ class WorkspaceSyncRepository(
         )
     }
 
+    private suspend fun applyRemoteExcerpt(remote: RemoteExcerpt, now: Long) {
+        val local = database.excerptDao().findExcerptById(remote.id)
+        database.excerptDao().insertExcerpt(
+            if (local != null && local.hasConflictWith(remote.updateTime)) {
+                resolveExcerptConflict(local, remote, now)
+            } else {
+                remote.toEntity(SyncStatus.SYNCED, now)
+            },
+        )
+    }
+
     private suspend fun applyRemoteExcerptTags(remoteRelations: List<RemoteExcerptTag>, now: Long) {
         if (remoteRelations.isEmpty()) return
         val localById = database.excerptTagDao().getAllExcerptTagsOnce().associateBy(ExcerptTagEntity::id)
@@ -285,6 +344,19 @@ class WorkspaceSyncRepository(
                     remote.toEntity(SyncStatus.SYNCED, now)
                 }
             },
+        )
+    }
+
+    private suspend fun applyRemoteExcerptTag(remote: RemoteExcerptTag, now: Long) {
+        val local = database.excerptTagDao().findExcerptTagById(remote.id)
+        database.excerptTagDao().insertExcerptTags(
+            listOf(
+                if (local != null && local.hasConflictWith(remote.updateTime)) {
+                    resolveExcerptTagConflict(local, remote, now)
+                } else {
+                    remote.toEntity(SyncStatus.SYNCED, now)
+                },
+            ),
         )
     }
 
@@ -394,6 +466,15 @@ sealed interface WorkspaceSyncResult {
 }
 
 private class WorkspaceSyncUploadException(message: String) : RuntimeException(message)
+
+private val RealtimeRecordJson = Json {
+    ignoreUnknownKeys = true
+    explicitNulls = false
+}
+
+private inline fun <reified T> JsonObject.decodeRealtimeRecord(): T {
+    return RealtimeRecordJson.decodeFromJsonElement(this)
+}
 
 private fun Throwable.toUploadFailureMessage(label: String): String {
     return "$label 同步失败：${message ?: "未知错误"}"

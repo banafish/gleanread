@@ -33,6 +33,9 @@ interface TagDao {
     @Update
     suspend fun updateTags(tags: List<TagEntity>)
 
+    @Query("SELECT * FROM tags WHERE id = :tagId LIMIT 1")
+    suspend fun findTagById(tagId: String): TagEntity?
+
     @Query("SELECT * FROM tags WHERE user_id = :userId AND tag_name = :tagName LIMIT 1")
     suspend fun findTagByName(userId: String, tagName: String): TagEntity?
 

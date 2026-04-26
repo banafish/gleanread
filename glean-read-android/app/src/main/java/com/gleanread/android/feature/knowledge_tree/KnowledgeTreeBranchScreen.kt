@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
 import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.model.WorkspaceSnapshot
+import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.BreadcrumbBar
 import com.gleanread.android.feature.knowledge_tree.component.BranchNodeItem
@@ -33,7 +35,6 @@ import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeBranchUiState
-import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun KnowledgeTreeBranchScreen(
@@ -56,6 +57,8 @@ fun KnowledgeTreeBranchScreen(
     onOpenMoveNodeSheet: (NodeActionTarget) -> Unit,
     onOpenRenameDialog: (NodeActionTarget) -> Unit,
     onOpenDeleteDialog: (NodeActionTarget) -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onOpenCurrentAddChildDialog: () -> Unit,
     nodeDialogState: NodeDialogUiState?,
     onNodeDialogValueChange: (String) -> Unit,
@@ -102,52 +105,56 @@ fun KnowledgeTreeBranchScreen(
             }
         },
     ) { innerPadding ->
-        if (showSearchResults) {
-            KnowledgeTreeSearchContent(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                snapshot = snapshot,
-                query = searchQuery,
-                recentQueries = recentQueries,
-                rootTitle = rootTitle,
-                onQueryChange = onSearchQueryChange,
-                onSearchSubmit = onSearchSubmit,
-                onOpenNode = onOpenNode,
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = KnowledgeTreeListContentPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                item {
-                    BreadcrumbBar(
-                        breadcrumbs = uiState.breadcrumbs,
-                        onNavigateToBreadcrumb = onOpenBreadcrumb,
-                    )
-                }
-                if (uiState.isEmpty) {
+        WorkspacePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+        ) {
+            if (showSearchResults) {
+                KnowledgeTreeSearchContent(
+                    modifier = Modifier.fillMaxSize(),
+                    snapshot = snapshot,
+                    query = searchQuery,
+                    recentQueries = recentQueries,
+                    rootTitle = rootTitle,
+                    onQueryChange = onSearchQueryChange,
+                    onSearchSubmit = onSearchSubmit,
+                    onOpenNode = onOpenNode,
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = KnowledgeTreeListContentPadding,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     item {
-                        Text(
-                            text = stringResource(R.string.knowledge_tree_branch_empty),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        BreadcrumbBar(
+                            breadcrumbs = uiState.breadcrumbs,
+                            onNavigateToBreadcrumb = onOpenBreadcrumb,
                         )
                     }
-                } else {
-                    items(uiState.items, key = { it.nodeId }) { node ->
-                        BranchNodeItem(
-                            node = node,
-                            onToggle = onToggleNode,
-                            onOpenDetail = onOpenNode,
-                            onOpenBranch = onOpenBranch,
-                            onAddChild = onOpenAddChildDialog,
-                            onMove = onOpenMoveNodeSheet,
-                            onRename = onOpenRenameDialog,
-                            onDelete = onOpenDeleteDialog,
-                        )
+                    if (uiState.isEmpty) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.knowledge_tree_branch_empty),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            )
+                        }
+                    } else {
+                        items(uiState.items, key = { it.nodeId }) { node ->
+                            BranchNodeItem(
+                                node = node,
+                                onToggle = onToggleNode,
+                                onOpenDetail = onOpenNode,
+                                onOpenBranch = onOpenBranch,
+                                onAddChild = onOpenAddChildDialog,
+                                onMove = onOpenMoveNodeSheet,
+                                onRename = onOpenRenameDialog,
+                                onDelete = onOpenDeleteDialog,
+                            )
+                        }
                     }
                 }
             }
@@ -228,6 +235,8 @@ private fun KnowledgeTreeBranchScreenPreview() {
             onOpenMoveNodeSheet = {},
             onOpenRenameDialog = {},
             onOpenDeleteDialog = {},
+            isRefreshing = false,
+            onRefresh = {},
             onOpenCurrentAddChildDialog = {},
             nodeDialogState = null,
             onNodeDialogValueChange = {},

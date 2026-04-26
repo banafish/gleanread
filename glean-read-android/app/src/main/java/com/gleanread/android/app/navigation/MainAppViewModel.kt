@@ -9,6 +9,8 @@ import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
 import com.gleanread.android.data.repository.SeedDataInitializer
 import com.gleanread.android.data.repository.TagRepository
+import com.gleanread.android.data.sync.WorkspaceSyncRepository
+import com.gleanread.android.data.sync.WorkspaceSyncUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,10 +21,12 @@ class MainAppViewModel(
     private val tagRepository: TagRepository,
     private val knowledgeTreeRepository: KnowledgeTreeRepository,
     private val seedDataInitializer: SeedDataInitializer,
+    private val syncRepository: WorkspaceSyncRepository,
     snapshotStore: AppSnapshotStore,
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(WorkspaceSnapshot.Empty)
     val snapshot: StateFlow<WorkspaceSnapshot> = _snapshot.asStateFlow()
+    val syncState: StateFlow<WorkspaceSyncUiState> = syncRepository.syncState
 
     init {
         viewModelScope.launch {
@@ -35,6 +39,12 @@ class MainAppViewModel(
     fun loadSampleData() {
         viewModelScope.launch {
             seedDataInitializer.seedSampleData()
+        }
+    }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            syncRepository.syncNow()
         }
     }
 

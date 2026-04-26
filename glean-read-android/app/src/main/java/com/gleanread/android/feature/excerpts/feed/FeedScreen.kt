@@ -49,6 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.gleanread.android.R
 import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
+import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
@@ -63,6 +64,8 @@ fun FeedScreen(
     onSearchQueryChange: (String) -> Unit,
     onClearSearch: () -> Unit,
     onToggleInboxFilter: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onOpenAiSummary: () -> Unit,
     onOpenExcerptAiSummary: (String) -> Unit,
     onDeleteExcerpt: (String) -> Unit,
@@ -97,49 +100,56 @@ fun FeedScreen(
             )
         }
 
-        LazyColumn(
+        WorkspacePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
             modifier = Modifier
                 .weight(1f)
-                .fillMaxSize()
-                .padding(horizontal = 16.dp),
-            contentPadding = PaddingValues(bottom = 16.dp),
+                .fillMaxSize(),
         ) {
-            item(key = "feed_selection_hint") {
-                FeedSelectionHint()
-                Spacer(Modifier.height(14.dp))
-            }
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentPadding = PaddingValues(bottom = 16.dp),
+            ) {
+                item(key = "feed_selection_hint") {
+                    FeedSelectionHint()
+                    Spacer(Modifier.height(14.dp))
+                }
 
-            items(
-                items = filteredExcerpts,
-                key = { it.id },
-                contentType = { "excerpt_card" },
-            ) { excerpt ->
-                ExcerptCard(
-                    excerpt = excerpt,
-                    isSelectionMode = isSelectionMode,
-                    isSelected = selectedExcerptIds.contains(excerpt.id),
-                    isActionsRevealed = revealedExcerptId == excerpt.id,
-                    onRevealActions = { onRevealExcerptActions(excerpt.id) },
-                    onDismissActions = { onDismissExcerptActions(excerpt.id) },
-                    onOpenAiSummary = { onOpenExcerptAiSummary(excerpt.id) },
-                    onDelete = { onDeleteExcerpt(excerpt.id) },
-                    onLongPress = { onLongPress(excerpt.id) },
-                    onClick = {
-                        if (isSelectionMode) {
-                            onToggleSelection(excerpt.id)
-                        } else {
-                            onOpenExcerpt(excerpt.id)
-                        }
-                    },
-                    onOpenNode = onOpenNode,
-                    onOpenExcerpt = onOpenExcerpt,
-                )
-                Spacer(Modifier.height(14.dp))
-            }
+                items(
+                    items = filteredExcerpts,
+                    key = { it.id },
+                    contentType = { "excerpt_card" },
+                ) { excerpt ->
+                    ExcerptCard(
+                        excerpt = excerpt,
+                        isSelectionMode = isSelectionMode,
+                        isSelected = selectedExcerptIds.contains(excerpt.id),
+                        isActionsRevealed = revealedExcerptId == excerpt.id,
+                        onRevealActions = { onRevealExcerptActions(excerpt.id) },
+                        onDismissActions = { onDismissExcerptActions(excerpt.id) },
+                        onOpenAiSummary = { onOpenExcerptAiSummary(excerpt.id) },
+                        onDelete = { onDeleteExcerpt(excerpt.id) },
+                        onLongPress = { onLongPress(excerpt.id) },
+                        onClick = {
+                            if (isSelectionMode) {
+                                onToggleSelection(excerpt.id)
+                            } else {
+                                onOpenExcerpt(excerpt.id)
+                            }
+                        },
+                        onOpenNode = onOpenNode,
+                        onOpenExcerpt = onOpenExcerpt,
+                    )
+                    Spacer(Modifier.height(14.dp))
+                }
 
-            item(key = "feed_ai_recommendation") {
-                AiRecommendationCard(onOpenAiSummary = onOpenAiSummary)
-                Spacer(Modifier.height(120.dp))
+                item(key = "feed_ai_recommendation") {
+                    AiRecommendationCard(onOpenAiSummary = onOpenAiSummary)
+                    Spacer(Modifier.height(120.dp))
+                }
             }
         }
     }
@@ -333,6 +343,8 @@ private fun FeedScreenPreview() {
             onSearchQueryChange = {},
             onClearSearch = {},
             onToggleInboxFilter = {},
+            isRefreshing = false,
+            onRefresh = {},
             onOpenAiSummary = {},
             onOpenExcerptAiSummary = {},
             onDeleteExcerpt = {},

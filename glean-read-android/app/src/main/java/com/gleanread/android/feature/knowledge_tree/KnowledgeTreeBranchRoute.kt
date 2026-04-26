@@ -23,6 +23,8 @@ fun KnowledgeTreeBranchRoute(
     onMoveNode: (String, String?, () -> Unit) -> Unit,
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     val controller = rememberKnowledgeTreeRouteController(routeKey = nodeId)
 
@@ -72,6 +74,8 @@ fun KnowledgeTreeBranchRoute(
                 countKnowledgeTreeDescendants(snapshot, target.nodeId),
             )
         },
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         onOpenCurrentAddChildDialog = {
             controller.openAddChildDialog(uiState.actionTarget)
         },

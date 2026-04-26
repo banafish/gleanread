@@ -18,6 +18,8 @@ fun FeedRoute(
     onLongPress: (String) -> Unit,
     onToggleSelection: (String) -> Unit,
     onLoadSample: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onStartRecording: () -> Unit,
     onOpenNode: (String) -> Unit,
     onOpenExcerpt: (String) -> Unit,
@@ -26,6 +28,8 @@ fun FeedRoute(
         FeedEmptyState(
             onLoadSample = onLoadSample,
             onStartRecording = onStartRecording,
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
         )
         return
     }
@@ -68,6 +72,8 @@ fun FeedRoute(
             revealedExcerptId = null
             showInboxOnly = !showInboxOnly
         },
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         onOpenAiSummary = onOpenAiSummary,
         onOpenExcerptAiSummary = { excerptId ->
             revealedExcerptId = null

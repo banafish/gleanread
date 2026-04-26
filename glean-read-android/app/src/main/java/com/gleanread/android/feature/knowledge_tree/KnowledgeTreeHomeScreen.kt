@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
 import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.model.WorkspaceSnapshot
+import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.DeleteNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeEmptyState
@@ -32,7 +34,6 @@ import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeHomeUiState
-import com.gleanread.android.core.ui.theme.GleanReadTheme
 
 @Composable
 fun KnowledgeTreeHomeScreen(
@@ -54,6 +55,8 @@ fun KnowledgeTreeHomeScreen(
     onOpenMoveNodeSheet: (NodeActionTarget) -> Unit,
     onOpenRenameDialog: (NodeActionTarget) -> Unit,
     onOpenDeleteDialog: (NodeActionTarget) -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     nodeDialogState: NodeDialogUiState?,
     onNodeDialogValueChange: (String) -> Unit,
     onDismissNodeDialog: () -> Unit,
@@ -99,43 +102,47 @@ fun KnowledgeTreeHomeScreen(
             }
         },
     ) { innerPadding ->
-        if (showSearchResults) {
-            KnowledgeTreeSearchContent(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize(),
-                snapshot = snapshot,
-                query = searchQuery,
-                recentQueries = recentQueries,
-                rootTitle = rootTitle,
-                onQueryChange = onSearchQueryChange,
-                onSearchSubmit = onSearchSubmit,
-                onOpenNode = onOpenNode,
-            )
-        } else if (uiState.isEmpty) {
-            KnowledgeTreeEmptyState(
-                onAddRootNode = onOpenAddRootDialog,
-                modifier = Modifier.padding(innerPadding),
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = KnowledgeTreeListContentPadding,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(uiState.rootCards, key = { it.nodeId }) { card ->
-                    RootNodeCard(
-                        card = card,
-                        onToggle = onToggleNode,
-                        onOpenDetail = onOpenNode,
-                        onOpenBranch = onOpenBranch,
-                        onAddChild = onOpenAddChildDialog,
-                        onMove = onOpenMoveNodeSheet,
-                        onRename = onOpenRenameDialog,
-                        onDelete = onOpenDeleteDialog,
-                    )
+        WorkspacePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+        ) {
+            if (showSearchResults) {
+                KnowledgeTreeSearchContent(
+                    modifier = Modifier.fillMaxSize(),
+                    snapshot = snapshot,
+                    query = searchQuery,
+                    recentQueries = recentQueries,
+                    rootTitle = rootTitle,
+                    onQueryChange = onSearchQueryChange,
+                    onSearchSubmit = onSearchSubmit,
+                    onOpenNode = onOpenNode,
+                )
+            } else if (uiState.isEmpty) {
+                KnowledgeTreeEmptyState(
+                    onAddRootNode = onOpenAddRootDialog,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = KnowledgeTreeListContentPadding,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    items(uiState.rootCards, key = { it.nodeId }) { card ->
+                        RootNodeCard(
+                            card = card,
+                            onToggle = onToggleNode,
+                            onOpenDetail = onOpenNode,
+                            onOpenBranch = onOpenBranch,
+                            onAddChild = onOpenAddChildDialog,
+                            onMove = onOpenMoveNodeSheet,
+                            onRename = onOpenRenameDialog,
+                            onDelete = onOpenDeleteDialog,
+                        )
+                    }
                 }
             }
         }
@@ -208,6 +215,8 @@ private fun KnowledgeTreeHomeScreenPreview() {
             onOpenMoveNodeSheet = {},
             onOpenRenameDialog = {},
             onOpenDeleteDialog = {},
+            isRefreshing = false,
+            onRefresh = {},
             nodeDialogState = null,
             onNodeDialogValueChange = {},
             onDismissNodeDialog = {},

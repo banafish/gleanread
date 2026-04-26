@@ -62,6 +62,7 @@ import com.gleanread.android.R
 import com.gleanread.android.core.model.TagGroupUiModel
 import com.gleanread.android.core.model.TagUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
+import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.feature.tags.component.DeleteTagsDialog
 import com.gleanread.android.feature.tags.component.TagsSearchTopBar
@@ -89,6 +90,8 @@ fun TagsScreen(
     onLongPressTag: (String) -> Unit,
     onToggleTagSelection: (String) -> Unit,
     onDismissDeleteDialog: () -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -109,28 +112,30 @@ fun TagsScreen(
             }
         },
     ) { innerPadding ->
-        if (tagGroups.isEmpty() && searchQuery.isNotBlank()) {
-            TagsSearchEmptyState(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = TagsContentPadding,
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                items(tagGroups, key = { it.folder }) { group ->
-                    TagGroupCard(
-                        group = group,
-                        selectedTagIds = selectedTagIds,
-                        isSelectionMode = isSelectionMode,
-                        onLongPressTag = onLongPressTag,
-                        onToggleTagSelection = onToggleTagSelection,
-                    )
+        WorkspacePullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize(),
+        ) {
+            if (tagGroups.isEmpty() && searchQuery.isNotBlank()) {
+                TagsSearchEmptyState(modifier = Modifier.fillMaxSize())
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = TagsContentPadding,
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    items(tagGroups, key = { it.folder }) { group ->
+                        TagGroupCard(
+                            group = group,
+                            selectedTagIds = selectedTagIds,
+                            isSelectionMode = isSelectionMode,
+                            onLongPressTag = onLongPressTag,
+                            onToggleTagSelection = onToggleTagSelection,
+                        )
+                    }
                 }
             }
         }
@@ -451,6 +456,8 @@ private fun TagsScreenPreview() {
             onLongPressTag = {},
             onToggleTagSelection = {},
             onDismissDeleteDialog = {},
+            isRefreshing = false,
+            onRefresh = {},
             onConfirmDeleteDialog = {},
         )
     }

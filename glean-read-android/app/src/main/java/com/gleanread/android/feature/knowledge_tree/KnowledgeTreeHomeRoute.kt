@@ -18,6 +18,8 @@ fun KnowledgeTreeHomeRoute(
     onMoveNode: (String, String?, () -> Unit) -> Unit,
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
 ) {
     val controller = rememberKnowledgeTreeRouteController(routeKey = "knowledge_tree_home")
 
@@ -62,6 +64,8 @@ fun KnowledgeTreeHomeRoute(
                 countKnowledgeTreeDescendants(snapshot, target.nodeId),
             )
         },
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
         nodeDialogState = controller.nodeDialogState,
         onNodeDialogValueChange = controller.updateNodeDialogValue,
         onDismissNodeDialog = controller.dismissNodeDialog,
