@@ -87,30 +87,21 @@ class WorkspaceRealtimeSyncController(
     private suspend fun subscribeForCurrentUser(accessToken: String, userId: String) {
         supabaseClient?.realtime?.setAuth(accessToken)
         val channel = supabaseClient?.channel("workspace-sync-$userId") ?: return
-        Log.d(TAG, "Subscribing workspace realtime changes for userId=$userId.")
         try {
             val changeFlows: List<Flow<PostgresAction>> = WorkspaceRealtimeTables.map { tableName ->
                 channel.tableChangeFlow(tableName, userId)
             }
             coroutineScope {
-                val statusJob = launch {
-                    channel.status.collect { status ->
-                        Log.d(TAG, "Realtime channel status=$status for userId=$userId.")
-                    }
-                }
                 val collectJob = launch {
                     merge(*changeFlows.toTypedArray()).collectLatest {
-                        Log.d(TAG, "Workspace realtime change received for userId=$userId.")
                         syncRepository.syncNow()
                     }
                 }
                 try {
                     supabaseClient.realtime.connect()
                     channel.subscribe(blockUntilSubscribed = true)
-                    Log.d(TAG, "Workspace realtime channel subscribed for userId=$userId.")
                     collectJob.join()
                 } finally {
-                    statusJob.cancel()
                     collectJob.cancel()
                 }
             }

@@ -65,14 +65,6 @@ fun KnowledgeTreeTopBar(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (showTreeIcon) {
-                    Icon(
-                        imageVector = Icons.Default.AccountTree,
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                    )
-                    Spacer(Modifier.width(8.dp))
-                }
                 Text(
                     text = title,
                     style = MaterialTheme.typography.headlineSmall,
