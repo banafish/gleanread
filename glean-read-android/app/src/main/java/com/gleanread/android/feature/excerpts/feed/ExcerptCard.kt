@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -155,8 +156,7 @@ internal fun ExcerptCard(
 
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .clip(EXCERPT_CARD_SHAPE),
+            .fillMaxWidth(),
     ) {
         ExcerptCardActions(
             onOpenAiSummary = onOpenAiSummary,
@@ -243,16 +243,30 @@ private fun ExcerptCardSurface(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = EXCERPT_CARD_ELEVATION,
+                shape = EXCERPT_CARD_SHAPE,
+                clip = false,
+            )
+            .clip(EXCERPT_CARD_SHAPE)
             .combinedClickable(onClick = onClick, onLongClick = onLongPress),
         shape = EXCERPT_CARD_SHAPE,
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
                 MaterialTheme.colorScheme.primaryContainer
             } else {
-                MaterialTheme.colorScheme.surfaceVariant
+                MaterialTheme.colorScheme.surfaceContainer
             },
         ),
-        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 0.dp,
+            pressedElevation = 0.dp,
+        ),
+        border = if (isSelected) {
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        } else {
+            null
+        },
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -327,7 +341,11 @@ private fun ExcerptCardSurface(
                 Spacer(Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
                 ) {
                     Box(modifier = Modifier.padding(12.dp)) {
                         ExcerptCardPreviewText(
@@ -621,7 +639,8 @@ private fun excerptCreateTimeLabel(
 }
 
 private const val ONE_HOUR_MILLIS = 60 * 60 * 1000L
-private val EXCERPT_CARD_SHAPE = RoundedCornerShape(24.dp)
+private val EXCERPT_CARD_SHAPE = RoundedCornerShape(32.dp)
+private val EXCERPT_CARD_ELEVATION = 2.dp
 private val EXCERPT_CARD_ACTION_BUTTON_SIZE = 50.dp
 private val EXCERPT_CARD_ACTION_ICON_SIZE = 26.dp
 private val EXCERPT_CARD_ACTION_AREA_WIDTH = 128.dp
