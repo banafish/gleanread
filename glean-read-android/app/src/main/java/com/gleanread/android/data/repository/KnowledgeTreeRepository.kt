@@ -171,12 +171,10 @@ class KnowledgeTreeRepository(
         database.withTransaction {
             val targetNode = nodeDao.findNodeById(nodeId) ?: return@withTransaction
 
-            val siblings = nodeDao.getSiblingsOnce(targetNode.parentId)
-                .filter { it.id != nodeId }
-            val newSortOrder = calculateSortOrderBetween(
-                prevSortOrder = siblings.getOrNull(targetIndex - 1)?.sortOrder,
-                nextSortOrder = siblings.getOrNull(targetIndex)?.sortOrder,
+            val newSortOrder = calculateSortOrderAt(
+                targetIndex = targetIndex,
                 parentId = targetNode.parentId,
+                excludeNodeId = nodeId,
             )
 
             val now = System.currentTimeMillis()
@@ -303,15 +301,21 @@ class KnowledgeTreeRepository(
     }
 
     /**
-     * 计算插入到两个兄弟节点之间的排序值。
+     * 计算插入到目标索引的排序值。
      * 如果前后节点都为 null，则追加到末尾。
      * 间隔不足时触发局部重排。
      */
-    private suspend fun calculateSortOrderBetween(
-        prevSortOrder: Long?,
-        nextSortOrder: Long?,
+    private suspend fun calculateSortOrderAt(
+        targetIndex: Int,
         parentId: String?,
+        excludeNodeId: String? = null,
     ): Long {
+        val siblings = nodeDao.getSiblingsOnce(parentId).let { list ->
+            if (excludeNodeId != null) list.filter { it.id != excludeNodeId } else list
+        }
+        val prevSortOrder = siblings.getOrNull(targetIndex - 1)?.sortOrder
+        val nextSortOrder = siblings.getOrNull(targetIndex)?.sortOrder
+
         // 无前后兄弟，追加到末尾
         if (prevSortOrder == null && nextSortOrder == null) {
             return calculateSortOrderForAppend(parentId)
@@ -321,7 +325,7 @@ class KnowledgeTreeRepository(
             val newOrder = nextSortOrder!! - SORT_ORDER_GAP
             if (newOrder <= Long.MIN_VALUE + 1) {
                 rebalanceSiblings(parentId)
-                return calculateSortOrderBetween(null, nodeDao.getSiblingsOnce(parentId).firstOrNull()?.sortOrder, parentId)
+                return calculateSortOrderAt(targetIndex, parentId, excludeNodeId)
             }
             return newOrder
         }
@@ -333,14 +337,7 @@ class KnowledgeTreeRepository(
         val mid = (prevSortOrder + nextSortOrder) / 2
         if (mid <= prevSortOrder + 1 || mid >= nextSortOrder - 1) {
             rebalanceSiblings(parentId)
-            val siblings = nodeDao.getSiblingsOnce(parentId)
-            val prevIndex = siblings.indexOfFirst { it.sortOrder == prevSortOrder }
-            val nextIndex = siblings.indexOfFirst { it.sortOrder == nextSortOrder }
-            return calculateSortOrderBetween(
-                siblings.getOrNull(prevIndex)?.sortOrder,
-                siblings.getOrNull(nextIndex)?.sortOrder,
-                parentId,
-            )
+            return calculateSortOrderAt(targetIndex, parentId, excludeNodeId)
         }
         return mid
     }

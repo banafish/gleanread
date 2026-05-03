@@ -58,7 +58,6 @@ fun calculateDropTarget(
             val adjustedIndex = if (draggedNodeIndex < targetIndex) targetIndex - 1 else targetIndex
             return DropTargetInfo(
                 targetIndex = adjustedIndex.coerceIn(0, nodeIds.size - 1),
-                isBeforeTarget = true,
             )
         }
     }
@@ -69,7 +68,6 @@ fun calculateDropTarget(
     val adjustedIndex = if (draggedNodeIndex < targetIndex) targetIndex - 1 else targetIndex
     return DropTargetInfo(
         targetIndex = adjustedIndex.coerceIn(0, nodeIds.size - 1),
-        isBeforeTarget = false,
     )
 }
 

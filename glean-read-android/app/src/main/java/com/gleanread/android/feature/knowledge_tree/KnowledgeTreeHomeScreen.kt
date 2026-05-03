@@ -9,12 +9,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -39,16 +36,13 @@ import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.RootNodeCard
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.DropTargetInfo
-import com.gleanread.android.feature.knowledge_tree.model.DRAG_AUTO_SCROLL_SPEED
-import com.gleanread.android.feature.knowledge_tree.model.DRAG_AUTO_SCROLL_ZONE
-import com.gleanread.android.feature.knowledge_tree.model.calculateDropTarget
-import com.gleanread.android.feature.knowledge_tree.model.calculateItemDisplacements
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeHomeUiState
 import com.gleanread.android.feature.knowledge_tree.model.MoveNodeSheetUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeHomeUiState
+import com.gleanread.android.feature.knowledge_tree.model.rememberDragSortState
 
 @Composable
 fun KnowledgeTreeHomeScreen(
@@ -94,87 +88,14 @@ fun KnowledgeTreeHomeScreen(
     val lazyListState = rememberLazyListState()
     val nodeIds = remember(uiState.rootCards) { uiState.rootCards.map { it.nodeId } }
 
-    var localDraggedNodeId by remember { mutableStateOf<String?>(null) }
-    var localDragOffsetY by remember { mutableFloatStateOf(0f) }
-    var localDropTarget by remember { mutableStateOf<DropTargetInfo?>(null) }
-    val currentDragOffsetY by rememberUpdatedState(localDragOffsetY)
-
-    // 根据被拖拽节点的视觉位置自动滚动
-    LaunchedEffect(localDraggedNodeId) {
-        if (localDraggedNodeId == null) return@LaunchedEffect
-        while (localDraggedNodeId != null) {
-            val dragNodeId = localDraggedNodeId ?: break
-            val dragOffsetY = currentDragOffsetY
-            val draggedIndex = nodeIds.indexOf(dragNodeId)
-            if (draggedIndex < 0) break
-
-            val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
-                .firstOrNull { it.index == draggedIndex }
-            if (draggedItemInfo != null) {
-                // 被拖拽节点在 LazyList 中的视觉顶部 Y
-                val visualTop = draggedItemInfo.offset + dragOffsetY
-                val visualBottom = visualTop + draggedItemInfo.size
-
-                val scrollAmount = when {
-                    visualTop < DRAG_AUTO_SCROLL_ZONE ->
-                        -DRAG_AUTO_SCROLL_SPEED * (1f - visualTop / DRAG_AUTO_SCROLL_ZONE).coerceIn(0f, 1f)
-                    visualBottom > lazyListState.layoutInfo.viewportSize.height - DRAG_AUTO_SCROLL_ZONE ->
-                        DRAG_AUTO_SCROLL_SPEED * (1f - (lazyListState.layoutInfo.viewportSize.height - visualBottom) / DRAG_AUTO_SCROLL_ZONE).coerceIn(0f, 1f)
-                    else -> 0f
-                }
-                if (scrollAmount != 0f) {
-                    lazyListState.scroll { scrollBy(scrollAmount / 60f) }
-                }
-            }
-            kotlinx.coroutines.delay(16)
-        }
-    }
-
-    // 计算每个非拖拽节点的视觉位移量
-    val itemDisplacements = remember(localDraggedNodeId, localDragOffsetY) {
-        if (localDraggedNodeId != null) {
-            calculateItemDisplacements(
-                listState = lazyListState,
-                draggedNodeId = localDraggedNodeId,
-                nodeIds = nodeIds,
-                dragOffsetY = localDragOffsetY,
-            )
-        } else {
-            emptyMap()
-        }
-    }
-
-    val handleDragMove: (Offset) -> Unit = { offset ->
-        localDragOffsetY += offset.y
-        val dropTarget = calculateDropTarget(
-            listState = lazyListState,
-            draggedNodeId = localDraggedNodeId,
-            nodeIds = nodeIds,
-            dragOffsetY = localDragOffsetY,
-        )
-        localDropTarget = dropTarget
-    }
-
-    val handleDragStart: (String) -> Unit = { nodeId ->
-        localDraggedNodeId = nodeId
-        localDragOffsetY = 0f
-        localDropTarget = null
-        onNodeDragStart(nodeId)
-    }
-
-    val handleDragEnd: () -> Unit = {
-        onNodeDragEnd(localDraggedNodeId, localDropTarget)
-        localDraggedNodeId = null
-        localDragOffsetY = 0f
-        localDropTarget = null
-    }
-
-    val handleDragCancel: () -> Unit = {
-        onNodeDragCancel()
-        localDraggedNodeId = null
-        localDragOffsetY = 0f
-        localDropTarget = null
-    }
+    val dragSortState = rememberDragSortState(
+        lazyListState = lazyListState,
+        nodeIds = nodeIds,
+        onNodeDragStart = onNodeDragStart,
+        onNodeDragEnd = onNodeDragEnd,
+        onNodeDragCancel = onNodeDragCancel,
+        firstNodeItemIndex = 0,
+    )
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -236,23 +157,23 @@ fun KnowledgeTreeHomeScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.rootCards, key = { it.nodeId }) { card ->
-                        val isCardDragging = localDraggedNodeId == card.nodeId
+                        val isCardDragging = dragSortState.isDragging(card.nodeId)
                         RootNodeCard(
                             card = card,
-                            onToggle = if (localDraggedNodeId != null) { {} } else onToggleNode,
-                            onOpenDetail = if (localDraggedNodeId != null) { {} } else onOpenNode,
-                            onOpenBranch = if (localDraggedNodeId != null) { {} } else onOpenBranch,
+                            onToggle = if (dragSortState.draggedNodeId != null) { {} } else onToggleNode,
+                            onOpenDetail = if (dragSortState.draggedNodeId != null) { {} } else onOpenNode,
+                            onOpenBranch = if (dragSortState.draggedNodeId != null) { {} } else onOpenBranch,
                             onAddChild = onOpenAddChildDialog,
                             onMove = onOpenMoveNodeSheet,
                             onRename = onOpenRenameDialog,
                             onDelete = onOpenDeleteDialog,
-                            onDragStart = { handleDragStart(card.nodeId) },
-                            onDragMove = { handleDragMove(it) },
-                            onDragEnd = handleDragEnd,
-                            onDragCancel = handleDragCancel,
+                            onDragStart = { _ -> dragSortState.onDragStart(card.nodeId) },
+                            onDragMove = dragSortState.onDragMove,
+                            onDragEnd = dragSortState.onDragEnd,
+                            onDragCancel = dragSortState.onDragCancel,
                             isDragging = isCardDragging,
-                            itemDisplacement = itemDisplacements[card.nodeId] ?: 0f,
-                            dragOffsetY = if (isCardDragging) localDragOffsetY else 0f,
+                            itemDisplacement = dragSortState.itemDisplacement(card.nodeId),
+                            dragOffsetY = if (isCardDragging) dragSortState.dragOffsetY else 0f,
                             modifier = Modifier.zIndex(if (isCardDragging) 1f else 0f),
                         )
                     }
