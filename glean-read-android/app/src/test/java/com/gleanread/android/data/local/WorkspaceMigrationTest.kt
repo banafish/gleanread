@@ -40,7 +40,7 @@ class WorkspaceMigrationTest {
             WorkspaceDatabase::class.java,
             TEST_DATABASE,
         )
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .allowMainThreadQueries()
             .build()
 
@@ -49,6 +49,26 @@ class WorkspaceMigrationTest {
         assertEquals("摘录正文", saved?.content)
         assertEquals(SyncStatus.PENDING_UPDATE, saved?.syncStatus)
         assertNotNull(saved)
+        database.close()
+    }
+
+    @Test
+    fun `migration 2 to 3 adds sort_order column with default 0`() = runBlocking {
+        createVersionTwoDatabase()
+
+        val database = Room.databaseBuilder(
+            context,
+            WorkspaceDatabase::class.java,
+            TEST_DATABASE,
+        )
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .allowMainThreadQueries()
+            .build()
+
+        val node = database.nodeDao().findNodeById("node-migration-test")
+        assertNotNull(node)
+        assertEquals(0L, node?.sortOrder)
+        assertEquals("迁移测试节点", node?.nodeTitle)
         database.close()
     }
 
@@ -148,6 +168,134 @@ class WorkspaceMigrationTest {
             )
             """.trimIndent(),
         )
+    }
+
+    private fun createVersionTwoSchema(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE knowledge_tree_node (
+                id TEXT NOT NULL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                parent_id TEXT,
+                node_title TEXT NOT NULL,
+                outline_markdown TEXT,
+                create_time INTEGER NOT NULL,
+                update_time INTEGER NOT NULL,
+                is_deleted INTEGER NOT NULL,
+                device_id TEXT,
+                sync_status TEXT NOT NULL,
+                last_sync_time INTEGER,
+                sync_error TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                local_dirty_time INTEGER
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX index_knowledge_tree_node_user_id ON knowledge_tree_node(user_id)")
+        db.execSQL("CREATE INDEX index_knowledge_tree_node_parent_id ON knowledge_tree_node(parent_id)")
+        db.execSQL(
+            """
+            CREATE TABLE tags (
+                id TEXT NOT NULL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                tag_name TEXT NOT NULL,
+                color_icon TEXT,
+                heat_weight INTEGER NOT NULL,
+                create_time INTEGER NOT NULL,
+                update_time INTEGER NOT NULL,
+                is_deleted INTEGER NOT NULL,
+                device_id TEXT,
+                sync_status TEXT NOT NULL,
+                last_sync_time INTEGER,
+                sync_error TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                local_dirty_time INTEGER
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE UNIQUE INDEX index_tags_user_id_tag_name ON tags(user_id, tag_name)")
+        db.execSQL("CREATE INDEX index_tags_heat_weight ON tags(heat_weight)")
+        db.execSQL(
+            """
+            CREATE TABLE excerpts (
+                id TEXT NOT NULL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                url TEXT,
+                source_title TEXT,
+                user_thought TEXT,
+                tree_node_id TEXT,
+                create_time INTEGER NOT NULL,
+                update_time INTEGER NOT NULL,
+                is_deleted INTEGER NOT NULL,
+                device_id TEXT,
+                sync_status TEXT NOT NULL,
+                last_sync_time INTEGER,
+                sync_error TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                local_dirty_time INTEGER
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE INDEX index_excerpts_user_id ON excerpts(user_id)")
+        db.execSQL("CREATE INDEX index_excerpts_tree_node_id ON excerpts(tree_node_id)")
+        db.execSQL("CREATE INDEX index_excerpts_create_time ON excerpts(create_time)")
+        db.execSQL(
+            """
+            CREATE TABLE excerpt_tags (
+                id TEXT NOT NULL PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                excerpt_id TEXT NOT NULL,
+                tag_id TEXT NOT NULL,
+                create_time INTEGER NOT NULL,
+                update_time INTEGER NOT NULL,
+                is_deleted INTEGER NOT NULL,
+                device_id TEXT,
+                sync_status TEXT NOT NULL,
+                last_sync_time INTEGER,
+                sync_error TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                local_dirty_time INTEGER
+            )
+            """.trimIndent(),
+        )
+        db.execSQL("CREATE UNIQUE INDEX index_excerpt_tags_excerpt_id_tag_id ON excerpt_tags(excerpt_id, tag_id)")
+        db.execSQL("CREATE INDEX index_excerpt_tags_excerpt_id ON excerpt_tags(excerpt_id)")
+        db.execSQL("CREATE INDEX index_excerpt_tags_tag_id ON excerpt_tags(tag_id)")
+    }
+
+    private fun createVersionTwoDatabase() {
+        val helper = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(TEST_DATABASE)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(2) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            createVersionTwoSchema(db)
+                            db.execSQL(
+                                """
+                                INSERT INTO knowledge_tree_node (
+                                    id, user_id, parent_id, node_title, outline_markdown,
+                                    create_time, update_time, is_deleted, sync_status
+                                ) VALUES (
+                                    'node-migration-test', 'local-user', NULL, '迁移测试节点', NULL,
+                                    100, 200, 0, 'SYNCED'
+                                )
+                                """.trimIndent(),
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int,
+                        ) = Unit
+                    },
+                )
+                .build(),
+        )
+        helper.writableDatabase.close()
+        helper.close()
     }
 
     private companion object {

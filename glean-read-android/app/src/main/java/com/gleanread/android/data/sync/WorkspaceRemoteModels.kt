@@ -26,6 +26,7 @@ data class RemoteKnowledgeTreeNode(
     @SerialName("update_time") val updateTime: Long,
     @SerialName("is_deleted") val isDeleted: Boolean,
     @SerialName("device_id") val deviceId: String?,
+    @SerialName("sort_order") val sortOrder: Long? = 0,
 )
 
 @Serializable
@@ -79,6 +80,7 @@ fun KnowledgeTreeNodeEntity.toRemote(): RemoteKnowledgeTreeNode {
         updateTime = updateTime,
         isDeleted = isDeleted,
         deviceId = deviceId,
+        sortOrder = sortOrder,
     )
 }
 
@@ -141,6 +143,7 @@ fun RemoteKnowledgeTreeNode.toEntity(
         deviceId = deviceId,
         syncStatus = syncStatus,
         lastSyncTime = lastSyncTime,
+        sortOrder = sortOrder ?: 0,
     )
 }
 

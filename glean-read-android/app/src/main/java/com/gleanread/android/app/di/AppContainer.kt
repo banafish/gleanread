@@ -7,6 +7,7 @@ import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.auth.SupabaseSessionRefresher
 import com.gleanread.android.data.auth.SupabaseSessionStore
 import com.gleanread.android.data.local.MIGRATION_1_2
+import com.gleanread.android.data.local.MIGRATION_2_3
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.core.data.AppSnapshotStore
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -44,7 +45,7 @@ class AppContainer(
             appContext,
             WorkspaceDatabase::class.java,
             "glean_workspace.db",
-        ).addMigrations(MIGRATION_1_2).build()
+        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
     }
 
     private val deviceIdentityStore: DeviceIdentityStore by lazy {

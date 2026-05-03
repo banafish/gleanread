@@ -147,6 +147,12 @@ class MainAppViewModel(
         }
     }
 
+    fun moveNodeToPosition(nodeId: String, targetIndex: Int) {
+        viewModelScope.launch {
+            knowledgeTreeRepository.moveNodeToPosition(nodeId, targetIndex)
+        }
+    }
+
     fun deleteNodeSubtree(nodeId: String, onDeleted: () -> Unit = {}) {
         viewModelScope.launch {
             knowledgeTreeRepository.deleteNodeSubtree(nodeId)

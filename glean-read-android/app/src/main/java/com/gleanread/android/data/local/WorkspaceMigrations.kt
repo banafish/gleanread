@@ -189,3 +189,9 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         """.trimIndent()
     }
 }
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE knowledge_tree_node ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+    }
+}

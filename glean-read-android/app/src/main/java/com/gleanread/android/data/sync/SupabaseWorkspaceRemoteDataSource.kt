@@ -118,6 +118,7 @@ private val SupabaseRemoteJson = Json {
 private val SupabaseUpsertJson = Json {
     ignoreUnknownKeys = true
     explicitNulls = true
+    encodeDefaults = true
 }
 
 private suspend fun HttpResponse.ensureSuccess(tableName: String) {

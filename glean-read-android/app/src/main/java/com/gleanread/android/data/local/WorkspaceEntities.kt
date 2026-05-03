@@ -25,6 +25,7 @@ data class KnowledgeTreeNodeEntity(
     @ColumnInfo(name = "sync_error") val syncError: String? = null,
     @ColumnInfo(name = "retry_count") val retryCount: Int = 0,
     @ColumnInfo(name = "local_dirty_time") val localDirtyTime: Long? = null,
+    @ColumnInfo(name = "sort_order") val sortOrder: Long = 0,
 )
 
 @Entity(

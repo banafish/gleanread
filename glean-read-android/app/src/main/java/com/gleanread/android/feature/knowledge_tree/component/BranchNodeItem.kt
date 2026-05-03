@@ -10,9 +10,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -33,13 +37,40 @@ fun BranchNodeItem(
     onMove: (NodeActionTarget) -> Unit,
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
+    onDragStart: ((Offset) -> Unit)? = null,
+    onDragMove: ((Offset) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
+    onDragCancel: (() -> Unit)? = null,
+    isDragging: Boolean = false,
+    dragOffsetY: Float = 0f,
 ) {
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isDragging) 1.03f else 1f,
+        label = "dragScale",
+    )
+
     if (node.depth == 1) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    scaleX = animatedScale
+                    scaleY = animatedScale
+                    translationY = if (isDragging) dragOffsetY else 0f
+                }
+                .draggableNode(
+                    onDragStart = { onDragStart?.invoke(it) },
+                    onDragMove = { onDragMove?.invoke(it) },
+                    onDragEnd = { onDragEnd?.invoke() },
+                    onDragCancel = { onDragCancel?.invoke() },
+                    enabled = onDragStart != null,
+                ),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = if (isDragging) 8.dp else 1.dp,
             ),
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -72,6 +103,10 @@ fun BranchNodeItem(
                                 onMove = onMove,
                                 onRename = onRename,
                                 onDelete = onDelete,
+                                onDragStart = onDragStart,
+                                onDragMove = onDragMove,
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragCancel,
                             )
                         }
                     }
@@ -84,7 +119,19 @@ fun BranchNodeItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = ((node.depth - 1) * 16).dp),
+            .padding(start = ((node.depth - 1) * 16).dp)
+            .graphicsLayer {
+                scaleX = animatedScale
+                scaleY = animatedScale
+                translationY = if (isDragging) dragOffsetY else 0f
+            }
+            .draggableNode(
+                onDragStart = { onDragStart?.invoke(it) },
+                onDragMove = { onDragMove?.invoke(it) },
+                onDragEnd = { onDragEnd?.invoke() },
+                onDragCancel = { onDragCancel?.invoke() },
+                enabled = onDragStart != null,
+            ),
     ) {
         BranchNodeRow(
             node = node,
@@ -109,6 +156,10 @@ fun BranchNodeItem(
                     onMove = onMove,
                     onRename = onRename,
                     onDelete = onDelete,
+                    onDragStart = onDragStart,
+                    onDragMove = onDragMove,
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel,
                 )
             }
         }

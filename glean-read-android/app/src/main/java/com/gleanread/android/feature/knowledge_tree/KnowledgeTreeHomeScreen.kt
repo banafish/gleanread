@@ -5,10 +5,17 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -28,6 +35,8 @@ import com.gleanread.android.feature.knowledge_tree.component.MoveNodeBottomShee
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.RootNodeCard
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
+import com.gleanread.android.feature.knowledge_tree.model.DropTargetInfo
+import com.gleanread.android.feature.knowledge_tree.model.calculateDropTarget
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeHomeUiState
 import com.gleanread.android.feature.knowledge_tree.model.MoveNodeSheetUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
@@ -69,9 +78,52 @@ fun KnowledgeTreeHomeScreen(
     onMoveNodeSheetNavigate: (String?) -> Unit,
     onOpenMoveNodeCreateDialog: () -> Unit,
     onConfirmMoveNodeSheet: () -> Unit,
+    isDragging: Boolean = false,
+    onNodeDragStart: (String) -> Unit = {},
+    onNodeDragEnd: (String?, DropTargetInfo?) -> Unit = { _, _ -> },
+    onNodeDragCancel: () -> Unit = {},
 ) {
     val rootTitle = stringResource(R.string.knowledge_tree_root_title)
     val showSearchResults = isSearchVisible && searchQuery.trim().isNotEmpty()
+    val lazyListState = rememberLazyListState()
+    val nodeIds = remember(uiState.rootCards) { uiState.rootCards.map { it.nodeId } }
+
+    // 本地追踪拖拽状态，避免读到 stale 的组合参数
+    var localDraggedNodeId by remember { mutableStateOf<String?>(null) }
+    var localDragOffsetY by remember { mutableFloatStateOf(0f) }
+    var localDropTarget by remember { mutableStateOf<DropTargetInfo?>(null) }
+
+    val handleDragMove: (Offset) -> Unit = { offset ->
+        localDragOffsetY += offset.y
+        val dropTarget = calculateDropTarget(
+            listState = lazyListState,
+            draggedNodeId = localDraggedNodeId,
+            nodeIds = nodeIds,
+            dragOffsetY = localDragOffsetY,
+        )
+        localDropTarget = dropTarget
+    }
+
+    val handleDragStart: (String) -> Unit = { nodeId ->
+        localDraggedNodeId = nodeId
+        localDragOffsetY = 0f
+        localDropTarget = null
+        onNodeDragStart(nodeId)
+    }
+
+    val handleDragEnd: () -> Unit = {
+        onNodeDragEnd(localDraggedNodeId, localDropTarget)
+        localDraggedNodeId = null
+        localDragOffsetY = 0f
+        localDropTarget = null
+    }
+
+    val handleDragCancel: () -> Unit = {
+        onNodeDragCancel()
+        localDraggedNodeId = null
+        localDragOffsetY = 0f
+        localDropTarget = null
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -128,19 +180,27 @@ fun KnowledgeTreeHomeScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    state = lazyListState,
                     contentPadding = KnowledgeTreeListContentPadding,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.rootCards, key = { it.nodeId }) { card ->
                         RootNodeCard(
                             card = card,
-                            onToggle = onToggleNode,
-                            onOpenDetail = onOpenNode,
-                            onOpenBranch = onOpenBranch,
+                            onToggle = if (localDraggedNodeId != null) { {} } else onToggleNode,
+                            onOpenDetail = if (localDraggedNodeId != null) { {} } else onOpenNode,
+                            onOpenBranch = if (localDraggedNodeId != null) { {} } else onOpenBranch,
                             onAddChild = onOpenAddChildDialog,
                             onMove = onOpenMoveNodeSheet,
                             onRename = onOpenRenameDialog,
                             onDelete = onOpenDeleteDialog,
+                            onDragStart = { handleDragStart(card.nodeId) },
+                            onDragMove = { handleDragMove(it) },
+                            onDragEnd = handleDragEnd,
+                            onDragCancel = handleDragCancel,
+                            isDragging = localDraggedNodeId == card.nodeId,
+                            isDragTarget = localDraggedNodeId != null && localDraggedNodeId != card.nodeId,
+                            dragOffsetY = if (localDraggedNodeId == card.nodeId) localDragOffsetY else 0f,
                         )
                     }
                 }

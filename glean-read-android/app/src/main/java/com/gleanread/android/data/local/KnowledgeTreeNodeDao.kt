@@ -9,13 +9,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface KnowledgeTreeNodeDao {
-    @Query("SELECT * FROM knowledge_tree_node WHERE is_deleted = 0 ORDER BY create_time ASC")
+    @Query("SELECT * FROM knowledge_tree_node WHERE is_deleted = 0 ORDER BY sort_order ASC, create_time ASC")
     fun observeNodes(): Flow<List<KnowledgeTreeNodeEntity>>
 
-    @Query("SELECT * FROM knowledge_tree_node WHERE is_deleted = 0 ORDER BY create_time ASC")
+    @Query("SELECT * FROM knowledge_tree_node WHERE is_deleted = 0 ORDER BY sort_order ASC, create_time ASC")
     suspend fun getNodesOnce(): List<KnowledgeTreeNodeEntity>
 
-    @Query("SELECT * FROM knowledge_tree_node ORDER BY create_time ASC")
+    @Query("SELECT * FROM knowledge_tree_node ORDER BY sort_order ASC, create_time ASC")
     suspend fun getAllNodesOnce(): List<KnowledgeTreeNodeEntity>
 
     @Query("SELECT * FROM knowledge_tree_node WHERE sync_status IN (:syncStatuses) ORDER BY local_dirty_time ASC")
@@ -44,4 +44,10 @@ interface KnowledgeTreeNodeDao {
 
     @Query("DELETE FROM knowledge_tree_node")
     suspend fun deleteAllNodes()
+
+    @Query("SELECT MAX(sort_order) FROM knowledge_tree_node WHERE parent_id IS :parentId AND is_deleted = 0")
+    suspend fun maxSortOrder(parentId: String?): Long?
+
+    @Query("SELECT * FROM knowledge_tree_node WHERE parent_id IS :parentId AND is_deleted = 0 ORDER BY sort_order ASC, create_time ASC")
+    suspend fun getSiblingsOnce(parentId: String?): List<KnowledgeTreeNodeEntity>
 }

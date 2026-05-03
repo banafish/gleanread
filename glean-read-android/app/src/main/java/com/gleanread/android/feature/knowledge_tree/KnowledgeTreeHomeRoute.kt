@@ -3,6 +3,8 @@ package com.gleanread.android.feature.knowledge_tree
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.feature.knowledge_tree.model.KNOWLEDGE_TREE_HOME_PREVIEW_DEPTH
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
@@ -16,12 +18,14 @@ fun KnowledgeTreeHomeRoute(
     onCreateRootNode: (String, (String) -> Unit) -> Unit,
     onCreateChildNode: (String, String, (String) -> Unit) -> Unit,
     onMoveNode: (String, String?, () -> Unit) -> Unit,
+    onMoveNodeToPosition: (String, Int) -> Unit,
     onRenameNode: (String, String, () -> Unit) -> Unit,
     onDeleteNode: (String, () -> Unit) -> Unit,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
 ) {
     val controller = rememberKnowledgeTreeRouteController(routeKey = "knowledge_tree_home")
+    val hapticFeedback = LocalHapticFeedback.current
 
     val rootIds = remember(snapshot.treeRoots) { snapshot.treeRoots.map { it.id } }
     LaunchedEffect(rootIds) {
@@ -127,6 +131,18 @@ fun KnowledgeTreeHomeRoute(
             }
             controller.dismissMoveNodeSheet()
         },
+        isDragging = controller.isDragging,
+        onNodeDragStart = { nodeId ->
+            hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            controller.onDragStart(nodeId)
+        },
+        onNodeDragEnd = { draggedId, dropTarget ->
+            if (draggedId != null && dropTarget != null) {
+                onMoveNodeToPosition(draggedId, dropTarget.targetIndex)
+            }
+            controller.onDragEnd()
+        },
+        onNodeDragCancel = controller.onDragCancel,
     )
 }
 

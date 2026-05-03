@@ -10,9 +10,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -31,15 +35,47 @@ fun RootNodeCard(
     onMove: (NodeActionTarget) -> Unit,
     onRename: (NodeActionTarget) -> Unit,
     onDelete: (NodeActionTarget) -> Unit,
+    onDragStart: ((Offset) -> Unit)? = null,
+    onDragMove: ((Offset) -> Unit)? = null,
+    onDragEnd: (() -> Unit)? = null,
+    onDragCancel: (() -> Unit)? = null,
+    isDragging: Boolean = false,
+    isDragTarget: Boolean = false,
+    dragOffsetY: Float = 0f,
 ) {
     val expandContentDescription = stringResource(R.string.knowledge_tree_expand_node)
     val countText = stringResource(R.string.knowledge_tree_count, card.count)
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isDragging) 1.03f else 1f,
+        label = "dragScale",
+    )
+    val animatedAlpha by animateFloatAsState(
+        targetValue = if (isDragTarget) 0.4f else 1f,
+        label = "dragAlpha",
+    )
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = animatedScale
+                scaleY = animatedScale
+                alpha = animatedAlpha
+                translationY = if (isDragging) dragOffsetY else 0f
+            }
+            .draggableNode(
+                onDragStart = { onDragStart?.invoke(it) },
+                onDragMove = { onDragMove?.invoke(it) },
+                onDragEnd = { onDragEnd?.invoke() },
+                onDragCancel = { onDragCancel?.invoke() },
+                enabled = onDragStart != null,
+            ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isDragging) 8.dp else 1.dp,
         ),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

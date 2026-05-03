@@ -54,6 +54,7 @@ class KnowledgeTreeRepository(
         val nodeId = EntityIdGenerator.newNodeId()
         val deviceId = deviceIdProvider.currentDeviceId()
         val ownerUserId = currentUserIdProvider.currentUserId()
+        val sortOrder = calculateSortOrderForAppend(null)
         nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
@@ -66,6 +67,7 @@ class KnowledgeTreeRepository(
                 deviceId = deviceId,
                 syncStatus = SyncStatus.PENDING_CREATE,
                 localDirtyTime = now,
+                sortOrder = sortOrder,
             ),
         )
         return nodeId
@@ -79,6 +81,7 @@ class KnowledgeTreeRepository(
         val nodeId = EntityIdGenerator.newNodeId()
         val deviceId = deviceIdProvider.currentDeviceId()
         val ownerUserId = currentUserIdProvider.currentUserId()
+        val sortOrder = calculateSortOrderForAppend(parentId)
         nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
@@ -91,6 +94,7 @@ class KnowledgeTreeRepository(
                 deviceId = deviceId,
                 syncStatus = SyncStatus.PENDING_CREATE,
                 localDirtyTime = now,
+                sortOrder = sortOrder,
             ),
         )
         return nodeId
@@ -139,6 +143,7 @@ class KnowledgeTreeRepository(
             }
             if (newParentId in descendantIds) return@withTransaction
 
+            val sortOrder = calculateSortOrderForAppend(newParentId)
             val now = System.currentTimeMillis()
             val deviceId = deviceIdProvider.currentDeviceId()
             val ownerUserId = currentUserIdProvider.currentUserId()
@@ -146,6 +151,41 @@ class KnowledgeTreeRepository(
                 targetNode.copy(
                     userId = ownerUserId,
                     parentId = newParentId,
+                    sortOrder = sortOrder,
+                    updateTime = now,
+                    deviceId = deviceId,
+                    syncStatus = SyncStatus.bump(targetNode.syncStatus),
+                    syncError = null,
+                    localDirtyTime = now,
+                ),
+            )
+        }
+    }
+
+    /**
+     * 将节点移动到同级节点列表中的指定位置（仅更新排序，不改变层级）。
+     * @param nodeId 被移动的节点 ID
+     * @param targetIndex 在同级节点列表中的插入位置
+     */
+    suspend fun moveNodeToPosition(nodeId: String, targetIndex: Int) {
+        database.withTransaction {
+            val targetNode = nodeDao.findNodeById(nodeId) ?: return@withTransaction
+
+            val siblings = nodeDao.getSiblingsOnce(targetNode.parentId)
+                .filter { it.id != nodeId }
+            val newSortOrder = calculateSortOrderBetween(
+                prevSortOrder = siblings.getOrNull(targetIndex - 1)?.sortOrder,
+                nextSortOrder = siblings.getOrNull(targetIndex)?.sortOrder,
+                parentId = targetNode.parentId,
+            )
+
+            val now = System.currentTimeMillis()
+            val deviceId = deviceIdProvider.currentDeviceId()
+            val ownerUserId = currentUserIdProvider.currentUserId()
+            nodeDao.updateNode(
+                targetNode.copy(
+                    userId = ownerUserId,
+                    sortOrder = newSortOrder,
                     updateTime = now,
                     deviceId = deviceId,
                     syncStatus = SyncStatus.bump(targetNode.syncStatus),
@@ -254,10 +294,87 @@ class KnowledgeTreeRepository(
             if (excerpt.content.length > EXCERPT_TITLE_MAX_LENGTH) "..." else ""
     }
 
+    /**
+     * 计算追加到指定父节点末尾的排序值。
+     */
+    private suspend fun calculateSortOrderForAppend(parentId: String?): Long {
+        val maxSortOrder = nodeDao.maxSortOrder(parentId)
+        return (maxSortOrder ?: 0) + SORT_ORDER_GAP
+    }
+
+    /**
+     * 计算插入到两个兄弟节点之间的排序值。
+     * 如果前后节点都为 null，则追加到末尾。
+     * 间隔不足时触发局部重排。
+     */
+    private suspend fun calculateSortOrderBetween(
+        prevSortOrder: Long?,
+        nextSortOrder: Long?,
+        parentId: String?,
+    ): Long {
+        // 无前后兄弟，追加到末尾
+        if (prevSortOrder == null && nextSortOrder == null) {
+            return calculateSortOrderForAppend(parentId)
+        }
+        // 插入到列表开头
+        if (prevSortOrder == null) {
+            val newOrder = nextSortOrder!! - SORT_ORDER_GAP
+            if (newOrder <= Long.MIN_VALUE + 1) {
+                rebalanceSiblings(parentId)
+                return calculateSortOrderBetween(null, nodeDao.getSiblingsOnce(parentId).firstOrNull()?.sortOrder, parentId)
+            }
+            return newOrder
+        }
+        // 插入到列表末尾
+        if (nextSortOrder == null) {
+            return prevSortOrder + SORT_ORDER_GAP
+        }
+        // 插入到两个节点之间
+        val mid = (prevSortOrder + nextSortOrder) / 2
+        if (mid <= prevSortOrder + 1 || mid >= nextSortOrder - 1) {
+            rebalanceSiblings(parentId)
+            val siblings = nodeDao.getSiblingsOnce(parentId)
+            val prevIndex = siblings.indexOfFirst { it.sortOrder == prevSortOrder }
+            val nextIndex = siblings.indexOfFirst { it.sortOrder == nextSortOrder }
+            return calculateSortOrderBetween(
+                siblings.getOrNull(prevIndex)?.sortOrder,
+                siblings.getOrNull(nextIndex)?.sortOrder,
+                parentId,
+            )
+        }
+        return mid
+    }
+
+    /**
+     * 对指定父节点下所有兄弟节点重新分配排序值（间隔 SORT_ORDER_GAP），在事务中执行。
+     */
+    private suspend fun rebalanceSiblings(parentId: String?) {
+        database.withTransaction {
+            val siblings = nodeDao.getSiblingsOnce(parentId)
+            if (siblings.isEmpty()) return@withTransaction
+            val now = System.currentTimeMillis()
+            val deviceId = deviceIdProvider.currentDeviceId()
+            val ownerUserId = currentUserIdProvider.currentUserId()
+            val reordered = siblings.mapIndexed { index, node ->
+                node.copy(
+                    sortOrder = (index + 1).toLong() * SORT_ORDER_GAP,
+                    userId = ownerUserId,
+                    updateTime = now,
+                    deviceId = deviceId,
+                    syncStatus = SyncStatus.bump(node.syncStatus),
+                    syncError = null,
+                    localDirtyTime = now,
+                )
+            }
+            nodeDao.updateNodes(reordered)
+        }
+    }
+
     companion object {
         private const val EXCERPT_TITLE_MAX_LENGTH = 18
         private const val SUGGESTION_PER_TYPE_LIMIT = 6
         private const val SUGGESTION_TOTAL_LIMIT = 8
+        private const val SORT_ORDER_GAP: Long = 65536L
     }
 }
 
