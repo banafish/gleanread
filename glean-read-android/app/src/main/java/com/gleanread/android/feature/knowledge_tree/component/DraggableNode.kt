@@ -1,19 +1,13 @@
 package com.gleanread.android.feature.knowledge_tree.component
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
 
 /**
- * 可复用的拖拽手势 Modifier，封装长按后拖拽检测。
+ * 可复用的拖拽手势 Modifier，封装长按整张卡片后拖拽检测。
+ * 仅用于同级排序移动，不支持跨层级移动。
  */
 fun Modifier.draggableNode(
     onDragStart: (Offset) -> Unit = {},
@@ -35,22 +29,4 @@ fun Modifier.draggableNode(
     }
 } else {
     this
-}
-
-/**
- * 拖拽目标位置的水平指示线。
- */
-@Composable
-fun DropIndicator(
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(3.dp)
-            .background(
-                color = MaterialTheme.colorScheme.primary,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(2.dp),
-            ),
-    )
 }

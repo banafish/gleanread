@@ -42,21 +42,28 @@ fun BranchNodeItem(
     onDragEnd: (() -> Unit)? = null,
     onDragCancel: (() -> Unit)? = null,
     isDragging: Boolean = false,
+    itemDisplacement: Float = 0f,
     dragOffsetY: Float = 0f,
+    modifier: Modifier = Modifier,
 ) {
     val animatedScale by animateFloatAsState(
         targetValue = if (isDragging) 1.03f else 1f,
         label = "dragScale",
     )
+    val animatedDisplacement by animateFloatAsState(
+        targetValue = itemDisplacement,
+        label = "itemDisplacement",
+    )
 
     if (node.depth == 1) {
+        // depth==1 的节点：整张卡片可拖拽
         Card(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .graphicsLayer {
                     scaleX = animatedScale
                     scaleY = animatedScale
-                    translationY = if (isDragging) dragOffsetY else 0f
+                    translationY = if (isDragging) dragOffsetY else animatedDisplacement
                 }
                 .draggableNode(
                     onDragStart = { onDragStart?.invoke(it) },
@@ -93,6 +100,7 @@ fun BranchNodeItem(
                             .fillMaxWidth()
                             .padding(top = 8.dp),
                     ) {
+                        // 卡片内子节点不可单独拖拽，不传拖拽回调
                         node.visibleChildren.forEach { child ->
                             BranchNodeItem(
                                 node = child,
@@ -103,10 +111,6 @@ fun BranchNodeItem(
                                 onMove = onMove,
                                 onRename = onRename,
                                 onDelete = onDelete,
-                                onDragStart = onDragStart,
-                                onDragMove = onDragMove,
-                                onDragEnd = onDragEnd,
-                                onDragCancel = onDragCancel,
                             )
                         }
                     }
@@ -116,22 +120,11 @@ fun BranchNodeItem(
         return
     }
 
+    // depth>1 的子节点：不可拖拽，无位移效果
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = ((node.depth - 1) * 16).dp)
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-                translationY = if (isDragging) dragOffsetY else 0f
-            }
-            .draggableNode(
-                onDragStart = { onDragStart?.invoke(it) },
-                onDragMove = { onDragMove?.invoke(it) },
-                onDragEnd = { onDragEnd?.invoke() },
-                onDragCancel = { onDragCancel?.invoke() },
-                enabled = onDragStart != null,
-            ),
+            .padding(start = ((node.depth - 1) * 16).dp),
     ) {
         BranchNodeRow(
             node = node,
@@ -156,10 +149,6 @@ fun BranchNodeItem(
                     onMove = onMove,
                     onRename = onRename,
                     onDelete = onDelete,
-                    onDragStart = onDragStart,
-                    onDragMove = onDragMove,
-                    onDragEnd = onDragEnd,
-                    onDragCancel = onDragCancel,
                 )
             }
         }

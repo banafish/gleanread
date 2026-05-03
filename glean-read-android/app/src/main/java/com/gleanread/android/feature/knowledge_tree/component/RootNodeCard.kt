@@ -40,8 +40,9 @@ fun RootNodeCard(
     onDragEnd: (() -> Unit)? = null,
     onDragCancel: (() -> Unit)? = null,
     isDragging: Boolean = false,
-    isDragTarget: Boolean = false,
+    itemDisplacement: Float = 0f,
     dragOffsetY: Float = 0f,
+    modifier: Modifier = Modifier,
 ) {
     val expandContentDescription = stringResource(R.string.knowledge_tree_expand_node)
     val countText = stringResource(R.string.knowledge_tree_count, card.count)
@@ -49,19 +50,19 @@ fun RootNodeCard(
         targetValue = if (isDragging) 1.03f else 1f,
         label = "dragScale",
     )
-    val animatedAlpha by animateFloatAsState(
-        targetValue = if (isDragTarget) 0.4f else 1f,
-        label = "dragAlpha",
+    // 非拖拽节点：被其他节点的拖拽挤开时的位移量
+    val animatedDisplacement by animateFloatAsState(
+        targetValue = itemDisplacement,
+        label = "itemDisplacement",
     )
 
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale
-                alpha = animatedAlpha
-                translationY = if (isDragging) dragOffsetY else 0f
+                translationY = if (isDragging) dragOffsetY else animatedDisplacement
             }
             .draggableNode(
                 onDragStart = { onDragStart?.invoke(it) },
@@ -123,6 +124,7 @@ fun RootNodeCard(
                         .fillMaxWidth()
                         .padding(top = 8.dp),
                 ) {
+                    // 卡片内子节点不可单独拖拽，不传拖拽回调
                     card.previewItems.forEach { node ->
                         PreviewNodeItem(
                             node = node,

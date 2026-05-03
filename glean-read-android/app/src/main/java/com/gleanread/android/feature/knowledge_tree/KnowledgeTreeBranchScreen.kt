@@ -1,4 +1,4 @@
-﻿package com.gleanread.android.feature.knowledge_tree
+package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.WindowInsets
@@ -10,16 +10,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.gleanread.android.R
 import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.model.WorkspaceSnapshot
@@ -37,7 +40,10 @@ import com.gleanread.android.feature.knowledge_tree.component.MoveNodeBottomShee
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.DropTargetInfo
+import com.gleanread.android.feature.knowledge_tree.model.DRAG_AUTO_SCROLL_SPEED
+import com.gleanread.android.feature.knowledge_tree.model.DRAG_AUTO_SCROLL_ZONE
 import com.gleanread.android.feature.knowledge_tree.model.calculateDropTarget
+import com.gleanread.android.feature.knowledge_tree.model.calculateItemDisplacements
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeBranchUiState
 import com.gleanread.android.feature.knowledge_tree.model.MoveNodeSheetUiState
 import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
@@ -91,10 +97,58 @@ fun KnowledgeTreeBranchScreen(
     val lazyListState = rememberLazyListState()
     val nodeIds = remember(uiState.items) { uiState.items.map { it.nodeId } }
 
-    // 本地追踪拖拽状态，避免读到 stale 的组合参数
     var localDraggedNodeId by remember { mutableStateOf<String?>(null) }
     var localDragOffsetY by remember { mutableFloatStateOf(0f) }
     var localDropTarget by remember { mutableStateOf<DropTargetInfo?>(null) }
+    val currentDragOffsetY by rememberUpdatedState(localDragOffsetY)
+
+    // 根据被拖拽节点的视觉位置自动滚动
+    LaunchedEffect(localDraggedNodeId) {
+        if (localDraggedNodeId == null) return@LaunchedEffect
+        while (localDraggedNodeId != null) {
+            val dragNodeId = localDraggedNodeId ?: break
+            val dragOffsetY = currentDragOffsetY
+            val draggedNodeIndex = nodeIds.indexOf(dragNodeId)
+            if (draggedNodeIndex < 0) break
+
+            // 分支页第一个节点 item 的全局 index 是 1（0 是 BreadcrumbBar）
+            val draggedGlobalIndex = draggedNodeIndex + 1
+            val draggedItemInfo = lazyListState.layoutInfo.visibleItemsInfo
+                .firstOrNull { it.index == draggedGlobalIndex }
+            if (draggedItemInfo != null) {
+                val visualTop = draggedItemInfo.offset + dragOffsetY
+                val visualBottom = visualTop + draggedItemInfo.size
+                val viewportHeight = lazyListState.layoutInfo.viewportSize.height
+
+                val scrollAmount = when {
+                    visualTop < DRAG_AUTO_SCROLL_ZONE ->
+                        -DRAG_AUTO_SCROLL_SPEED * (1f - visualTop / DRAG_AUTO_SCROLL_ZONE).coerceIn(0f, 1f)
+                    visualBottom > viewportHeight - DRAG_AUTO_SCROLL_ZONE ->
+                        DRAG_AUTO_SCROLL_SPEED * (1f - (viewportHeight - visualBottom) / DRAG_AUTO_SCROLL_ZONE).coerceIn(0f, 1f)
+                    else -> 0f
+                }
+                if (scrollAmount != 0f) {
+                    lazyListState.scroll { scrollBy(scrollAmount / 60f) }
+                }
+            }
+            kotlinx.coroutines.delay(16)
+        }
+    }
+
+    // 计算每个非拖拽节点的视觉位移量
+    val itemDisplacements = remember(localDraggedNodeId, localDragOffsetY) {
+        if (localDraggedNodeId != null) {
+            calculateItemDisplacements(
+                listState = lazyListState,
+                draggedNodeId = localDraggedNodeId,
+                nodeIds = nodeIds,
+                dragOffsetY = localDragOffsetY,
+                firstNodeItemIndex = 1,
+            )
+        } else {
+            emptyMap()
+        }
+    }
 
     val handleDragMove: (Offset) -> Unit = { offset ->
         localDragOffsetY += offset.y
@@ -198,6 +252,7 @@ fun KnowledgeTreeBranchScreen(
                         }
                     } else {
                         items(uiState.items, key = { it.nodeId }) { node ->
+                            val isNodeDragging = localDraggedNodeId == node.nodeId
                             BranchNodeItem(
                                 node = node,
                                 onToggle = if (localDraggedNodeId != null) { {} } else onToggleNode,
@@ -207,12 +262,23 @@ fun KnowledgeTreeBranchScreen(
                                 onMove = onOpenMoveNodeSheet,
                                 onRename = onOpenRenameDialog,
                                 onDelete = onOpenDeleteDialog,
-                                onDragStart = { handleDragStart(node.nodeId) },
-                                onDragMove = { handleDragMove(it) },
-                                onDragEnd = handleDragEnd,
-                                onDragCancel = handleDragCancel,
-                                isDragging = localDraggedNodeId == node.nodeId,
-                                dragOffsetY = if (localDraggedNodeId == node.nodeId) localDragOffsetY else 0f,
+                                // 仅同级 depth==1 节点可拖拽
+                                onDragStart = if (node.depth == 1) {
+                                    { handleDragStart(node.nodeId) }
+                                } else {
+                                    null
+                                },
+                                onDragMove = if (node.depth == 1) {
+                                    { handleDragMove(it) }
+                                } else {
+                                    null
+                                },
+                                onDragEnd = if (node.depth == 1) handleDragEnd else null,
+                                onDragCancel = if (node.depth == 1) handleDragCancel else null,
+                                isDragging = isNodeDragging,
+                                itemDisplacement = itemDisplacements[node.nodeId] ?: 0f,
+                                dragOffsetY = if (isNodeDragging) localDragOffsetY else 0f,
+                                modifier = Modifier.zIndex(if (isNodeDragging) 1f else 0f),
                             )
                         }
                     }
@@ -313,4 +379,3 @@ private fun KnowledgeTreeBranchScreenPreview() {
         )
     }
 }
-
