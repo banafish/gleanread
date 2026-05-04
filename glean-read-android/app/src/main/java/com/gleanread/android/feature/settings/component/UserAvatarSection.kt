@@ -35,6 +35,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.gleanread.android.feature.settings.AvatarCropActivity
+import android.app.Activity
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,33 +54,39 @@ fun UserAvatarSection(
     val coroutineScope = rememberCoroutineScope()
     var photoUri by remember { mutableStateOf<Uri?>(null) }
 
-    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            coroutineScope.launch {
-                val compressed = withContext(Dispatchers.IO) {
-                    ImageUtils.compressImage(context, uri)
-                }
-                if (compressed != null) {
-                    onAvatarSelected(compressed)
-                } else {
-                    Toast.makeText(context, "图片处理失败", Toast.LENGTH_SHORT).show()
+    val cropImage = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uriContent = result.data?.getParcelableExtra<Uri>(AvatarCropActivity.EXTRA_CROPPED_IMAGE_URI)
+            if (uriContent != null) {
+                coroutineScope.launch {
+                    val compressed = withContext(Dispatchers.IO) {
+                        ImageUtils.compressImage(context, uriContent)
+                    }
+                    if (compressed != null) {
+                        onAvatarSelected(compressed)
+                    } else {
+                        Toast.makeText(context, "图片处理失败", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
     }
 
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            val intent = Intent(context, AvatarCropActivity::class.java).apply {
+                putExtra(AvatarCropActivity.EXTRA_IMAGE_URI, uri)
+            }
+            cropImage.launch(intent)
+        }
+    }
+
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && photoUri != null) {
-            coroutineScope.launch {
-                val compressed = withContext(Dispatchers.IO) {
-                    ImageUtils.compressImage(context, photoUri!!)
-                }
-                if (compressed != null) {
-                    onAvatarSelected(compressed)
-                } else {
-                    Toast.makeText(context, "图片处理失败", Toast.LENGTH_SHORT).show()
-                }
+            val intent = Intent(context, AvatarCropActivity::class.java).apply {
+                putExtra(AvatarCropActivity.EXTRA_IMAGE_URI, photoUri)
             }
+            cropImage.launch(intent)
         }
     }
 

@@ -75,6 +75,10 @@ dependencies {
     // Coil 3
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")
+
+    // Image Cropper
+    implementation("com.vanniktech:android-image-cropper:4.7.0")
+
     kapt("androidx.room:room-compiler:2.8.4")
 
     testImplementation("junit:junit:4.13.2")
