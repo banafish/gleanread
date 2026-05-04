@@ -179,7 +179,7 @@ fun KnowledgeTreeBranchScreen(
                                 onRename = onOpenRenameDialog,
                                 onDelete = onOpenDeleteDialog,
                                 // 仅同级 depth==1 节点可拖拽
-                                onDragStart = if (node.depth == 1) { { _ -> dragSortState.onDragStart(node.nodeId) } } else null,
+                                onDragStart = if (node.depth == 1) { { offset -> dragSortState.onDragStart(node.nodeId, offset) } } else null,
                                 onDragMove = if (node.depth == 1) dragSortState.onDragMove else null,
                                 onDragEnd = if (node.depth == 1) dragSortState.onDragEnd else null,
                                 onDragCancel = if (node.depth == 1) dragSortState.onDragCancel else null,

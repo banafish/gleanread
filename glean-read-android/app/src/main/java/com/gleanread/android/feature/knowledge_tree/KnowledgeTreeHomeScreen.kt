@@ -167,7 +167,7 @@ fun KnowledgeTreeHomeScreen(
                             onMove = onOpenMoveNodeSheet,
                             onRename = onOpenRenameDialog,
                             onDelete = onOpenDeleteDialog,
-                            onDragStart = { _ -> dragSortState.onDragStart(card.nodeId) },
+                            onDragStart = { offset -> dragSortState.onDragStart(card.nodeId, offset) },
                             onDragMove = dragSortState.onDragMove,
                             onDragEnd = dragSortState.onDragEnd,
                             onDragCancel = dragSortState.onDragCancel,
