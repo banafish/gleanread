@@ -11,8 +11,10 @@ const val DRAG_AUTO_SCROLL_SPEED = 2400f
 
 /**
  * 根据当前拖拽 Y 偏移量和列表状态，计算 drop 目标位置。
- * 使用中点比较算法：将被拖拽节点的中心 Y 与每个可见节点的中心 Y 比较，
- * 找到插入位置。仅用于同级排序，不支持跨层级移动。
+ * 使用边界比较算法：向上拖时取被拖拽节点的上边界，向下拖时取下边界，
+ * 与每个可见节点的中心 Y 比较，找到插入位置。
+ * 相比中点比较，边界比较对大卡片更友好，无需拖过半个卡片高度即可触发让位。
+ * 仅用于同级排序，不支持跨层级移动。
  */
 fun calculateDropTarget(
     listState: LazyListState,
@@ -33,8 +35,14 @@ fun calculateDropTarget(
     val draggedItemInfo = visibleItems.firstOrNull { it.index == draggedGlobalIndex }
         ?: return null
 
-    // 被拖拽节点的当前视觉中心 Y（原位 + 偏移）
-    val draggedCenterY = draggedItemInfo.offset + draggedItemInfo.size / 2f + dragOffsetY
+    // 根据拖拽方向选择参考边界：向上拖用上边界，向下拖用下边界
+    val referenceY = if (dragOffsetY < 0) {
+        // 向上拖：上边界位置
+        draggedItemInfo.offset + dragOffsetY
+    } else {
+        // 向下拖：下边界位置
+        draggedItemInfo.offset + draggedItemInfo.size + dragOffsetY
+    }
 
     // 收集可见节点（排除被拖拽节点），按位置排序
     val sortedVisibleNodes = visibleItems
@@ -49,11 +57,11 @@ fun calculateDropTarget(
 
     if (sortedVisibleNodes.isEmpty()) return null
 
-    // 中点比较：找到被拖拽中心应该插入的位置
+    // 边界比较：找到参考边应该插入的位置
     for (node in sortedVisibleNodes) {
         val nodeCenterY = node.offset + node.size / 2f
-        if (draggedCenterY < nodeCenterY) {
-            // 被拖拽中心在此节点中心上方，插入到此节点前面
+        if (referenceY < nodeCenterY) {
+            // 参考边在此节点中心上方，插入到此节点前面
             val targetIndex = node.nodeIndex
             val adjustedIndex = if (draggedNodeIndex < targetIndex) targetIndex - 1 else targetIndex
             return DropTargetInfo(
@@ -62,7 +70,7 @@ fun calculateDropTarget(
         }
     }
 
-    // 被拖拽中心在所有可见节点中心下方，插入到末尾
+    // 参考边在所有可见节点中心下方，插入到末尾
     val lastNode = sortedVisibleNodes.last()
     val targetIndex = lastNode.nodeIndex + 1
     val adjustedIndex = if (draggedNodeIndex < targetIndex) targetIndex - 1 else targetIndex
