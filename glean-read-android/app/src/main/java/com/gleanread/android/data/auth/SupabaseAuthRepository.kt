@@ -132,6 +132,47 @@ class SupabaseAuthRepository(
         }
     }
 
+    suspend fun signUpWithEmailPassword(email: String, password: String): AuthResult {
+        if (!config.isConfigured) {
+            return AuthResult.Failure("Supabase 尚未配置")
+        }
+        val trimmedEmail = email.trim()
+        if (trimmedEmail.isEmpty() || password.isEmpty()) {
+            return AuthResult.Failure("请输入邮箱和密码")
+        }
+
+        return runCatching {
+            val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/signup") {
+                header("apikey", config.anonKey)
+                contentType(ContentType.Application.Json)
+                setBody(EmailPasswordSignInRequest(trimmedEmail, password))
+            }
+            val responseBody = httpResponse.bodyAsText()
+            if (!httpResponse.status.isSuccess()) {
+                return AuthResult.Failure(responseBody.toSupabaseAuthErrorMessage(defaultMessage = "注册失败，请检查邮箱格式或密码要求"))
+            }
+
+            val response = AuthJson.decodeFromString<SignUpResponse>(responseBody)
+
+            if (response.accessToken.isNullOrBlank()) {
+                return AuthResult.Failure("注册成功，请查收验证邮件以完成注册")
+            }
+
+            val user = AuthUserResponse(id = response.id ?: "", email = response.email)
+            val session = AuthTokenResponse(
+                accessToken = response.accessToken,
+                refreshToken = response.refreshToken,
+                expiresInSeconds = response.expiresInSeconds,
+                user = user
+            ).toSession()
+            
+            sessionStore.saveSession(session)
+            AuthResult.Success(session)
+        }.getOrElse { error ->
+            AuthResult.Failure(error.toAuthMessage())
+        }
+    }
+
     suspend fun signOut() {
         val accessToken = session.value?.accessToken
         if (config.isConfigured && accessToken != null) {
@@ -283,6 +324,15 @@ internal data class AuthTokenResponse(
     @SerialName("refresh_token") val refreshToken: String? = null,
     @SerialName("expires_in") val expiresInSeconds: Long? = null,
     val user: AuthUserResponse,
+)
+
+@Serializable
+internal data class SignUpResponse(
+    val id: String? = null,
+    val email: String? = null,
+    @SerialName("access_token") val accessToken: String? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+    @SerialName("expires_in") val expiresInSeconds: Long? = null,
 )
 
 @Serializable

@@ -62,11 +62,19 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt")
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
     implementation("io.ktor:ktor-client-android:3.3.3")
     implementation("io.ktor:ktor-client-okhttp:3.3.3")
     implementation("io.ktor:ktor-client-content-negotiation:3.3.3")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+    
+    // DataStore
+    implementation("androidx.datastore:datastore-preferences:1.1.2")
+    
+    // Coil 3
+    implementation("io.coil-kt.coil3:coil-compose:3.1.0")
+    implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
     kapt("androidx.room:room-compiler:2.8.4")
 
     testImplementation("junit:junit:4.13.2")

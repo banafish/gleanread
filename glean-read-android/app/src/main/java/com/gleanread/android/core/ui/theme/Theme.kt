@@ -1,4 +1,4 @@
-﻿package com.gleanread.android.core.ui.theme
+package com.gleanread.android.core.ui.theme
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -9,6 +9,8 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import com.gleanread.android.data.appearance.ThemeMode
+import com.gleanread.android.data.appearance.ThemeColor
 
 private val LightColors = lightColorScheme(
     primary = md_theme_light_primary,
@@ -91,18 +93,31 @@ private val DarkColors = darkColorScheme(
 
 @Composable
 fun GleanReadTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    themeColor: ThemeColor = ThemeColor.DYNAMIC,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val darkTheme = when (themeMode) {
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    }
 
-        darkTheme -> DarkColors
-        else -> LightColors
+    val colorScheme = when (themeColor) {
+        ThemeColor.DYNAMIC -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val context = LocalContext.current
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } else {
+                if (darkTheme) DarkColors else LightColors
+            }
+        }
+        ThemeColor.OCEAN -> if (darkTheme) OceanDarkColors else OceanLightColors
+        ThemeColor.PURPLE -> if (darkTheme) PurpleDarkColors else PurpleLightColors
+        ThemeColor.FOREST -> if (darkTheme) ForestDarkColors else ForestLightColors
+        ThemeColor.SAKURA -> if (darkTheme) SakuraDarkColors else SakuraLightColors
+        ThemeColor.AMBER -> if (darkTheme) AmberDarkColors else AmberLightColors
+        ThemeColor.GRAPHITE -> if (darkTheme) GraphiteDarkColors else GraphiteLightColors
     }
 
     // With edge-to-edge enabled in MainActivity/FastCaptureActivity, 

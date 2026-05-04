@@ -9,7 +9,8 @@ import com.gleanread.android.data.auth.SupabaseSessionStore
 import com.gleanread.android.data.local.MIGRATION_1_2
 import com.gleanread.android.data.local.MIGRATION_2_3
 import com.gleanread.android.data.local.WorkspaceDatabase
-import com.gleanread.android.core.data.AppSnapshotStore
+import com.gleanread.android.data.appearance.AppearancePreferencesRepository
+import com.gleanread.android.data.avatar.AvatarRepository
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.remote.SupabaseConfig
 import com.gleanread.android.data.remote.SupabaseHttpClientFactory
@@ -31,7 +32,9 @@ import com.gleanread.android.feature.excerpts.feed.FeedViewModel
 import com.gleanread.android.feature.excerpts.summary.AiSummaryViewModel
 import com.gleanread.android.app.navigation.MainAppViewModel
 import com.gleanread.android.feature.settings.SettingsViewModel
+import com.gleanread.android.feature.settings.auth.AuthViewModel
 import com.gleanread.android.feature.tags.TagsViewModel
+import com.gleanread.android.core.data.AppSnapshotStore
 import io.github.jan.supabase.SupabaseClient
 import io.ktor.client.HttpClient
 
@@ -148,6 +151,18 @@ class AppContainer(
         AppSnapshotStore(snapshotProvider)
     }
 
+    val appearancePreferencesRepository: AppearancePreferencesRepository by lazy {
+        AppearancePreferencesRepository(appContext)
+    }
+
+    val avatarRepository: AvatarRepository by lazy {
+        AvatarRepository(
+            config = supabaseConfig,
+            httpClient = supabaseHttpClient,
+            sessionStore = supabaseSessionStore
+        )
+    }
+
     val mainAppViewModelFactory: ViewModelProvider.Factory by lazy {
         AppViewModelFactory {
             MainAppViewModel(
@@ -176,6 +191,17 @@ class AppContainer(
     val settingsViewModelFactory: ViewModelProvider.Factory by lazy {
         AppViewModelFactory {
             SettingsViewModel(
+                authRepository = supabaseAuthRepository,
+                syncRepository = workspaceSyncRepository,
+                appearancePreferencesRepository = appearancePreferencesRepository,
+                avatarRepository = avatarRepository,
+            )
+        }
+    }
+
+    val authViewModelFactory: ViewModelProvider.Factory by lazy {
+        AppViewModelFactory {
+            AuthViewModel(
                 authRepository = supabaseAuthRepository,
                 syncRepository = workspaceSyncRepository,
             )

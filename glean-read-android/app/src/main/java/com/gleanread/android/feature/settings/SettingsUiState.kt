@@ -1,10 +1,15 @@
 package com.gleanread.android.feature.settings
 
+import com.gleanread.android.data.appearance.ThemeMode
+import com.gleanread.android.data.appearance.ThemeColor
+
 data class SettingsUiState(
-    val email: String = "",
-    val password: String = "",
     val isLoggedIn: Boolean = false,
     val sessionEmail: String? = null,
+    val avatarUrl: String? = null,
+    val isAvatarUploading: Boolean = false,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeColor: ThemeColor = ThemeColor.DYNAMIC,
     val isCloudSyncEnabled: Boolean = false,
     val isSubmitting: Boolean = false,
     val isSyncing: Boolean = false,

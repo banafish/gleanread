@@ -1,4 +1,4 @@
-﻿@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalFoundationApi::class)
 
 package com.gleanread.android.app.navigation
 
@@ -71,12 +71,14 @@ import com.gleanread.android.feature.settings.SettingsRoute
 import com.gleanread.android.feature.tags.TagsRoute
 import com.gleanread.android.feature.tags.TagsViewModel
 import com.gleanread.android.feature.tags.component.AddTagDialog
+import com.gleanread.android.feature.settings.auth.AuthRoute
 
 object MainRoutes {
     const val Feed = "feed"
     const val Tree = "tree"
     const val Tags = "tags"
     const val Settings = "settings"
+    const val Auth = "auth"
     const val AiSummary = "ai-summary"
     const val NewExcerptPattern = "new-excerpt?archiveNodeId={archiveNodeId}"
     const val ExcerptPattern = "excerpt/{excerptId}"
@@ -303,7 +305,14 @@ fun MainApp() {
                     )
                 }
                 composable(MainRoutes.Settings) {
-                    SettingsRoute()
+                    SettingsRoute(
+                        onNavigateToAuth = { navController.navigate(MainRoutes.Auth) }
+                    )
+                }
+                composable(MainRoutes.Auth) {
+                    AuthRoute(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
                 }
                 composable(MainRoutes.AiSummary) {
                     AiSummaryRoute(

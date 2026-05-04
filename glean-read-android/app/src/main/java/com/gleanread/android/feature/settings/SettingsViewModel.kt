@@ -2,9 +2,11 @@ package com.gleanread.android.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.gleanread.android.data.auth.AuthResult
+import com.gleanread.android.data.appearance.AppearancePreferencesRepository
+import com.gleanread.android.data.appearance.ThemeColor
+import com.gleanread.android.data.appearance.ThemeMode
+import com.gleanread.android.data.avatar.AvatarRepository
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
-import com.gleanread.android.data.auth.MagicLinkRequestResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
@@ -19,6 +21,8 @@ import kotlinx.coroutines.launch
 class SettingsViewModel(
     private val authRepository: SupabaseAuthRepository,
     private val syncRepository: WorkspaceSyncRepository,
+    private val appearancePreferencesRepository: AppearancePreferencesRepository,
+    private val avatarRepository: AvatarRepository,
 ) : ViewModel() {
     private val formState = MutableStateFlow(SettingsFormState())
 
@@ -26,13 +30,26 @@ class SettingsViewModel(
         authRepository.session,
         syncRepository.syncState,
         syncRepository.isCloudSyncEnabled,
+        appearancePreferencesRepository.themeModeFlow,
+        appearancePreferencesRepository.themeColorFlow,
+        appearancePreferencesRepository.avatarUrlFlow,
         formState,
-    ) { session, syncState, isCloudSyncEnabled, form ->
+    ) { args ->
+        val session = args[0] as com.gleanread.android.data.auth.AuthSession?
+        val syncState = args[1] as com.gleanread.android.data.sync.WorkspaceSyncUiState
+        val isCloudSyncEnabled = args[2] as Boolean
+        val themeMode = args[3] as ThemeMode
+        val themeColor = args[4] as ThemeColor
+        val avatarUrl = args[5] as String?
+        val form = args[6] as SettingsFormState
+
         SettingsUiState(
-            email = form.email,
-            password = form.password,
             isLoggedIn = session != null,
             sessionEmail = session?.email,
+            avatarUrl = avatarUrl,
+            isAvatarUploading = form.isAvatarUploading,
+            themeMode = themeMode,
+            themeColor = themeColor,
             isCloudSyncEnabled = isCloudSyncEnabled,
             isSubmitting = form.isSubmitting,
             isSyncing = syncState.isSyncing,
@@ -48,54 +65,28 @@ class SettingsViewModel(
         initialValue = SettingsUiState(),
     )
 
-    fun updateEmail(value: String) {
-        formState.update { it.copy(email = value, message = null) }
-    }
-
-    fun updatePassword(value: String) {
-        formState.update { it.copy(password = value, message = null) }
-    }
-
-    fun signIn() {
-        val form = formState.value
-        if (form.isSubmitting) return
-
+    fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
-            formState.update { it.copy(isSubmitting = true, message = null) }
-            when (val result = authRepository.signInWithEmailPassword(form.email, form.password)) {
-                is AuthResult.Success -> handleSignInSuccess(result)
-
-                is AuthResult.Failure -> {
-                    formState.update {
-                        it.copy(isSubmitting = false, message = result.message)
-                    }
-                }
-            }
+            appearancePreferencesRepository.setThemeMode(mode)
         }
     }
 
-    fun sendMagicLink() {
-        val form = formState.value
-        if (form.isSubmitting) return
-
+    fun setThemeColor(color: ThemeColor) {
         viewModelScope.launch {
-            formState.update { it.copy(isSubmitting = true, message = null) }
-            when (val result = authRepository.sendMagicLink(form.email)) {
-                MagicLinkRequestResult.Sent -> {
-                    formState.update {
-                        it.copy(
-                            isSubmitting = false,
-                            password = "",
-                            message = "Magic Link 已发送，请打开邮箱中的登录链接",
-                        )
-                    }
-                }
+            appearancePreferencesRepository.setThemeColor(color)
+        }
+    }
 
-                is MagicLinkRequestResult.Failure -> {
-                    formState.update {
-                        it.copy(isSubmitting = false, message = result.message)
-                    }
-                }
+    fun uploadAvatar(imageBytes: ByteArray) {
+        val session = authRepository.session.value ?: return
+        viewModelScope.launch {
+            formState.update { it.copy(isAvatarUploading = true) }
+            val result = avatarRepository.uploadAvatar(session.userId, imageBytes)
+            if (result.isSuccess) {
+                appearancePreferencesRepository.setAvatarUrl(result.getOrNull())
+                formState.update { it.copy(isAvatarUploading = false, message = "头像更新成功") }
+            } else {
+                formState.update { it.copy(isAvatarUploading = false, message = "头像上传失败: ${result.exceptionOrNull()?.message}") }
             }
         }
     }
@@ -167,35 +158,14 @@ class SettingsViewModel(
         }
     }
 
-    private suspend fun handleSignInSuccess(result: AuthResult.Success) {
-        val hasLocalData = authRepository.hasLocalUserData()
-        if (hasLocalData) {
-            formState.update {
-                it.copy(
-                    isSubmitting = false,
-                    password = "",
-                    showOwnershipDialog = true,
-                    message = "请选择本地数据归属",
-                )
-            }
-        } else {
-            syncRepository.setCloudSyncEnabled(true)
-            syncRepository.syncNow()
-            formState.update {
-                it.copy(
-                    isSubmitting = false,
-                    password = "",
-                    message = "已登录 ${result.session.email.orEmpty()}",
-                )
-            }
-        }
+    fun clearMessage() {
+        formState.update { it.copy(message = null) }
     }
 }
 
 private data class SettingsFormState(
-    val email: String = "",
-    val password: String = "",
     val isSubmitting: Boolean = false,
+    val isAvatarUploading: Boolean = false,
     val message: String? = null,
     val showOwnershipDialog: Boolean = false,
 )

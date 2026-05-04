@@ -1,4 +1,4 @@
-﻿package com.gleanread.android.app
+package com.gleanread.android.app
 
 import android.content.Intent
 import android.os.Bundle
@@ -7,8 +7,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.gleanread.android.app.navigation.MainApp
 import com.gleanread.android.core.ui.theme.GleanReadTheme
+import com.gleanread.android.data.appearance.ThemeMode
+import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.auth.AuthResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import kotlinx.coroutines.launch
@@ -18,7 +22,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            GleanReadTheme {
+            val themeMode by appContainer.appearancePreferencesRepository.themeModeFlow.collectAsState(initial = ThemeMode.SYSTEM)
+            val themeColor by appContainer.appearancePreferencesRepository.themeColorFlow.collectAsState(initial = ThemeColor.DYNAMIC)
+            GleanReadTheme(themeMode = themeMode, themeColor = themeColor) {
                 MainApp()
             }
         }
