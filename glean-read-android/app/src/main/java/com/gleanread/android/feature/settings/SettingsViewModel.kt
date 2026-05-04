@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonPrimitive
 
 class SettingsViewModel(
     private val authRepository: SupabaseAuthRepository,
@@ -66,6 +69,21 @@ class SettingsViewModel(
         initialValue = SettingsUiState(),
     )
 
+    init {
+        refreshUserProfile()
+    }
+
+    private fun refreshUserProfile() {
+        viewModelScope.launch {
+            authRepository.fetchCurrentUserProfile().onSuccess { userResponse ->
+                val avatarUrl = userResponse.userMetadata?.get("avatar_url")?.jsonPrimitive?.contentOrNull
+                if (avatarUrl != null) {
+                    appearancePreferencesRepository.setAvatarUrl(avatarUrl)
+                }
+            }
+        }
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         viewModelScope.launch {
             appearancePreferencesRepository.setThemeMode(mode)
@@ -89,7 +107,12 @@ class SettingsViewModel(
                 extension = image.extension
             )
             if (result.isSuccess) {
-                appearancePreferencesRepository.setAvatarUrl(result.getOrNull())
+                val publicUrl = result.getOrNull()
+                // 同时更新 Supabase Auth 中的用户元数据，以便多设备同步
+                authRepository.updateUserMetadata(
+                    mapOf("avatar_url" to JsonPrimitive(publicUrl))
+                )
+                appearancePreferencesRepository.setAvatarUrl(publicUrl)
                 formState.update { it.copy(isAvatarUploading = false, message = "头像更新成功") }
             } else {
                 formState.update { it.copy(isAvatarUploading = false, message = "头像上传失败: ${result.exceptionOrNull()?.message}") }
@@ -155,6 +178,7 @@ class SettingsViewModel(
 
     fun syncNow() {
         viewModelScope.launch {
+            refreshUserProfile()
             val message = when (val result = syncRepository.syncNow(repairMissingRemote = true)) {
                 is WorkspaceSyncResult.Success -> "同步完成"
                 is WorkspaceSyncResult.Failure -> result.message

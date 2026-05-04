@@ -14,6 +14,7 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.client.request.post
+import io.ktor.client.request.put
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
@@ -23,6 +24,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
@@ -186,6 +192,32 @@ class SupabaseAuthRepository(
         sessionStore.clearSession()
     }
 
+    suspend fun updateUserMetadata(metadata: Map<String, JsonElement>): Result<Unit> {
+        val token = session.value?.accessToken ?: return Result.failure(Exception("尚未登录"))
+        if (!config.isConfigured) return Result.failure(Exception("Supabase 尚未配置"))
+
+        return runCatching {
+            val response = httpClient.put("${config.normalizedUrl}/auth/v1/user") {
+                header("apikey", config.anonKey)
+                bearerAuth(token)
+                contentType(ContentType.Application.Json)
+                setBody(JsonObject(mapOf("data" to JsonObject(metadata))))
+            }
+            if (!response.status.isSuccess()) {
+                throw Exception("更新用户元数据失败: ${response.status} - ${response.bodyAsText()}")
+            }
+        }
+    }
+
+    internal suspend fun fetchCurrentUserProfile(): Result<AuthUserResponse> {
+        val token = session.value?.accessToken ?: return Result.failure(Exception("尚未登录"))
+        if (!config.isConfigured) return Result.failure(Exception("Supabase 尚未配置"))
+
+        return runCatching {
+            fetchCurrentUser(token)
+        }
+    }
+
     suspend fun hasLocalUserData(): Boolean {
         return database.excerptDao().countExcerptsByUserId(LOCAL_USER_ID) > 0 ||
             database.nodeDao().countNodesByUserId(LOCAL_USER_ID) > 0 ||
@@ -339,6 +371,7 @@ internal data class SignUpResponse(
 internal data class AuthUserResponse(
     val id: String,
     val email: String? = null,
+    @SerialName("user_metadata") val userMetadata: JsonObject? = null,
 )
 
 @Serializable
