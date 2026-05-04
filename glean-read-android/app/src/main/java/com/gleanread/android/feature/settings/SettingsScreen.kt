@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
+import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.feature.settings.component.AppearanceSection
 import com.gleanread.android.feature.settings.component.SyncSection
 import com.gleanread.android.feature.settings.component.UserAvatarSection
@@ -42,7 +43,7 @@ import com.gleanread.android.feature.settings.component.UserAvatarSection
 fun SettingsScreen(
     uiState: SettingsUiState,
     onNavigateToAuth: () -> Unit,
-    onAvatarSelected: (ByteArray) -> Unit,
+    onAvatarSelected: (CompressedImage) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onThemeColorChange: (ThemeColor) -> Unit,
     onSignOut: () -> Unit,

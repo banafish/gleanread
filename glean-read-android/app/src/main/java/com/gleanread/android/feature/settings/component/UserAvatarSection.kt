@@ -27,6 +27,7 @@ import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
+import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.data.avatar.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -44,7 +45,7 @@ fun UserAvatarSection(
     avatarUrl: String?,
     isAvatarUploading: Boolean,
     onNavigateToAuth: () -> Unit,
-    onAvatarSelected: (ByteArray) -> Unit
+    onAvatarSelected: (CompressedImage) -> Unit
 ) {
     var showOptionsDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -54,11 +55,11 @@ fun UserAvatarSection(
     val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             coroutineScope.launch {
-                val bytes = withContext(Dispatchers.IO) {
+                val compressed = withContext(Dispatchers.IO) {
                     ImageUtils.compressImage(context, uri)
                 }
-                if (bytes != null) {
-                    onAvatarSelected(bytes)
+                if (compressed != null) {
+                    onAvatarSelected(compressed)
                 } else {
                     Toast.makeText(context, "图片处理失败", Toast.LENGTH_SHORT).show()
                 }
@@ -69,11 +70,11 @@ fun UserAvatarSection(
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         if (success && photoUri != null) {
             coroutineScope.launch {
-                val bytes = withContext(Dispatchers.IO) {
+                val compressed = withContext(Dispatchers.IO) {
                     ImageUtils.compressImage(context, photoUri!!)
                 }
-                if (bytes != null) {
-                    onAvatarSelected(bytes)
+                if (compressed != null) {
+                    onAvatarSelected(compressed)
                 } else {
                     Toast.makeText(context, "图片处理失败", Toast.LENGTH_SHORT).show()
                 }
@@ -139,6 +140,13 @@ fun UserAvatarSection(
             contentAlignment = Alignment.Center
         ) {
             if (isLoggedIn) {
+                // 始终显示首字母作为底图/占位符
+                Text(
+                    text = email?.firstOrNull()?.uppercase() ?: "U",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+ 
                 if (avatarUrl != null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -148,12 +156,6 @@ fun UserAvatarSection(
                         contentDescription = "用户头像",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                    )
-                } else {
-                    Text(
-                        text = email?.firstOrNull()?.uppercase() ?: "U",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 

@@ -6,6 +6,7 @@ import com.gleanread.android.data.appearance.AppearancePreferencesRepository
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.avatar.AvatarRepository
+import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
@@ -77,11 +78,16 @@ class SettingsViewModel(
         }
     }
 
-    fun uploadAvatar(imageBytes: ByteArray) {
+    fun uploadAvatar(image: CompressedImage) {
         val session = authRepository.session.value ?: return
         viewModelScope.launch {
             formState.update { it.copy(isAvatarUploading = true) }
-            val result = avatarRepository.uploadAvatar(session.userId, imageBytes)
+            val result = avatarRepository.uploadAvatar(
+                userId = session.userId,
+                imageBytes = image.bytes,
+                contentType = image.mimeType,
+                extension = image.extension
+            )
             if (result.isSuccess) {
                 appearancePreferencesRepository.setAvatarUrl(result.getOrNull())
                 formState.update { it.copy(isAvatarUploading = false, message = "头像更新成功") }
