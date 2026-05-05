@@ -9,5 +9,13 @@ data class AuthUiState(
     val errorMessage: String? = null,
     val message: String? = null,
     val showOwnershipDialog: Boolean = false,
+    val showOtpScreen: Boolean = false,
+    val showMagicLinkScreen: Boolean = false,
+    val currentFlow: AuthFlow = AuthFlow.PASSWORD,
+    val otp: String = "",
     val isSuccessAndFinished: Boolean = false
 )
+
+enum class AuthFlow {
+    PASSWORD, OTP, MAGIC_LINK
+}

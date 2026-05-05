@@ -70,6 +70,36 @@ class SupabaseAuthRepository(
         }
     }
 
+    suspend fun verifyOtp(email: String, token: String, type: String = "magiclink"): AuthResult {
+        if (!config.isConfigured) {
+            return AuthResult.Failure("Supabase 尚未配置")
+        }
+        val trimmedEmail = email.trim()
+        val trimmedToken = token.trim()
+        if (trimmedEmail.isEmpty() || trimmedToken.isEmpty()) {
+            return AuthResult.Failure("验证码不能为空")
+        }
+
+        return runCatching {
+            val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/verify") {
+                header("apikey", config.anonKey)
+                contentType(ContentType.Application.Json)
+                setBody(VerifyOtpRequest(email = trimmedEmail, token = trimmedToken, type = type))
+            }
+            val responseBody = httpResponse.bodyAsText()
+            if (!httpResponse.status.isSuccess()) {
+                return AuthResult.Failure(responseBody.toSupabaseAuthErrorMessage(defaultMessage = "验证码无效或已过期"))
+            }
+
+            val response = AuthJson.decodeFromString<AuthTokenResponse>(responseBody)
+            val session = response.toSession()
+            sessionStore.saveSession(session)
+            AuthResult.Success(session)
+        }.getOrElse { error ->
+            AuthResult.Failure(error.message ?: "验证失败")
+        }
+    }
+
     suspend fun completeMagicLinkSignIn(uri: Uri?): AuthResult {
         if (!config.isConfigured) {
             return AuthResult.Failure("Supabase 尚未配置")
@@ -342,6 +372,13 @@ internal val AuthJson = Json {
 private data class EmailPasswordSignInRequest(
     val email: String,
     val password: String,
+)
+
+@Serializable
+private data class VerifyOtpRequest(
+    val email: String,
+    val token: String,
+    val type: String,
 )
 
 @Serializable

@@ -27,9 +27,16 @@ class AuthViewModel(
     fun updatePassword(value: String) {
         _uiState.update { it.copy(password = value, errorMessage = null, message = null) }
     }
-    
+
     fun updateConfirmPassword(value: String) {
         _uiState.update { it.copy(confirmPassword = value, errorMessage = null, message = null) }
+    }
+
+    fun updateOtp(value: String) {
+        _uiState.update { it.copy(otp = value, errorMessage = null) }
+        if (value.length == 6) {
+            verifyOtp()
+        }
     }
 
     fun toggleAuthMode() {
@@ -83,14 +90,97 @@ class AuthViewModel(
         }
     }
 
+    fun startMagicLinkFlow() {
+        _uiState.update { it.copy(showMagicLinkScreen = true, currentFlow = AuthFlow.MAGIC_LINK, errorMessage = null) }
+    }
+
+    fun startOtpFlow() {
+        _uiState.update { it.copy(showOtpScreen = false, currentFlow = AuthFlow.OTP, errorMessage = null) }
+    }
+
+    fun sendMagicLink() {
+        val state = _uiState.value
+        if (state.isSubmitting || state.email.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
+            when (val result = authRepository.sendMagicLink(state.email)) {
+                MagicLinkRequestResult.Sent -> {
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            message = "Magic Link 已发送到您的邮箱，请点击邮件中的链接完成登录。",
+                        )
+                    }
+                }
+                is MagicLinkRequestResult.Failure -> {
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    fun sendOtpCode() {
+        val state = _uiState.value
+        if (state.isSubmitting || state.email.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
+            when (val result = authRepository.sendMagicLink(state.email)) {
+                MagicLinkRequestResult.Sent -> {
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            showOtpScreen = true,
+                            currentFlow = AuthFlow.OTP
+                        )
+                    }
+                }
+                is MagicLinkRequestResult.Failure -> {
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = result.message)
+                    }
+                }
+            }
+        }
+    }
+
+    fun verifyOtp() {
+        val state = _uiState.value
+        if (state.isSubmitting || state.otp.length != 6) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            when (val result = authRepository.verifyOtp(state.email, state.otp, type = "magiclink")) {
+                is AuthResult.Success -> handleAuthSuccess(result)
+                is AuthResult.Failure -> {
+                    _uiState.update { it.copy(isSubmitting = false, errorMessage = result.message) }
+                }
+            }
+        }
+    }
+
+    fun backToEmail() {
+        _uiState.update { 
+            it.copy(
+                showOtpScreen = false, 
+                showMagicLinkScreen = false,
+                currentFlow = AuthFlow.PASSWORD,
+                otp = "", 
+                errorMessage = null,
+                message = null
+            ) 
+        }
+    }
+
     private suspend fun handleAuthSuccess(result: AuthResult.Success) {
         val hasLocalData = authRepository.hasLocalUserData()
         if (hasLocalData) {
             _uiState.update {
                 it.copy(
                     isSubmitting = false,
-                    password = "",
-                    confirmPassword = "",
                     showOwnershipDialog = true,
                 )
             }
@@ -102,32 +192,6 @@ class AuthViewModel(
                     isSubmitting = false,
                     isSuccessAndFinished = true
                 )
-            }
-        }
-    }
-
-    fun sendMagicLink() {
-        val state = _uiState.value
-        if (state.isSubmitting) return
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
-            when (val result = authRepository.sendMagicLink(state.email)) {
-                MagicLinkRequestResult.Sent -> {
-                    _uiState.update {
-                        it.copy(
-                            isSubmitting = false,
-                            password = "",
-                            confirmPassword = "",
-                            message = "Magic Link 已发送，请打开邮箱中的登录链接",
-                        )
-                    }
-                }
-                is MagicLinkRequestResult.Failure -> {
-                    _uiState.update {
-                        it.copy(isSubmitting = false, errorMessage = result.message)
-                    }
-                }
             }
         }
     }
