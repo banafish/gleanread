@@ -28,5 +28,6 @@ fun SettingsRoute(
         onKeepLocalData = { viewModel.chooseOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) },
         onUseCloudData = { viewModel.chooseOwnership(LocalDataOwnershipChoice.USE_CLOUD) },
         onDismissOwnershipDialog = viewModel::dismissOwnershipDialog,
+        onClearMessage = viewModel::clearMessage,
     )
 }

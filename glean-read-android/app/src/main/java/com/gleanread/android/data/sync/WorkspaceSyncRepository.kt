@@ -100,6 +100,10 @@ class WorkspaceSyncRepository(
         }
     }
 
+    fun clearError() {
+        _syncState.value = _syncState.value.copy(errorMessage = null)
+    }
+
     private suspend fun currentSession(): AuthSession? {
         return sessionRefresher?.currentSessionOrRefresh() ?: sessionStore.session.value
     }

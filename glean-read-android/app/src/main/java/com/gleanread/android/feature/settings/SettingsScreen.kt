@@ -14,22 +14,35 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import com.gleanread.android.R
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
@@ -52,8 +65,21 @@ fun SettingsScreen(
     onKeepLocalData: () -> Unit,
     onUseCloudData: () -> Unit,
     onDismissOwnershipDialog: () -> Unit,
+    onClearMessage: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(uiState.message) {
+        uiState.message?.takeIf { it.isNotBlank() }?.let { message ->
+            scope.launch {
+                snackbarHostState.showSnackbar(message)
+            }
+            onClearMessage()
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -66,6 +92,43 @@ fun SettingsScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 windowInsets = WindowInsets(0)
             )
+        },
+        snackbarHost = {
+            SnackbarHost(snackbarHostState) { data ->
+                Snackbar(
+                    modifier = Modifier.padding(12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        val icon = when {
+                            data.visuals.message.contains("成功") || data.visuals.message.contains("完成") -> Icons.Default.CheckCircle
+                            data.visuals.message.contains("失败") -> Icons.Default.Error
+                            else -> Icons.Default.Info
+                        }
+                        val iconColor = when {
+                            data.visuals.message.contains("成功") || data.visuals.message.contains("完成") -> MaterialTheme.colorScheme.primary
+                            data.visuals.message.contains("失败") -> MaterialTheme.colorScheme.error
+                            else -> MaterialTheme.colorScheme.secondary
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = iconColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = data.visuals.message,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
         }
     ) { innerPadding ->
         Column(
@@ -115,15 +178,6 @@ fun SettingsScreen(
                     Text(stringResource(R.string.settings_sign_out))
                 }
                 Spacer(modifier = Modifier.height(32.dp))
-            }
-
-            uiState.message?.takeIf(String::isNotBlank)?.let { message ->
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
             }
         }
     }
@@ -189,6 +243,7 @@ private fun SettingsScreenPreview() {
             onKeepLocalData = {},
             onUseCloudData = {},
             onDismissOwnershipDialog = {},
+            onClearMessage = {},
         )
     }
 }

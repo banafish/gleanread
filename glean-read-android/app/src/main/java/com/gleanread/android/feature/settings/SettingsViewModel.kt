@@ -190,6 +190,7 @@ class SettingsViewModel(
 
     fun clearMessage() {
         formState.update { it.copy(message = null) }
+        syncRepository.clearError()
     }
 }
 
