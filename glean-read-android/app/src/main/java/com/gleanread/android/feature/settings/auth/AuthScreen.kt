@@ -33,8 +33,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
@@ -90,6 +92,7 @@ fun AuthScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = { },
@@ -204,8 +207,6 @@ private fun EmailPasswordInputScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
-
         Text(
             text = if (isSignUpMode) "注册账号" else "欢迎回来",
             style = MaterialTheme.typography.headlineLarge.copy(
@@ -754,4 +755,207 @@ private fun OtpInputField(
             }
         }
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AuthScreenLoginPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                email = "user@example.com",
+                isSignUpMode = false
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AuthScreenSignUpPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                email = "newuser@example.com",
+                isSignUpMode = true
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AuthScreenOtpPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                email = "user@example.com",
+                showOtpScreen = true,
+                otp = "1234"
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun AuthScreenMagicLinkPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                email = "user@example.com",
+                showMagicLinkScreen = true
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Loading State")
+@Composable
+fun AuthScreenLoadingPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                email = "user@example.com",
+                isSubmitting = true
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Error Message")
+@Composable
+fun AuthScreenErrorPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                email = "user@example.com",
+                errorMessage = "输入的邮箱或密码错误，请重试。"
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Ownership Dialog")
+@Composable
+fun AuthScreenOwnershipDialogPreview() {
+    GleanReadTheme {
+        AuthScreen(
+            uiState = AuthUiState(
+                showOwnershipDialog = true
+            ),
+            onEmailChange = {},
+            onPasswordChange = {},
+            onConfirmPasswordChange = {},
+            onOtpChange = {},
+            onToggleAuthMode = {},
+            onSubmit = {},
+            onMagicLinkClick = {},
+            onOtpLoginClick = {},
+            onSendMagicLink = {},
+            onSendOtpCode = {},
+            onVerifyOtp = {},
+            onBackToEmail = {},
+            onChooseOwnership = {},
+            onDismissOwnershipDialog = {},
+            onClearMessage = {},
+            onBackClick = {}
+        )
+    }
 }
