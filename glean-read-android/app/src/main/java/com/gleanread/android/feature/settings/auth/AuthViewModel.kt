@@ -21,15 +21,15 @@ class AuthViewModel(
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
     fun updateEmail(value: String) {
-        _uiState.update { it.copy(email = value, errorMessage = null, message = null) }
+        _uiState.update { it.copy(email = value, emailError = null, errorMessage = null, message = null) }
     }
 
     fun updatePassword(value: String) {
-        _uiState.update { it.copy(password = value, errorMessage = null, message = null) }
+        _uiState.update { it.copy(password = value, passwordError = null, errorMessage = null, message = null) }
     }
 
     fun updateConfirmPassword(value: String) {
-        _uiState.update { it.copy(confirmPassword = value, errorMessage = null, message = null) }
+        _uiState.update { it.copy(confirmPassword = value, confirmPasswordError = null, errorMessage = null, message = null) }
     }
 
     fun updateOtp(value: String) {
@@ -49,15 +49,46 @@ class AuthViewModel(
         }
     }
 
+    private fun validateEmail(email: String): String? {
+        if (email.isBlank()) return "请输入邮箱地址"
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) return "邮箱格式不正确"
+        return null
+    }
+
+    private fun validatePassword(password: String): String? {
+        if (password.isBlank()) return "请输入密码"
+        if (password.length < 6) return "密码长度至少为 6 位"
+        return null
+    }
+
     fun submit() {
         val state = _uiState.value
         if (state.isSubmitting) return
 
+        val emailError = validateEmail(state.email)
+        val passwordError = validatePassword(state.password)
+        var confirmPasswordError: String? = null
+
         if (state.isSignUpMode) {
-            if (state.password != state.confirmPassword) {
-                _uiState.update { it.copy(errorMessage = "两次密码不一致") }
-                return
+            if (state.confirmPassword.isBlank()) {
+                confirmPasswordError = "请确认密码"
+            } else if (state.password != state.confirmPassword) {
+                confirmPasswordError = "两次输入的密码不一致"
             }
+        }
+
+        if (emailError != null || passwordError != null || confirmPasswordError != null) {
+            _uiState.update {
+                it.copy(
+                    emailError = emailError,
+                    passwordError = passwordError,
+                    confirmPasswordError = confirmPasswordError
+                )
+            }
+            return
+        }
+
+        if (state.isSignUpMode) {
             signUp()
         } else {
             signIn()
@@ -100,7 +131,13 @@ class AuthViewModel(
 
     fun sendMagicLink() {
         val state = _uiState.value
-        if (state.isSubmitting || state.email.isBlank()) return
+        if (state.isSubmitting) return
+
+        val emailError = validateEmail(state.email)
+        if (emailError != null) {
+            _uiState.update { it.copy(emailError = emailError) }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
@@ -125,7 +162,13 @@ class AuthViewModel(
 
     fun sendOtpCode() {
         val state = _uiState.value
-        if (state.isSubmitting || state.email.isBlank()) return
+        if (state.isSubmitting) return
+
+        val emailError = validateEmail(state.email)
+        if (emailError != null) {
+            _uiState.update { it.copy(emailError = emailError) }
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
@@ -172,6 +215,9 @@ class AuthViewModel(
                 currentFlow = AuthFlow.PASSWORD,
                 otp = "", 
                 errorMessage = null,
+                emailError = null,
+                passwordError = null,
+                confirmPasswordError = null,
                 message = null
             ) 
         }
@@ -231,6 +277,14 @@ class AuthViewModel(
     }
 
     fun clearMessage() {
-        _uiState.update { it.copy(message = null, errorMessage = null) }
+        _uiState.update { 
+            it.copy(
+                message = null, 
+                errorMessage = null,
+                emailError = null,
+                passwordError = null,
+                confirmPasswordError = null
+            ) 
+        }
     }
 }

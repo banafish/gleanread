@@ -165,6 +165,9 @@ fun AuthScreen(
                             isSignUpMode = uiState.isSignUpMode,
                             isSubmitting = uiState.isSubmitting,
                             errorMessage = uiState.errorMessage,
+                            emailError = uiState.emailError,
+                            passwordError = uiState.passwordError,
+                            confirmPasswordError = uiState.confirmPasswordError,
                             onEmailChange = onEmailChange,
                             onPasswordChange = onPasswordChange,
                             onConfirmPasswordChange = onConfirmPasswordChange,
@@ -188,6 +191,9 @@ private fun EmailPasswordInputScreen(
     isSignUpMode: Boolean,
     isSubmitting: Boolean,
     errorMessage: String?,
+    emailError: String? = null,
+    passwordError: String? = null,
+    confirmPasswordError: String? = null,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
     onConfirmPasswordChange: (String) -> Unit,
@@ -245,16 +251,27 @@ private fun EmailPasswordInputScreen(
                     keyboardType = KeyboardType.Email,
                     imeAction = ImeAction.Next
                 ),
+                isError = emailError != null,
                 shape = RoundedCornerShape(32.dp),
                 colors = TextFieldDefaults.colors(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+            if (emailError != null) {
+                Text(
+                    text = emailError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                )
+            }
 
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -274,6 +291,7 @@ private fun EmailPasswordInputScreen(
                     keyboardType = KeyboardType.Password,
                     imeAction = if (isSignUpMode) ImeAction.Next else ImeAction.Done
                 ),
+                isError = passwordError != null,
                 trailingIcon = {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
                         Icon(
@@ -287,11 +305,21 @@ private fun EmailPasswordInputScreen(
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     disabledIndicatorColor = Color.Transparent,
+                    errorIndicatorColor = Color.Transparent,
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                    errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+            if (passwordError != null) {
+                Text(
+                    text = passwordError,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                )
+            }
 
             if (isSignUpMode) {
                 Spacer(modifier = Modifier.height(12.dp))
@@ -311,16 +339,27 @@ private fun EmailPasswordInputScreen(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done
                     ),
+                    isError = confirmPasswordError != null,
                     shape = RoundedCornerShape(32.dp),
                     colors = TextFieldDefaults.colors(
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
                         disabledIndicatorColor = Color.Transparent,
+                        errorIndicatorColor = Color.Transparent,
                         focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f),
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (confirmPasswordError != null) {
+                    Text(
+                        text = confirmPasswordError,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(start = 12.dp, top = 4.dp)
+                    )
+                }
             }
         }
 
@@ -340,12 +379,12 @@ private fun EmailPasswordInputScreen(
             onClick = onSubmit,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(48.dp),
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),
-            enabled = !isSubmitting && email.isNotBlank() && password.isNotBlank()
+            enabled = !isSubmitting
         ) {
             if (isSubmitting) {
                 CircularProgressIndicator(
@@ -381,20 +420,17 @@ private fun EmailPasswordInputScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // OTP Code Button
-        OutlinedButton(
+        Button(
             onClick = onSendOtpCode,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(48.dp),
             shape = CircleShape,
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.primary
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                contentColor = MaterialTheme.colorScheme.onSurface
             ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp, 
-                MaterialTheme.colorScheme.outlineVariant
-            ),
-            enabled = !isSubmitting && email.isNotBlank()
+            enabled = !isSubmitting
         ) {
             Icon(Icons.Default.Email, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
@@ -407,19 +443,17 @@ private fun EmailPasswordInputScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         // Magic Link Button
-        OutlinedButton(
+        Button(
             onClick = onMagicLinkClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(48.dp),
             shape = CircleShape,
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = MaterialTheme.colorScheme.primary
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                contentColor = MaterialTheme.colorScheme.onSurface
             ),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp, 
-                MaterialTheme.colorScheme.outlineVariant
-            )
+            enabled = !isSubmitting
         ) {
             Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
@@ -536,12 +570,12 @@ private fun MagicLinkInputScreen(
             onClick = onSendMagicLink,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(48.dp),
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
             ),
-            enabled = !isSubmitting && email.isNotBlank()
+            enabled = !isSubmitting
         ) {
             if (isSubmitting) {
                 CircularProgressIndicator(
@@ -646,7 +680,7 @@ private fun OtpInputScreen(
             onClick = onVerify,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(48.dp),
             shape = CircleShape,
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.primary
