@@ -199,6 +199,18 @@
     <string name="settings_sync_title">同步</string>
     <string name="settings_syncing">同步中</string>
     <string name="settings_title">设置</string>
+    <string name="settings_appearance_title">外观</string>
+    <string name="settings_theme_mode_light">浅色</string>
+    <string name="settings_theme_mode_dark">深色</string>
+    <string name="settings_theme_mode_system">跟随系统</string>
+    <string name="settings_theme_color_title">主题颜色</string>
+    <string name="settings_theme_color_dynamic">动态</string>
+    <string name="settings_theme_color_ocean">海洋</string>
+    <string name="settings_theme_color_purple">紫色</string>
+    <string name="settings_theme_color_forest">森林</string>
+    <string name="settings_theme_color_sakura">樱花</string>
+    <string name="settings_theme_color_amber">琥珀</string>
+    <string name="settings_theme_color_graphite">石墨</string>
 
     <string name="richtext_open_link_action">打开 %1$s</string>
     <string name="richtext_suggestion_title">联想结果</string>
