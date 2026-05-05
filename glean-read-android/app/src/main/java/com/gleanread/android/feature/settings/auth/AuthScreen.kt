@@ -94,10 +94,10 @@ fun AuthScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(
-                title = { },
-                navigationIcon = {
-                    if (uiState.showOtpScreen || uiState.showMagicLinkScreen) {
+            if (uiState.showOtpScreen || uiState.showMagicLinkScreen) {
+                TopAppBar(
+                    title = { },
+                    navigationIcon = {
                         IconButton(
                             onClick = onBackToEmail,
                             modifier = Modifier
@@ -112,12 +112,12 @@ fun AuthScreen(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent
+                    )
                 )
-            )
+            }
         }
     ) { innerPadding ->
         Box(
@@ -202,6 +202,7 @@ private fun EmailPasswordInputScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .statusBarsPadding()
             .verticalScroll(scrollState)
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -724,8 +725,10 @@ private fun OtpInputField(
 
                     Box(
                         modifier = Modifier
+                            .weight(1f)
                             .padding(horizontal = 4.dp)
-                            .size(width = 44.dp, height = 56.dp)
+                            .height(56.dp)
+                            .widthIn(max = 48.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 if (isFocused) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
