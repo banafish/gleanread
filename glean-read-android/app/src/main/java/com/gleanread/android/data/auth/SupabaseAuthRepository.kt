@@ -33,7 +33,7 @@ import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
 class SupabaseAuthRepository(
-    private val config: SupabaseConfig,
+    internal val config: SupabaseConfig,
     private val httpClient: HttpClient,
     private val sessionStore: SupabaseSessionStore,
     private val database: WorkspaceDatabase,
@@ -41,7 +41,7 @@ class SupabaseAuthRepository(
 ) {
     val session: StateFlow<AuthSession?> = sessionStore.session
 
-    suspend fun sendMagicLink(email: String): MagicLinkRequestResult {
+    suspend fun signInWithOtp(email: String, redirectTo: String? = null): MagicLinkRequestResult {
         if (!config.isConfigured) {
             return MagicLinkRequestResult.Failure("Supabase 尚未配置")
         }
@@ -50,9 +50,13 @@ class SupabaseAuthRepository(
             return MagicLinkRequestResult.Failure("请输入邮箱")
         }
 
+        val actionName = if (redirectTo != null) "Magic Link" else "验证码"
+
         return runCatching {
             val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/otp") {
-                parameter("redirect_to", config.magicLinkRedirectUrl)
+                if (redirectTo != null) {
+                    parameter("redirect_to", redirectTo)
+                }
                 header("apikey", config.anonKey)
                 contentType(ContentType.Application.Json)
                 setBody(MagicLinkRequest(email = trimmedEmail))
@@ -60,17 +64,17 @@ class SupabaseAuthRepository(
             val responseBody = httpResponse.bodyAsText()
             if (!httpResponse.status.isSuccess()) {
                 return MagicLinkRequestResult.Failure(
-                    responseBody.toSupabaseAuthErrorMessage(defaultMessage = "发送 Magic Link 失败"),
+                    responseBody.toSupabaseAuthErrorMessage(defaultMessage = "发送${actionName}失败"),
                 )
             }
 
             MagicLinkRequestResult.Sent
         }.getOrElse { error ->
-            MagicLinkRequestResult.Failure(error.message ?: "发送 Magic Link 失败")
+            MagicLinkRequestResult.Failure(error.message ?: "发送${actionName}失败")
         }
     }
 
-    suspend fun verifyOtp(email: String, token: String, type: String = "magiclink"): AuthResult {
+    suspend fun verifyOtp(email: String, token: String, type: String = "email"): AuthResult {
         if (!config.isConfigured) {
             return AuthResult.Failure("Supabase 尚未配置")
         }

@@ -104,7 +104,8 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
-            when (val result = authRepository.sendMagicLink(state.email)) {
+            // 明确传递 redirectTo 参数，Supabase 将发送 Magic Link
+            when (val result = authRepository.signInWithOtp(state.email, authRepository.config.magicLinkRedirectUrl)) {
                 MagicLinkRequestResult.Sent -> {
                     _uiState.update {
                         it.copy(
@@ -128,7 +129,8 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
-            when (val result = authRepository.sendMagicLink(state.email)) {
+            // 不传递 redirectTo 参数，Supabase 将发送 6 位验证码（OTP）
+            when (val result = authRepository.signInWithOtp(state.email, null)) {
                 MagicLinkRequestResult.Sent -> {
                     _uiState.update {
                         it.copy(
@@ -153,7 +155,7 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
-            when (val result = authRepository.verifyOtp(state.email, state.otp, type = "magiclink")) {
+            when (val result = authRepository.verifyOtp(state.email, state.otp, type = "email")) {
                 is AuthResult.Success -> handleAuthSuccess(result)
                 is AuthResult.Failure -> {
                     _uiState.update { it.copy(isSubmitting = false, errorMessage = result.message) }
