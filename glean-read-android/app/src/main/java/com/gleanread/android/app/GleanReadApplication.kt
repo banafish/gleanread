@@ -1,4 +1,4 @@
-﻿package com.gleanread.android.app
+package com.gleanread.android.app
 
 import android.app.Application
 import android.content.Context
@@ -10,6 +10,7 @@ class GleanReadApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        appContainer.restoreDatabaseFromSession()
         runCatching {
             WorkspaceSyncWorker.schedule(this)
         }
@@ -18,6 +19,3 @@ class GleanReadApplication : Application() {
 
 val Context.appContainer: AppContainer
     get() = (applicationContext as GleanReadApplication).appContainer
-
-
-

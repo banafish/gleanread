@@ -29,5 +29,8 @@ fun SettingsRoute(
         onUseCloudData = { viewModel.chooseOwnership(LocalDataOwnershipChoice.USE_CLOUD) },
         onDismissOwnershipDialog = viewModel::dismissOwnershipDialog,
         onClearMessage = viewModel::clearMessage,
+        onConfirmSignOutWithUnsyncedData = viewModel::confirmSignOutWithUnsyncedData,
+        onDismissUnsyncedWarning = viewModel::dismissUnsyncedWarning,
+        onClearLocalCache = viewModel::clearLocalCache,
     )
 }

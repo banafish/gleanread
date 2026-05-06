@@ -2,13 +2,11 @@ package com.gleanread.android.app.di
 
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
-import androidx.room.Room
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.auth.SupabaseSessionRefresher
 import com.gleanread.android.data.auth.SupabaseSessionStore
-import com.gleanread.android.data.local.MIGRATION_1_2
-import com.gleanread.android.data.local.MIGRATION_2_3
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.appearance.AppearancePreferencesRepository
 import com.gleanread.android.data.avatar.AvatarRepository
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -43,12 +41,22 @@ class AppContainer(
 ) {
     private val appContext = context.applicationContext
 
-    private val workspaceDatabase: WorkspaceDatabase by lazy {
-        Room.databaseBuilder(
-            appContext,
-            WorkspaceDatabase::class.java,
-            "glean_workspace.db",
-        ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+    val databaseManager: WorkspaceDatabaseManager by lazy {
+        WorkspaceDatabaseManager(appContext)
+    }
+
+    val workspaceDatabase: WorkspaceDatabase
+        get() = databaseManager.currentDatabase.value
+
+    /**
+     * 根据已保存的 session 恢复数据库连接。
+     * 应在 Application.onCreate() 中调用。
+     */
+    fun restoreDatabaseFromSession() {
+        val savedUserId = supabaseSessionStore.session.value?.userId
+        if (savedUserId != null) {
+            databaseManager.switchToUser(savedUserId)
+        }
     }
 
     private val deviceIdentityStore: DeviceIdentityStore by lazy {
@@ -96,7 +104,7 @@ class AppContainer(
             config = supabaseConfig,
             httpClient = supabaseHttpClient,
             sessionStore = supabaseSessionStore,
-            database = workspaceDatabase,
+            databaseManager = databaseManager,
             deviceIdProvider = deviceIdentityStore,
         )
     }
@@ -195,6 +203,7 @@ class AppContainer(
                 syncRepository = workspaceSyncRepository,
                 appearancePreferencesRepository = appearancePreferencesRepository,
                 avatarRepository = avatarRepository,
+                databaseManager = databaseManager,
             )
         }
     }
@@ -204,6 +213,7 @@ class AppContainer(
             AuthViewModel(
                 authRepository = supabaseAuthRepository,
                 syncRepository = workspaceSyncRepository,
+                databaseManager = databaseManager,
             )
         }
     }

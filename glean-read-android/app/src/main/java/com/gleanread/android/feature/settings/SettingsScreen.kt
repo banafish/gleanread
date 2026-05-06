@@ -9,20 +9,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -31,8 +36,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -66,6 +69,9 @@ fun SettingsScreen(
     onUseCloudData: () -> Unit,
     onDismissOwnershipDialog: () -> Unit,
     onClearMessage: () -> Unit,
+    onConfirmSignOutWithUnsyncedData: () -> Unit = {},
+    onDismissUnsyncedWarning: () -> Unit = {},
+    onClearLocalCache: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -160,6 +166,19 @@ fun SettingsScreen(
                 onSyncNow = onSyncNow,
             )
 
+            // 清除本地缓存按钮
+            OutlinedButton(
+                onClick = onClearLocalCache,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DeleteSweep,
+                    contentDescription = null,
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.settings_clear_local_cache))
+            }
+
             if (uiState.isLoggedIn) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
@@ -182,12 +201,21 @@ fun SettingsScreen(
         }
     }
 
+    // 本地数据归属弹窗
     if (uiState.showOwnershipDialog) {
         DataOwnershipDialog(
             onMergeLocalData = onMergeLocalData,
             onKeepLocalData = onKeepLocalData,
             onUseCloudData = onUseCloudData,
             onDismiss = onDismissOwnershipDialog,
+        )
+    }
+
+    // 未同步数据警告弹窗
+    if (uiState.showUnsyncedWarning) {
+        UnsyncedDataWarningDialog(
+            onConfirm = onConfirmSignOutWithUnsyncedData,
+            onDismiss = onDismissUnsyncedWarning,
         )
     }
 }
@@ -216,6 +244,35 @@ private fun DataOwnershipDialog(
                 TextButton(onClick = onUseCloudData) {
                     Text(stringResource(R.string.settings_ownership_use_cloud))
                 }
+            }
+        },
+    )
+}
+
+@Composable
+private fun UnsyncedDataWarningDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Warning,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+        },
+        title = { Text(stringResource(R.string.settings_unsynced_warning_title)) },
+        text = { Text(stringResource(R.string.settings_unsynced_warning_body)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.settings_unsynced_warning_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_unsynced_warning_cancel))
             }
         },
     )

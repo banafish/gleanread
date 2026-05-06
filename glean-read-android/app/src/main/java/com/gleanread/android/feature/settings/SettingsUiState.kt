@@ -18,4 +18,5 @@ data class SettingsUiState(
     val conflictCount: Int = 0,
     val message: String? = null,
     val showOwnershipDialog: Boolean = false,
+    val showUnsyncedWarning: Boolean = false,
 )

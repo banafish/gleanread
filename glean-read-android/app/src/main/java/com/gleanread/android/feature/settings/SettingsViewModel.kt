@@ -9,6 +9,7 @@ import com.gleanread.android.data.avatar.AvatarRepository
 import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 import com.gleanread.android.data.auth.SupabaseAuthRepository
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,7 @@ class SettingsViewModel(
     private val syncRepository: WorkspaceSyncRepository,
     private val appearancePreferencesRepository: AppearancePreferencesRepository,
     private val avatarRepository: AvatarRepository,
+    private val databaseManager: WorkspaceDatabaseManager,
 ) : ViewModel() {
     private val formState = MutableStateFlow(SettingsFormState())
 
@@ -62,6 +64,7 @@ class SettingsViewModel(
             conflictCount = syncState.conflictCount,
             message = form.message ?: syncState.errorMessage,
             showOwnershipDialog = form.showOwnershipDialog,
+            showUnsyncedWarning = form.showUnsyncedWarning,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -108,7 +111,6 @@ class SettingsViewModel(
             )
             if (result.isSuccess) {
                 val publicUrl = result.getOrNull()
-                // 同时更新 Supabase Auth 中的用户元数据，以便多设备同步
                 authRepository.updateUserMetadata(
                     mapOf("avatar_url" to JsonPrimitive(publicUrl))
                 )
@@ -168,12 +170,42 @@ class SettingsViewModel(
         formState.update { it.copy(showOwnershipDialog = false) }
     }
 
+    /**
+     * 发起登出流程。先检查是否有未同步的数据，
+     * 如果有则弹出警告弹窗，用户确认后才执行登出。
+     */
     fun signOut() {
         viewModelScope.launch {
-            syncRepository.setCloudSyncEnabled(false)
-            authRepository.signOut()
-            formState.update { it.copy(message = "已退出登录") }
+            val hasUnsynced = authRepository.hasUnsyncedChanges()
+            if (hasUnsynced) {
+                formState.update { it.copy(showUnsyncedWarning = true) }
+            } else {
+                performSignOut()
+            }
         }
+    }
+
+    /**
+     * 用户确认忽略未同步数据，继续登出。
+     */
+    fun confirmSignOutWithUnsyncedData() {
+        viewModelScope.launch {
+            formState.update { it.copy(showUnsyncedWarning = false) }
+            performSignOut()
+        }
+    }
+
+    /**
+     * 取消登出。
+     */
+    fun dismissUnsyncedWarning() {
+        formState.update { it.copy(showUnsyncedWarning = false) }
+    }
+
+    private suspend fun performSignOut() {
+        syncRepository.setCloudSyncEnabled(false)
+        authRepository.signOut()
+        formState.update { it.copy(message = "已退出登录") }
     }
 
     fun syncNow() {
@@ -188,6 +220,18 @@ class SettingsViewModel(
         }
     }
 
+    /**
+     * 清除所有非当前活跃数据库的缓存文件。
+     */
+    fun clearLocalCache() {
+        viewModelScope.launch {
+            val deletedCount = databaseManager.deleteInactiveDatabases()
+            formState.update {
+                it.copy(message = if (deletedCount > 0) "已清除 $deletedCount 个缓存数据库" else "没有需要清除的缓存")
+            }
+        }
+    }
+
     fun clearMessage() {
         formState.update { it.copy(message = null) }
         syncRepository.clearError()
@@ -199,4 +243,5 @@ private data class SettingsFormState(
     val isAvatarUploading: Boolean = false,
     val message: String? = null,
     val showOwnershipDialog: Boolean = false,
+    val showUnsyncedWarning: Boolean = false,
 )

@@ -3,6 +3,7 @@ package com.gleanread.android.data.auth
 import android.net.Uri
 import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.remote.SupabaseConfig
@@ -36,9 +37,12 @@ class SupabaseAuthRepository(
     internal val config: SupabaseConfig,
     private val httpClient: HttpClient,
     private val sessionStore: SupabaseSessionStore,
-    private val database: WorkspaceDatabase,
+    private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider,
 ) {
+    private val database: WorkspaceDatabase
+        get() = databaseManager.currentDatabase.value
+
     val session: StateFlow<AuthSession?> = sessionStore.session
 
     suspend fun signInWithOtp(email: String, redirectTo: String? = null): MagicLinkRequestResult {
@@ -98,6 +102,7 @@ class SupabaseAuthRepository(
             val response = AuthJson.decodeFromString<AuthTokenResponse>(responseBody)
             val session = response.toSession()
             sessionStore.saveSession(session)
+            databaseManager.switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.message ?: "验证失败")
@@ -135,6 +140,7 @@ class SupabaseAuthRepository(
                 expiresAtMillis = parameters.authExpiresAtMillis(),
             )
             sessionStore.saveSession(session)
+            databaseManager.switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.message ?: "Magic Link 登录失败")
@@ -166,6 +172,7 @@ class SupabaseAuthRepository(
 
             val session = response.toSession()
             sessionStore.saveSession(session)
+            databaseManager.switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.toAuthMessage())
@@ -205,8 +212,9 @@ class SupabaseAuthRepository(
                 expiresInSeconds = response.expiresInSeconds,
                 user = user
             ).toSession()
-            
+
             sessionStore.saveSession(session)
+            databaseManager.switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.toAuthMessage())
@@ -224,6 +232,7 @@ class SupabaseAuthRepository(
             }
         }
         sessionStore.clearSession()
+        databaseManager.closeCurrentDatabase()
     }
 
     suspend fun updateUserMetadata(metadata: Map<String, JsonElement>): Result<Unit> {
@@ -252,24 +261,47 @@ class SupabaseAuthRepository(
         }
     }
 
+    /**
+     * 检查访客数据库是否有业务数据。
+     */
     suspend fun hasLocalUserData(): Boolean {
-        return database.excerptDao().countExcerptsByUserId(LOCAL_USER_ID) > 0 ||
-            database.nodeDao().countNodesByUserId(LOCAL_USER_ID) > 0 ||
-            database.tagDao().countTagsByUserId(LOCAL_USER_ID) > 0 ||
-            database.excerptTagDao().countExcerptTagsByUserId(LOCAL_USER_ID) > 0
+        return databaseManager.hasGuestData()
     }
 
+    /**
+     * 将访客数据库中的数据迁移到当前登录用户的数据库。
+     * 读取 guest.db 中所有记录，重新绑定 userId 后批量写入当前用户的数据库。
+     */
     suspend fun mergeLocalDataIntoCurrentAccount(): Boolean {
         val currentSession = session.value ?: return false
+        val guestDb = databaseManager.guestDatabase
+        val userDb = databaseManager.currentDatabase.value
+
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        database.withTransaction {
-            database.nodeDao().updateNodes(
-                database.nodeDao().getAllNodesOnce()
-                    .filter { it.userId == LOCAL_USER_ID }
-                    .map { node ->
+        val targetUserId = currentSession.userId
+
+        // 从 guest.db 读取所有数据
+        val nodes = guestDb.nodeDao().getAllNodesOnce()
+            .filter { it.userId == LOCAL_USER_ID }
+        val tags = guestDb.tagDao().getAllTagsOnce()
+            .filter { it.userId == LOCAL_USER_ID }
+        val excerpts = guestDb.excerptDao().getAllExcerptsOnce()
+            .filter { it.userId == LOCAL_USER_ID }
+        val excerptTags = guestDb.excerptTagDao().getAllExcerptTagsOnce()
+            .filter { it.userId == LOCAL_USER_ID }
+
+        if (nodes.isEmpty() && tags.isEmpty() && excerpts.isEmpty() && excerptTags.isEmpty()) {
+            return true
+        }
+
+        // 批量写入用户数据库
+        userDb.withTransaction {
+            if (nodes.isNotEmpty()) {
+                userDb.nodeDao().insertNodes(
+                    nodes.map { node ->
                         node.copy(
-                            userId = currentSession.userId,
+                            userId = targetUserId,
                             updateTime = now,
                             deviceId = deviceId,
                             syncStatus = SyncStatus.bump(node.syncStatus),
@@ -277,13 +309,13 @@ class SupabaseAuthRepository(
                             localDirtyTime = now,
                         )
                     },
-            )
-            database.tagDao().updateTags(
-                database.tagDao().getAllTagsOnce()
-                    .filter { it.userId == LOCAL_USER_ID }
-                    .map { tag ->
+                )
+            }
+            if (tags.isNotEmpty()) {
+                userDb.tagDao().insertTags(
+                    tags.map { tag ->
                         tag.copy(
-                            userId = currentSession.userId,
+                            userId = targetUserId,
                             updateTime = now,
                             deviceId = deviceId,
                             syncStatus = SyncStatus.bump(tag.syncStatus),
@@ -291,13 +323,13 @@ class SupabaseAuthRepository(
                             localDirtyTime = now,
                         )
                     },
-            )
-            database.excerptDao().updateExcerpts(
-                database.excerptDao().getAllExcerptsOnce()
-                    .filter { it.userId == LOCAL_USER_ID }
-                    .map { excerpt ->
+                )
+            }
+            if (excerpts.isNotEmpty()) {
+                userDb.excerptDao().insertExcerpts(
+                    excerpts.map { excerpt ->
                         excerpt.copy(
-                            userId = currentSession.userId,
+                            userId = targetUserId,
                             updateTime = now,
                             deviceId = deviceId,
                             syncStatus = SyncStatus.bump(excerpt.syncStatus),
@@ -305,13 +337,13 @@ class SupabaseAuthRepository(
                             localDirtyTime = now,
                         )
                     },
-            )
-            database.excerptTagDao().updateExcerptTags(
-                database.excerptTagDao().getAllExcerptTagsOnce()
-                    .filter { it.userId == LOCAL_USER_ID }
-                    .map { relation ->
+                )
+            }
+            if (excerptTags.isNotEmpty()) {
+                userDb.excerptTagDao().insertExcerptTags(
+                    excerptTags.map { relation ->
                         relation.copy(
-                            userId = currentSession.userId,
+                            userId = targetUserId,
                             updateTime = now,
                             deviceId = deviceId,
                             syncStatus = SyncStatus.bump(relation.syncStatus),
@@ -319,8 +351,12 @@ class SupabaseAuthRepository(
                             localDirtyTime = now,
                         )
                     },
-            )
+                )
+            }
         }
+
+        // 迁移完成后清空 guest.db
+        databaseManager.clearGuestData()
         return true
     }
 
@@ -331,6 +367,21 @@ class SupabaseAuthRepository(
             database.tagDao().deleteAllTags()
             database.nodeDao().deleteAllNodes()
         }
+    }
+
+    /**
+     * 检查当前用户数据库中是否有未同步的修改记录。
+     */
+    suspend fun hasUnsyncedChanges(): Boolean {
+        val pendingStatuses = listOf(
+            SyncStatus.PENDING_CREATE.name,
+            SyncStatus.PENDING_UPDATE.name,
+            SyncStatus.PENDING_DELETE.name,
+        )
+        return database.nodeDao().findNodesBySyncStatuses(pendingStatuses).isNotEmpty() ||
+            database.tagDao().findTagsBySyncStatuses(pendingStatuses).isNotEmpty() ||
+            database.excerptDao().findExcerptsBySyncStatuses(pendingStatuses).isNotEmpty() ||
+            database.excerptTagDao().findExcerptTagsBySyncStatuses(pendingStatuses).isNotEmpty()
     }
 
     private suspend fun fetchCurrentUser(accessToken: String): AuthUserResponse {

@@ -6,6 +6,7 @@ import com.gleanread.android.data.auth.AuthResult
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 import com.gleanread.android.data.auth.MagicLinkRequestResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 class AuthViewModel(
     private val authRepository: SupabaseAuthRepository,
     private val syncRepository: WorkspaceSyncRepository,
+    private val databaseManager: WorkspaceDatabaseManager,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -40,12 +42,12 @@ class AuthViewModel(
     }
 
     fun toggleAuthMode() {
-        _uiState.update { 
+        _uiState.update {
             it.copy(
-                isSignUpMode = !it.isSignUpMode, 
-                errorMessage = null, 
-                message = null 
-            ) 
+                isSignUpMode = !it.isSignUpMode,
+                errorMessage = null,
+                message = null
+            )
         }
     }
 
@@ -141,7 +143,6 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
-            // 明确传递 redirectTo 参数，Supabase 将发送 Magic Link
             when (val result = authRepository.signInWithOtp(state.email, authRepository.config.magicLinkRedirectUrl)) {
                 MagicLinkRequestResult.Sent -> {
                     _uiState.update {
@@ -172,7 +173,6 @@ class AuthViewModel(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSubmitting = true, errorMessage = null, message = null) }
-            // 不传递 redirectTo 参数，Supabase 将发送 6 位验证码（OTP）
             when (val result = authRepository.signInWithOtp(state.email, null)) {
                 MagicLinkRequestResult.Sent -> {
                     _uiState.update {
@@ -208,23 +208,23 @@ class AuthViewModel(
     }
 
     fun backToEmail() {
-        _uiState.update { 
+        _uiState.update {
             it.copy(
-                showOtpScreen = false, 
+                showOtpScreen = false,
                 showMagicLinkScreen = false,
                 currentFlow = AuthFlow.PASSWORD,
-                otp = "", 
+                otp = "",
                 errorMessage = null,
                 emailError = null,
                 passwordError = null,
                 confirmPasswordError = null,
                 message = null
-            ) 
+            )
         }
     }
 
     private suspend fun handleAuthSuccess(result: AuthResult.Success) {
-        val hasLocalData = authRepository.hasLocalUserData()
+        val hasLocalData = databaseManager.hasGuestData()
         if (hasLocalData) {
             _uiState.update {
                 it.copy(
@@ -277,14 +277,14 @@ class AuthViewModel(
     }
 
     fun clearMessage() {
-        _uiState.update { 
+        _uiState.update {
             it.copy(
-                message = null, 
+                message = null,
                 errorMessage = null,
                 emailError = null,
                 passwordError = null,
                 confirmPasswordError = null
-            ) 
+            )
         }
     }
 }

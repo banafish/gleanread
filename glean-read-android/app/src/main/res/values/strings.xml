@@ -187,6 +187,11 @@
     <string name="settings_ownership_merge">合并到账号</string>
     <string name="settings_ownership_title">本地数据归属</string>
     <string name="settings_ownership_use_cloud">使用云端</string>
+    <string name="settings_clear_local_cache">清除本地缓存</string>
+    <string name="settings_unsynced_warning_title">未同步数据</string>
+    <string name="settings_unsynced_warning_body">您有尚未同步至云端的数据修改。退出后这些修改仅存在于此设备上，其他设备将无法看到。是否继续退出？</string>
+    <string name="settings_unsynced_warning_confirm">继续退出</string>
+    <string name="settings_unsynced_warning_cancel">取消</string>
     <string name="settings_password_label">密码</string>
     <string name="settings_send_magic_link">发送 Magic Link</string>
     <string name="settings_sign_in">登录</string>
