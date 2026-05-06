@@ -9,6 +9,7 @@ import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.SyncStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,12 +21,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
 class WorkspaceSyncRepository(
-    private val database: WorkspaceDatabase,
+    private val databaseManager: WorkspaceDatabaseManager,
     private val remoteDataSource: WorkspaceRemoteDataSource,
     private val sessionStore: SupabaseSessionStore,
     private val stateStore: WorkspaceSyncStateStore,
     private val sessionRefresher: SupabaseSessionRefresher? = null,
 ) {
+    private val database get() = databaseManager.currentDatabase.value
     private val _syncState = MutableStateFlow(WorkspaceSyncUiState())
     private val syncMutex = Mutex()
     val syncState: StateFlow<WorkspaceSyncUiState> = _syncState.asStateFlow()

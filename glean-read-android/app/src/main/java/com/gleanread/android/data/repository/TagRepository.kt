@@ -2,24 +2,31 @@ package com.gleanread.android.data.repository
 
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 
 /**
  * Tag 的 CRUD 仓库。
  */
 class TagRepository(
-    private val database: WorkspaceDatabase,
+    private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val tagDao = database.tagDao()
+    private val database get() = databaseManager.currentDatabase.value
+    private val tagDao get() = database.tagDao()
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     fun observeAvailableTagNames(): Flow<List<String>> {
-        return tagDao.observeTags().map { tags -> tags.map(TagEntity::tagName) }
+        return databaseManager.currentDatabase.flatMapLatest { db ->
+            db.tagDao().observeTags().map { tags -> tags.map(TagEntity::tagName) }
+        }
     }
 
     suspend fun createTag(rawTagName: String): String {

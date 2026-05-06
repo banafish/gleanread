@@ -111,7 +111,7 @@ class AppContainer(
 
     val workspaceSyncRepository: WorkspaceSyncRepository by lazy {
         WorkspaceSyncRepository(
-            database = workspaceDatabase,
+            databaseManager = databaseManager,
             remoteDataSource = SupabaseWorkspaceRemoteDataSource(
                 config = supabaseConfig,
                 httpClient = supabaseHttpClient,
@@ -132,27 +132,27 @@ class AppContainer(
     }
 
     val excerptRepository: ExcerptRepository by lazy {
-        ExcerptRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
+        ExcerptRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
     }
 
     val tagRepository: TagRepository by lazy {
-        TagRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
+        TagRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
     }
 
     val knowledgeTreeRepository: KnowledgeTreeRepository by lazy {
-        KnowledgeTreeRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
+        KnowledgeTreeRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
     }
 
     val snapshotProvider: WorkspaceSnapshotProvider by lazy {
-        WorkspaceSnapshotProvider(workspaceDatabase)
+        WorkspaceSnapshotProvider(databaseManager)
     }
 
     val seedDataInitializer: SeedDataInitializer by lazy {
-        SeedDataInitializer(workspaceDatabase)
+        SeedDataInitializer(databaseManager)
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {
-        AiSummaryRepository(workspaceDatabase, deviceIdentityStore, currentUserIdProvider)
+        AiSummaryRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
     }
 
     val appSnapshotStore: AppSnapshotStore by lazy {

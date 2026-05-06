@@ -6,18 +6,20 @@ import com.gleanread.android.core.richtext.LinkSuggestionType
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.LocalSuggestionCandidate
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
 
 class KnowledgeTreeRepository(
-    private val database: WorkspaceDatabase,
+    private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val excerptDao = database.excerptDao()
-    private val nodeDao = database.nodeDao()
+    private val database get() = databaseManager.currentDatabase.value
+    private val excerptDao get() = database.excerptDao()
+    private val nodeDao get() = database.nodeDao()
 
     suspend fun searchSuggestions(query: String): List<LinkSuggestion> {
         val nodes = nodeDao.getNodesOnce()

@@ -2,13 +2,15 @@ package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 
 /**
  * 种子数据初始化器，独立于业务 Repository。
  */
 class SeedDataInitializer(
-    private val database: WorkspaceDatabase,
+    private val databaseManager: WorkspaceDatabaseManager,
 ) {
+    private val database get() = databaseManager.currentDatabase.value
     suspend fun seedSampleData() {
         val excerptDao = database.excerptDao()
         val nodeDao = database.nodeDao()

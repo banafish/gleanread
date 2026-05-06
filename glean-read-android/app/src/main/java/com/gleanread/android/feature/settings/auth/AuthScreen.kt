@@ -75,16 +75,29 @@ fun AuthScreen(
 
     if (uiState.showOwnershipDialog) {
         AlertDialog(
-            onDismissRequest = onDismissOwnershipDialog,
+            onDismissRequest = { if (!uiState.isSubmitting) onDismissOwnershipDialog() },
             title = { Text("本地数据处理") },
             text = { Text("您在本地有未同步的数据。登录后您希望如何处理这些数据？") },
             confirmButton = {
-                TextButton(onClick = { onChooseOwnership(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) }) {
+                TextButton(
+                    onClick = { onChooseOwnership(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) },
+                    enabled = !uiState.isSubmitting
+                ) {
+                    if (uiState.isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     Text("合并到当前账号")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { onChooseOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) }) {
+                TextButton(
+                    onClick = { onChooseOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) },
+                    enabled = !uiState.isSubmitting
+                ) {
                     Text("保留本地 (不同步)")
                 }
             }

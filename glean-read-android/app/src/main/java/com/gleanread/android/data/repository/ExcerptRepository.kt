@@ -5,6 +5,7 @@ import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
@@ -16,14 +17,15 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
  * 消除重复的创建/更新/删除实现。
  */
 class ExcerptRepository(
-    private val database: WorkspaceDatabase,
+    private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val excerptDao = database.excerptDao()
-    private val tagDao = database.tagDao()
-    private val excerptTagDao = database.excerptTagDao()
-    private val nodeDao = database.nodeDao()
+    private val database get() = databaseManager.currentDatabase.value
+    private val excerptDao get() = database.excerptDao()
+    private val tagDao get() = database.tagDao()
+    private val excerptTagDao get() = database.excerptTagDao()
+    private val nodeDao get() = database.nodeDao()
 
     /**
      * 创建摘录并关联 tag。
