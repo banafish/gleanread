@@ -94,11 +94,12 @@ fun AuthScreen(
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { onChooseOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) },
-                    enabled = !uiState.isSubmitting
-                ) {
-                    Text("保留本地 (不同步)")
+                if (!uiState.isSubmitting) {
+                    TextButton(
+                        onClick = { onChooseOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) }
+                    ) {
+                        Text("不合并本地数据")
+                    }
                 }
             }
         )

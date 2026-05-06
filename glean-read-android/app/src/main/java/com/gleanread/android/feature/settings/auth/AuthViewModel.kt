@@ -246,7 +246,11 @@ class AuthViewModel(
 
     fun chooseOwnership(choice: LocalDataOwnershipChoice) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            if (choice == LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) {
+                _uiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            } else {
+                _uiState.update { it.copy(errorMessage = null) }
+            }
             when (choice) {
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     authRepository.mergeLocalDataIntoCurrentAccount()
@@ -254,7 +258,8 @@ class AuthViewModel(
                     syncRepository.syncNow()
                 }
                 LocalDataOwnershipChoice.KEEP_LOCAL -> {
-                    syncRepository.setCloudSyncEnabled(false)
+                    syncRepository.setCloudSyncEnabled(true)
+                    syncRepository.syncNow()
                 }
                 LocalDataOwnershipChoice.USE_CLOUD -> {
                     authRepository.clearLocalWorkspaceData()
