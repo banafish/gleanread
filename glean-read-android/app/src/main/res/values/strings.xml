@@ -20,7 +20,6 @@
 
     <string name="feed_ai_recommendation_action">去整理</string>
     <string name="feed_ai_recommendation_body">选中几条摘录后，让 AI 帮你总结成节点大纲。</string>
-    <string name="feed_ai_recommendation_ignore">暂不处理</string>
     <string name="feed_ai_recommendation_title">AI 整理建议</string>
     <string name="feed_clear_search_content_description">清空搜索</string>
     <string name="feed_delete_excerpt_body">删除后不可恢复。\n\n%1$s</string>

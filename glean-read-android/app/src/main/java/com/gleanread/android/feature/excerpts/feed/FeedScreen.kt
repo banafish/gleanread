@@ -29,7 +29,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -56,6 +55,7 @@ import com.gleanread.android.core.ui.theme.GleanReadTheme
 @Composable
 fun FeedScreen(
     filteredExcerpts: List<ExcerptUiModel>,
+    showEmptyCard: Boolean,
     searchQuery: String,
     showInboxOnly: Boolean,
     isSelectionMode: Boolean,
@@ -67,6 +67,8 @@ fun FeedScreen(
     onToggleInboxFilter: () -> Unit,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
+    onLoadSample: () -> Unit,
+    onStartRecording: () -> Unit,
     onOpenAiSummary: () -> Unit,
     onOpenExcerptAiSummary: (String) -> Unit,
     onDeleteExcerpt: (String) -> Unit,
@@ -117,6 +119,17 @@ fun FeedScreen(
                 item(key = "feed_selection_hint") {
                     FeedSelectionHint()
                     Spacer(Modifier.height(14.dp))
+                }
+
+                if (showEmptyCard) {
+                    item(key = "feed_empty_card") {
+                        FeedEmptyCard(
+                            onLoadSample = onLoadSample,
+                            onStartRecording = onStartRecording,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(14.dp))
+                    }
                 }
 
                 items(
@@ -322,13 +335,8 @@ private fun AiRecommendationCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(Modifier.height(10.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = {}) {
-                    Text(stringResource(R.string.feed_ai_recommendation_ignore))
-                }
-                Button(onClick = onOpenAiSummary) {
-                    Text(stringResource(R.string.feed_ai_recommendation_action))
-                }
+            Button(onClick = onOpenAiSummary) {
+                Text(stringResource(R.string.feed_ai_recommendation_action))
             }
         }
     }
@@ -340,6 +348,7 @@ private fun FeedScreenPreview() {
     GleanReadTheme {
         FeedScreen(
             filteredExcerpts = WorkspacePreviewData.snapshot().excerpts,
+            showEmptyCard = false,
             searchQuery = "",
             showInboxOnly = false,
             isSelectionMode = false,
@@ -351,6 +360,43 @@ private fun FeedScreenPreview() {
             onToggleInboxFilter = {},
             isRefreshing = false,
             onRefresh = {},
+            onLoadSample = {},
+            onStartRecording = {},
+            onOpenAiSummary = {},
+            onOpenExcerptAiSummary = {},
+            onDeleteExcerpt = {},
+            onLongPress = {},
+            onToggleSelection = {},
+            onOpenNode = {},
+            onOpenExcerpt = {},
+            onRevealExcerptActions = {},
+            onDismissExcerptActions = {},
+            onDismissDeleteDialog = {},
+            onConfirmDeleteDialog = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun FeedScreenEmptyPreview() {
+    GleanReadTheme {
+        FeedScreen(
+            filteredExcerpts = emptyList(),
+            showEmptyCard = true,
+            searchQuery = "",
+            showInboxOnly = false,
+            isSelectionMode = false,
+            selectedExcerptIds = emptySet(),
+            revealedExcerptId = null,
+            pendingDeleteExcerpt = null,
+            onSearchQueryChange = {},
+            onClearSearch = {},
+            onToggleInboxFilter = {},
+            isRefreshing = false,
+            onRefresh = {},
+            onLoadSample = {},
+            onStartRecording = {},
             onOpenAiSummary = {},
             onOpenExcerptAiSummary = {},
             onDeleteExcerpt = {},

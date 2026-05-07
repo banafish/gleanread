@@ -125,15 +125,12 @@ fun MainApp() {
         route == MainRoutes.Tree ||
         route == MainRoutes.Tags ||
         route == MainRoutes.Settings
-    val showEmptyGuide = route == MainRoutes.Feed && snapshot.isEmpty
     val showFab = (route == MainRoutes.Feed || route == MainRoutes.Tags) &&
         !feedUiState.isSelectionMode &&
-        !(route == MainRoutes.Tags && (tagsUiState.isSelectionMode || tagsUiState.isSearchVisible)) &&
-        !showEmptyGuide
+        !(route == MainRoutes.Tags && (tagsUiState.isSelectionMode || tagsUiState.isSearchVisible))
     val showBottomNav = isMainRoute &&
         !feedUiState.isSelectionMode &&
-        !(route == MainRoutes.Tags && tagsUiState.isSelectionMode) &&
-        !showEmptyGuide
+        !(route == MainRoutes.Tags && tagsUiState.isSelectionMode)
     val showFeedSelectionBar = route == MainRoutes.Feed && feedUiState.isSelectionMode
     val showTagsSelectionBar = route == MainRoutes.Tags && tagsUiState.isSelectionMode
     val openAddTagDialog = {

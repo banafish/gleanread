@@ -24,20 +24,11 @@ fun FeedRoute(
     onOpenNode: (String) -> Unit,
     onOpenExcerpt: (String) -> Unit,
 ) {
-    if (snapshot.isEmpty) {
-        FeedEmptyState(
-            onLoadSample = onLoadSample,
-            onStartRecording = onStartRecording,
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-        )
-        return
-    }
-
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showInboxOnly by rememberSaveable { mutableStateOf(false) }
     var revealedExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingDeleteExcerptId by rememberSaveable { mutableStateOf<String?>(null) }
+    val showEmptyCard = snapshot.excerpts.isEmpty()
     val filtered = remember(snapshot.excerpts, searchQuery, showInboxOnly) {
         snapshot.excerpts.filter { excerpt ->
             val matchesQuery = searchQuery.isBlank() ||
@@ -54,6 +45,7 @@ fun FeedRoute(
 
     FeedScreen(
         filteredExcerpts = filtered,
+        showEmptyCard = showEmptyCard,
         searchQuery = searchQuery,
         showInboxOnly = showInboxOnly,
         isSelectionMode = uiState.isSelectionMode,
@@ -74,6 +66,8 @@ fun FeedRoute(
         },
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
+        onLoadSample = onLoadSample,
+        onStartRecording = onStartRecording,
         onOpenAiSummary = onOpenAiSummary,
         onOpenExcerptAiSummary = { excerptId ->
             revealedExcerptId = null
