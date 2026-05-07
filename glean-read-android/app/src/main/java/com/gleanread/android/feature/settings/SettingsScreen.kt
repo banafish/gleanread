@@ -49,6 +49,7 @@ import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.avatar.CompressedImage
+import com.gleanread.android.feature.settings.component.AccessibilitySection
 import com.gleanread.android.feature.settings.component.AppearanceSection
 import com.gleanread.android.feature.settings.component.SyncSection
 import com.gleanread.android.feature.settings.component.UserAvatarSection
@@ -62,6 +63,8 @@ fun SettingsScreen(
     onAvatarSelected: (CompressedImage) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onThemeColorChange: (ThemeColor) -> Unit,
+    isAccessibilityEnabled: Boolean,
+    onOpenAccessibilitySettings: () -> Unit,
     onSignOut: () -> Unit,
     onSyncNow: () -> Unit,
     onMergeLocalData: () -> Unit,
@@ -163,6 +166,11 @@ fun SettingsScreen(
             SyncSection(
                 uiState = uiState,
                 onSyncNow = onSyncNow,
+            )
+
+            AccessibilitySection(
+                isAccessibilityEnabled = isAccessibilityEnabled,
+                onOpenAccessibilitySettings = onOpenAccessibilitySettings,
             )
 
             if (uiState.isLoggedIn) {
@@ -280,6 +288,8 @@ private fun SettingsScreenPreview() {
             onAvatarSelected = {},
             onThemeModeChange = {},
             onThemeColorChange = {},
+            isAccessibilityEnabled = false,
+            onOpenAccessibilitySettings = {},
             onSignOut = {},
             onSyncNow = {},
             onMergeLocalData = {},

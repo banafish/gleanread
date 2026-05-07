@@ -178,6 +178,11 @@
     <string name="fast_capture_title">极速摘录</string>
 
     <string name="settings_account_title">账号</string>
+    <string name="settings_accessibility_body">开启辅助识别后，极速摘录可尝试从浏览器或公众号页面自动补齐标题与链接。</string>
+    <string name="settings_accessibility_disabled">辅助识别未开启</string>
+    <string name="settings_accessibility_enabled">辅助识别已开启</string>
+    <string name="settings_accessibility_disable_action">去关闭</string>
+    <string name="settings_accessibility_title">无障碍设置</string>
     <string name="auth_local_data_body">您在本地有未同步的数据。登录后您希望如何处理这些数据？</string>
     <string name="auth_local_data_keep_local">不合并本地数据</string>
     <string name="auth_local_data_merge">合并到当前账号</string>
