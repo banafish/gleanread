@@ -28,6 +28,7 @@ fun FeedRoute(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onStartRecording: () -> Unit,
+    onAddExcerpt: () -> Unit,
     onOpenNode: (String) -> Unit,
     onOpenExcerpt: (String) -> Unit,
 ) {
@@ -77,6 +78,7 @@ fun FeedRoute(
         onRefresh = onRefresh,
         onLoadSample = onLoadSample,
         onStartRecording = onStartRecording,
+        onAddExcerpt = onAddExcerpt,
         onOpenAiSummary = onOpenAiSummary,
         onOpenExcerptAiSummary = { excerptId ->
             revealedExcerptId = null

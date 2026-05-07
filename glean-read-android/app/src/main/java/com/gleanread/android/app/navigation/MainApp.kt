@@ -62,6 +62,7 @@ import androidx.navigation.navArgument
 import com.gleanread.android.R
 import com.gleanread.android.app.appContainer
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
+import com.gleanread.android.core.ui.motion.fabLaunchDialogMotion
 import com.gleanread.android.feature.excerpts.detail.ExcerptDetailRoute
 import com.gleanread.android.feature.excerpts.detail.NewExcerptRoute
 import com.gleanread.android.feature.excerpts.feed.FeedRoute
@@ -127,9 +128,10 @@ fun MainApp() {
         route == MainRoutes.Tree ||
         route == MainRoutes.Tags ||
         route == MainRoutes.Settings
-    val showFab = (route == MainRoutes.Feed || route == MainRoutes.Tags) &&
+    val showTagsFab = route == MainRoutes.Tags &&
         !feedUiState.isSelectionMode &&
-        !(route == MainRoutes.Tags && (tagsUiState.isSelectionMode || tagsUiState.isSearchVisible))
+        !tagsUiState.isSelectionMode &&
+        !tagsUiState.isSearchVisible
     val showBottomNav = isMainRoute &&
         !feedUiState.isSelectionMode &&
         !(route == MainRoutes.Tags && tagsUiState.isSelectionMode)
@@ -153,27 +155,15 @@ fun MainApp() {
         modifier = Modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            if (showFab) {
+            if (showTagsFab) {
                 FloatingActionButton(
-                    onClick = {
-                        if (route == MainRoutes.Tags) {
-                            openAddTagDialog()
-                        } else {
-                            navController.navigate(MainRoutes.newExcerpt())
-                        }
-                    },
+                    onClick = openAddTagDialog,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(
-                            if (route == MainRoutes.Tags) {
-                                R.string.tags_add_content_description
-                            } else {
-                                R.string.main_add_content_description
-                            },
-                        ),
+                        contentDescription = stringResource(R.string.tags_add_content_description),
                     )
                 }
             }
@@ -244,6 +234,7 @@ fun MainApp() {
                             isRefreshing = syncState.isSyncing,
                             onRefresh = mainViewModel::syncNow,
                             onStartRecording = { navController.navigate(MainRoutes.newExcerpt()) },
+                            onAddExcerpt = { navController.navigate(MainRoutes.newExcerpt()) },
                             onOpenNode = { navController.navigate(MainRoutes.node(it)) },
                             onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
                         )
@@ -356,6 +347,8 @@ fun MainApp() {
                         NewExcerptRoute(
                             snapshot = snapshot,
                             initialArchiveNodeId = archiveNodeId,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this,
                             searchSuggestions = mainViewModel::searchSuggestions,
                             onBack = { navController.popBackStack() },
                             onOpenNode = { navController.navigate(MainRoutes.node(it)) },
@@ -428,6 +421,7 @@ fun MainApp() {
                             dismissAddTagDialog()
                         }
                     },
+                    modifier = Modifier.fabLaunchDialogMotion(),
                 )
             }
 

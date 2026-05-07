@@ -27,6 +27,7 @@ fun AddNodeDialog(
     onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val isDark = isSystemInDarkTheme()
     val inputBackgroundColor = if (isDark) {
@@ -49,6 +50,7 @@ fun AddNodeDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         title = {
             Text(
                 text = dialogTitle,

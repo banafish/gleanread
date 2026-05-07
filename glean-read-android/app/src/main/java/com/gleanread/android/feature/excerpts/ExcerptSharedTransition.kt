@@ -6,6 +6,8 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
+internal const val NEW_EXCERPT_SHARED_BOUNDS_ID = "new-excerpt"
+
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun Modifier.excerptContainerSharedBounds(

@@ -1,5 +1,8 @@
 package com.gleanread.android.feature.excerpts.detail
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,12 +14,16 @@ import com.gleanread.android.R
 import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.feature.excerpts.NEW_EXCERPT_SHARED_BOUNDS_ID
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeNodePickerUiModel
 
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun NewExcerptRoute(
     snapshot: WorkspaceSnapshot,
     initialArchiveNodeId: String?,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onBack: () -> Unit,
     onOpenNode: (String) -> Unit,
@@ -96,6 +103,8 @@ fun NewExcerptRoute(
         isTagPickerOpen = isTagPickerOpen,
         isMountPickerOpen = isMountPickerOpen,
         mountPickerCurrentNodeId = mountPickerCurrentNodeId,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         searchSuggestions = searchSuggestions,
         onBack = onBack,
         onCloseEditing = onBack,
@@ -146,4 +155,4 @@ fun NewExcerptRoute(
     )
 }
 
-private const val NewExcerptPlaceholderId = "new-excerpt"
+private const val NewExcerptPlaceholderId = NEW_EXCERPT_SHARED_BOUNDS_ID

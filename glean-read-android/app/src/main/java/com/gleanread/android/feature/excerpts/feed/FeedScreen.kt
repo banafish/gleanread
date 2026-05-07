@@ -6,8 +6,9 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.rounded.Search
@@ -27,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -54,6 +57,8 @@ import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
 import com.gleanread.android.core.ui.theme.GleanReadTheme
+import com.gleanread.android.feature.excerpts.NEW_EXCERPT_SHARED_BOUNDS_ID
+import com.gleanread.android.feature.excerpts.excerptContainerSharedBounds
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -75,6 +80,7 @@ fun FeedScreen(
     onRefresh: () -> Unit,
     onLoadSample: () -> Unit,
     onStartRecording: () -> Unit,
+    onAddExcerpt: () -> Unit,
     onOpenAiSummary: () -> Unit,
     onOpenExcerptAiSummary: (String) -> Unit,
     onDeleteExcerpt: (String) -> Unit,
@@ -88,94 +94,110 @@ fun FeedScreen(
     onConfirmDeleteDialog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize(),
     ) {
         Column(
-            modifier = Modifier.padding(
-                start = 16.dp,
-                top = 16.dp,
-                end = 16.dp,
-                bottom = 12.dp,
-            ),
-        ) {
-            FeedSearchBar(
-                searchQuery = searchQuery,
-                showInboxOnly = showInboxOnly,
-                onSearchQueryChange = onSearchQueryChange,
-                onClearSearch = onClearSearch,
-                onToggleInboxFilter = onToggleInboxFilter,
-            )
-        }
-
-        WorkspacePullToRefreshBox(
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
             modifier = Modifier
-                .weight(1f)
                 .fillMaxSize(),
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(bottom = 16.dp),
+            Column(
+                modifier = Modifier.padding(
+                    start = 16.dp,
+                    top = 16.dp,
+                    end = 16.dp,
+                    bottom = 12.dp,
+                ),
             ) {
-                item(key = "feed_selection_hint") {
-                    FeedSelectionHint()
-                    Spacer(Modifier.height(14.dp))
-                }
+                FeedSearchBar(
+                    searchQuery = searchQuery,
+                    showInboxOnly = showInboxOnly,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onClearSearch = onClearSearch,
+                    onToggleInboxFilter = onToggleInboxFilter,
+                )
+            }
 
-                if (showEmptyCard) {
-                    item(key = "feed_empty_card") {
-                        FeedEmptyCard(
-                            onLoadSample = onLoadSample,
-                            onStartRecording = onStartRecording,
-                            modifier = Modifier.fillMaxWidth(),
+            WorkspacePullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = onRefresh,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize(),
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                ) {
+                    item(key = "feed_selection_hint") {
+                        FeedSelectionHint()
+                        Spacer(Modifier.height(14.dp))
+                    }
+
+                    if (showEmptyCard) {
+                        item(key = "feed_empty_card") {
+                            FeedEmptyCard(
+                                onLoadSample = onLoadSample,
+                                onStartRecording = onStartRecording,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                        }
+                    }
+
+                    items(
+                        items = filteredExcerpts,
+                        key = { it.id },
+                        contentType = { "excerpt_card" },
+                    ) { excerpt ->
+                        ExcerptCard(
+                            excerpt = excerpt,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = selectedExcerptIds.contains(excerpt.id),
+                            isActionsRevealed = revealedExcerptId == excerpt.id,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            onRevealActions = { onRevealExcerptActions(excerpt.id) },
+                            onDismissActions = { onDismissExcerptActions(excerpt.id) },
+                            onOpenAiSummary = { onOpenExcerptAiSummary(excerpt.id) },
+                            onDelete = { onDeleteExcerpt(excerpt.id) },
+                            onLongPress = { onLongPress(excerpt.id) },
+                            onClick = {
+                                if (isSelectionMode) {
+                                    onToggleSelection(excerpt.id)
+                                } else {
+                                    onOpenExcerpt(excerpt.id)
+                                }
+                            },
+                            onOpenNode = onOpenNode,
+                            onOpenExcerpt = onOpenExcerpt,
                         )
                         Spacer(Modifier.height(14.dp))
                     }
-                }
 
-                items(
-                    items = filteredExcerpts,
-                    key = { it.id },
-                    contentType = { "excerpt_card" },
-                ) { excerpt ->
-                    ExcerptCard(
-                        excerpt = excerpt,
-                        isSelectionMode = isSelectionMode,
-                        isSelected = selectedExcerptIds.contains(excerpt.id),
-                        isActionsRevealed = revealedExcerptId == excerpt.id,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        onRevealActions = { onRevealExcerptActions(excerpt.id) },
-                        onDismissActions = { onDismissExcerptActions(excerpt.id) },
-                        onOpenAiSummary = { onOpenExcerptAiSummary(excerpt.id) },
-                        onDelete = { onDeleteExcerpt(excerpt.id) },
-                        onLongPress = { onLongPress(excerpt.id) },
-                        onClick = {
-                            if (isSelectionMode) {
-                                onToggleSelection(excerpt.id)
-                            } else {
-                                onOpenExcerpt(excerpt.id)
-                            }
-                        },
-                        onOpenNode = onOpenNode,
-                        onOpenExcerpt = onOpenExcerpt,
-                    )
-                    Spacer(Modifier.height(14.dp))
-                }
-
-                item(key = "feed_ai_recommendation") {
-                    AiRecommendationCard(
-                        onOpenAiSummary = onOpenAiSummary,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(120.dp))
+                    item(key = "feed_ai_recommendation") {
+                        AiRecommendationCard(
+                            onOpenAiSummary = onOpenAiSummary,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Spacer(Modifier.height(120.dp))
+                    }
                 }
             }
+        }
+
+        if (!isSelectionMode) {
+            FeedAddFloatingActionButton(
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+                onClick = onAddExcerpt,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 16.dp),
+            )
         }
     }
 
@@ -184,6 +206,31 @@ fun FeedScreen(
             excerpt = excerpt,
             onDismiss = onDismissDeleteDialog,
             onConfirm = onConfirmDeleteDialog,
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
+private fun FeedAddFloatingActionButton(
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    FloatingActionButton(
+        onClick = onClick,
+        modifier = modifier.excerptContainerSharedBounds(
+            excerptId = NEW_EXCERPT_SHARED_BOUNDS_ID,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
+        ),
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Add,
+            contentDescription = stringResource(R.string.main_add_content_description),
         )
     }
 }
@@ -370,6 +417,7 @@ private fun FeedScreenPreview() {
             onRefresh = {},
             onLoadSample = {},
             onStartRecording = {},
+            onAddExcerpt = {},
             onOpenAiSummary = {},
             onOpenExcerptAiSummary = {},
             onDeleteExcerpt = {},
@@ -405,6 +453,7 @@ private fun FeedScreenEmptyPreview() {
             onRefresh = {},
             onLoadSample = {},
             onStartRecording = {},
+            onAddExcerpt = {},
             onOpenAiSummary = {},
             onOpenExcerptAiSummary = {},
             onDeleteExcerpt = {},

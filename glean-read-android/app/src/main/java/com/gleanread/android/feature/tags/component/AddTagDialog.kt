@@ -25,6 +25,7 @@ fun AddTagDialog(
     onValueChange: (String) -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val isDark = isSystemInDarkTheme()
     val inputBackgroundColor = if (isDark) {
@@ -35,6 +36,7 @@ fun AddTagDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        modifier = modifier,
         title = {
             Text(
                 text = stringResource(R.string.tags_add_dialog_title),

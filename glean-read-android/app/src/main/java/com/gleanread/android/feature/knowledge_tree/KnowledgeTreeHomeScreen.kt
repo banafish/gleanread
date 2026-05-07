@@ -22,6 +22,7 @@ import androidx.compose.ui.zIndex
 import com.gleanread.android.R
 import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.model.WorkspaceSnapshot
+import com.gleanread.android.core.ui.motion.fabLaunchDialogMotion
 import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.feature.knowledge_tree.component.AddNodeDialog
@@ -191,6 +192,7 @@ fun KnowledgeTreeHomeScreen(
                 onValueChange = onNodeDialogValueChange,
                 onDismiss = onDismissNodeDialog,
                 onConfirm = onConfirmNodeDialog,
+                modifier = Modifier.fabLaunchDialogMotion(),
             )
 
             NodeDialogType.RENAME -> RenameNodeDialog(
