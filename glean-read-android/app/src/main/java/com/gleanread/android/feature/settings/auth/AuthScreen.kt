@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -36,6 +37,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gleanread.android.R
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 
@@ -76,8 +78,8 @@ fun AuthScreen(
     if (uiState.showOwnershipDialog) {
         AlertDialog(
             onDismissRequest = { if (!uiState.isSubmitting) onDismissOwnershipDialog() },
-            title = { Text("本地数据处理") },
-            text = { Text("您在本地有未同步的数据。登录后您希望如何处理这些数据？") },
+            title = { Text(stringResource(R.string.auth_local_data_title)) },
+            text = { Text(stringResource(R.string.auth_local_data_body)) },
             confirmButton = {
                 TextButton(
                     onClick = { onChooseOwnership(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) },
@@ -90,7 +92,7 @@ fun AuthScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                     }
-                    Text("合并到当前账号")
+                    Text(stringResource(R.string.auth_local_data_merge))
                 }
             },
             dismissButton = {
@@ -98,7 +100,7 @@ fun AuthScreen(
                     TextButton(
                         onClick = { onChooseOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) }
                     ) {
-                        Text("不合并本地数据")
+                        Text(stringResource(R.string.auth_local_data_keep_local))
                     }
                 }
             }

@@ -177,6 +177,10 @@
     <string name="fast_capture_title">极速摘录</string>
 
     <string name="settings_account_title">账号</string>
+    <string name="auth_local_data_body">您在本地有未同步的数据。登录后您希望如何处理这些数据？</string>
+    <string name="auth_local_data_keep_local">不合并本地数据</string>
+    <string name="auth_local_data_merge">合并到当前账号</string>
+    <string name="auth_local_data_title">本地数据处理</string>
     <string name="settings_email_label">邮箱</string>
     <string name="settings_last_sync">最近同步：%1$s</string>
     <string name="settings_logged_in_as">已登录：%1$s</string>

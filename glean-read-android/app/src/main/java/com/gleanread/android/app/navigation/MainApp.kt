@@ -445,13 +445,6 @@ fun MainApp() {
                     }
                 }
             },
-            onUseCloudData = {
-                mainViewModel.choosePendingLocalDataOwnership(LocalDataOwnershipChoice.USE_CLOUD) {
-                    if (route == MainRoutes.Auth) {
-                        navController.popBackStack()
-                    }
-                }
-            },
         )
     }
 }
@@ -461,12 +454,11 @@ private fun PendingLocalDataOwnershipDialog(
     isSubmitting: Boolean,
     onMergeLocalData: () -> Unit,
     onKeepLocalData: () -> Unit,
-    onUseCloudData: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = {},
-        title = { Text(stringResource(R.string.settings_ownership_title)) },
-        text = { Text(stringResource(R.string.settings_ownership_body)) },
+        title = { Text(stringResource(R.string.auth_local_data_title)) },
+        text = { Text(stringResource(R.string.auth_local_data_body)) },
         confirmButton = {
             TextButton(
                 onClick = onMergeLocalData,
@@ -479,22 +471,15 @@ private fun PendingLocalDataOwnershipDialog(
                     )
                     Spacer(Modifier.size(8.dp))
                 }
-                Text(stringResource(R.string.settings_ownership_merge))
+                Text(stringResource(R.string.auth_local_data_merge))
             }
         },
         dismissButton = {
-            Row {
+            if (!isSubmitting) {
                 TextButton(
                     onClick = onKeepLocalData,
-                    enabled = !isSubmitting,
                 ) {
-                    Text(stringResource(R.string.settings_ownership_keep_local))
-                }
-                TextButton(
-                    onClick = onUseCloudData,
-                    enabled = !isSubmitting,
-                ) {
-                    Text(stringResource(R.string.settings_ownership_use_cloud))
+                    Text(stringResource(R.string.auth_local_data_keep_local))
                 }
             }
         },
