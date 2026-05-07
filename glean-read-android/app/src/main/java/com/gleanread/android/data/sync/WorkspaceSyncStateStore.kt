@@ -18,8 +18,12 @@ class WorkspaceSyncStateStore(
     val lastPullTime: StateFlow<Long?> = _lastPullTime.asStateFlow()
     val isCloudSyncEnabled: StateFlow<Boolean> = _isCloudSyncEnabled.asStateFlow()
 
-    fun saveLastPullTime(value: Long) {
-        preferences.edit().putLong(KEY_LAST_PULL_TIME, value).apply()
+    fun lastPullTimeForUser(userId: String): Long? {
+        return preferences.getLong(lastPullTimeKey(userId), 0L).takeIf { it > 0L }
+    }
+
+    fun saveLastPullTime(userId: String, value: Long) {
+        preferences.edit().putLong(lastPullTimeKey(userId), value).apply()
         _lastPullTime.value = value
     }
 
@@ -29,21 +33,18 @@ class WorkspaceSyncStateStore(
     }
 
     fun clear() {
-        preferences.edit()
-            .remove(KEY_LAST_PULL_TIME)
-            .remove(KEY_CLOUD_SYNC_ENABLED)
-            .apply()
+        preferences.edit().clear().apply()
         _lastPullTime.value = null
         _isCloudSyncEnabled.value = false
     }
 
-    private fun readLastPullTime(): Long? {
-        return preferences.getLong(KEY_LAST_PULL_TIME, 0L).takeIf { it > 0L }
-    }
+    private fun readLastPullTime(): Long? = null
 
     private fun readCloudSyncEnabled(): Boolean {
         return preferences.getBoolean(KEY_CLOUD_SYNC_ENABLED, false)
     }
+
+    private fun lastPullTimeKey(userId: String): String = "${KEY_LAST_PULL_TIME}_$userId"
 
     private companion object {
         const val PREFERENCES_NAME = "glean_workspace_sync_state"

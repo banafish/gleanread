@@ -12,12 +12,32 @@ import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
 
-class KnowledgeTreeRepository(
-    private val databaseManager: WorkspaceDatabaseManager,
+class KnowledgeTreeRepository private constructor(
+    private val databaseProvider: () -> WorkspaceDatabase,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val database get() = databaseManager.currentDatabase.value
+    constructor(
+        databaseManager: WorkspaceDatabaseManager,
+        deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
+    ) : this(
+        databaseProvider = { databaseManager.currentDatabase.value },
+        deviceIdProvider = deviceIdProvider,
+        currentUserIdProvider = currentUserIdProvider,
+    )
+
+    internal constructor(
+        database: WorkspaceDatabase,
+        deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
+    ) : this(
+        databaseProvider = { database },
+        deviceIdProvider = deviceIdProvider,
+        currentUserIdProvider = currentUserIdProvider,
+    )
+
+    private val database get() = databaseProvider()
     private val excerptDao get() = database.excerptDao()
     private val nodeDao get() = database.nodeDao()
 

@@ -7,16 +7,20 @@ import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.avatar.AvatarRepository
 import com.gleanread.android.data.avatar.CompressedImage
+import com.gleanread.android.data.auth.AuthSession
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
+import com.gleanread.android.data.sync.WorkspaceSyncUiState
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.contentOrNull
@@ -41,8 +45,8 @@ class SettingsViewModel(
         appearancePreferencesRepository.avatarUrlFlow,
         formState,
     ) { args ->
-        val session = args[0] as com.gleanread.android.data.auth.AuthSession?
-        val syncState = args[1] as com.gleanread.android.data.sync.WorkspaceSyncUiState
+        val session = args[0] as AuthSession?
+        val syncState = args[1] as WorkspaceSyncUiState
         val isCloudSyncEnabled = args[2] as Boolean
         val themeMode = args[3] as ThemeMode
         val themeColor = args[4] as ThemeColor
@@ -73,17 +77,28 @@ class SettingsViewModel(
     )
 
     init {
-        refreshUserProfile()
+        observeSessionProfile()
     }
 
-    private fun refreshUserProfile() {
+    private fun observeSessionProfile() {
         viewModelScope.launch {
-            authRepository.fetchCurrentUserProfile().onSuccess { userResponse ->
-                val avatarUrl = userResponse.userMetadata?.get("avatar_url")?.jsonPrimitive?.contentOrNull
-                if (avatarUrl != null) {
-                    appearancePreferencesRepository.setAvatarUrl(avatarUrl)
+            authRepository.session
+                .map { it?.userId }
+                .distinctUntilChanged()
+                .collect { userId ->
+                    if (userId == null) {
+                        appearancePreferencesRepository.setAvatarUrl(null)
+                    } else {
+                        refreshUserProfile()
+                    }
                 }
-            }
+        }
+    }
+
+    private suspend fun refreshUserProfile() {
+        authRepository.fetchCurrentUserProfile().onSuccess { userResponse ->
+            val avatarUrl = userResponse.userMetadata?.get("avatar_url")?.jsonPrimitive?.contentOrNull
+            appearancePreferencesRepository.setAvatarUrl(avatarUrl)
         }
     }
 

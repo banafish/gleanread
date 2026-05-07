@@ -20,14 +20,42 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
-class WorkspaceSyncRepository(
-    private val databaseManager: WorkspaceDatabaseManager,
+class WorkspaceSyncRepository private constructor(
+    private val databaseProvider: () -> WorkspaceDatabase,
     private val remoteDataSource: WorkspaceRemoteDataSource,
     private val sessionStore: SupabaseSessionStore,
     private val stateStore: WorkspaceSyncStateStore,
     private val sessionRefresher: SupabaseSessionRefresher? = null,
 ) {
-    private val database get() = databaseManager.currentDatabase.value
+    constructor(
+        databaseManager: WorkspaceDatabaseManager,
+        remoteDataSource: WorkspaceRemoteDataSource,
+        sessionStore: SupabaseSessionStore,
+        stateStore: WorkspaceSyncStateStore,
+        sessionRefresher: SupabaseSessionRefresher? = null,
+    ) : this(
+        databaseProvider = { databaseManager.currentDatabase.value },
+        remoteDataSource = remoteDataSource,
+        sessionStore = sessionStore,
+        stateStore = stateStore,
+        sessionRefresher = sessionRefresher,
+    )
+
+    internal constructor(
+        database: WorkspaceDatabase,
+        remoteDataSource: WorkspaceRemoteDataSource,
+        sessionStore: SupabaseSessionStore,
+        stateStore: WorkspaceSyncStateStore,
+        sessionRefresher: SupabaseSessionRefresher? = null,
+    ) : this(
+        databaseProvider = { database },
+        remoteDataSource = remoteDataSource,
+        sessionStore = sessionStore,
+        stateStore = stateStore,
+        sessionRefresher = sessionRefresher,
+    )
+
+    private val database get() = databaseProvider()
     private val _syncState = MutableStateFlow(WorkspaceSyncUiState())
     private val syncMutex = Mutex()
     val syncState: StateFlow<WorkspaceSyncUiState> = _syncState.asStateFlow()
@@ -249,7 +277,7 @@ class WorkspaceSyncRepository(
         val remote = remoteDataSource.fetchChanges(
             accessToken = accessToken,
             userId = userId,
-            updatedAfter = stateStore.lastPullTime.value,
+            updatedAfter = stateStore.lastPullTimeForUser(userId),
         )
         database.withTransaction {
             applyRemoteNodes(remote.nodes, now)
@@ -257,7 +285,7 @@ class WorkspaceSyncRepository(
             applyRemoteExcerpts(remote.excerpts, now)
             applyRemoteExcerptTags(remote.excerptTags, now)
         }
-        stateStore.saveLastPullTime(now)
+        stateStore.saveLastPullTime(userId, now)
     }
 
     private suspend fun applyRemoteNodes(remoteNodes: List<RemoteKnowledgeTreeNode>, now: Long) {

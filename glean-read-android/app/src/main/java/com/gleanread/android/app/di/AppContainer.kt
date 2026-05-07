@@ -148,7 +148,7 @@ class AppContainer(
     }
 
     val seedDataInitializer: SeedDataInitializer by lazy {
-        SeedDataInitializer(databaseManager)
+        SeedDataInitializer(databaseManager, deviceIdentityStore, currentUserIdProvider)
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {

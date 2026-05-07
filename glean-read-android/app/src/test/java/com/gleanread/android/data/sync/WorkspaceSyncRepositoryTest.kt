@@ -15,6 +15,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -173,6 +174,38 @@ class WorkspaceSyncRepositoryTest {
     }
 
     @Test
+    fun `sync uses a separate pull cursor for the active account`() = runBlocking {
+        stateStore.saveLastPullTime("other-user", 10_000L)
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "cloud-excerpt",
+                    userId = "user-1",
+                    content = "云端旧数据",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 1_000L,
+                    updateTime = 2_000L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+
+        val result = syncRepository().syncNow()
+        val saved = database.excerptDao().findExcerptById("cloud-excerpt")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertNull(remoteDataSource.updatedAfterCalls.single())
+        assertEquals("云端旧数据", saved?.content)
+    }
+
+    @Test
     fun `realtime applies pushed row without fetching the remote snapshot`() = runBlocking {
         val repository = syncRepository()
         val remoteExcerpt = RemoteExcerpt(
@@ -248,6 +281,7 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
     )
     val uploadedExcerpts = mutableListOf<RemoteExcerpt>()
     val uploadedNodes = mutableListOf<RemoteKnowledgeTreeNode>()
+    val updatedAfterCalls = mutableListOf<Long?>()
     var excerptUploadError: Throwable? = null
     var fetchCount = 0
 
@@ -282,6 +316,7 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
         updatedAfter: Long?,
     ): RemoteWorkspaceSnapshot {
         fetchCount += 1
+        updatedAfterCalls += updatedAfter
         return remoteSnapshot
     }
 }

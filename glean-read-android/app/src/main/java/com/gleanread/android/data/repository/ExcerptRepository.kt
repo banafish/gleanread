@@ -16,12 +16,32 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
  * 合并了原 SnapshotRepository 和 ExcerptCaptureRepository 中摘录相关的逻辑，
  * 消除重复的创建/更新/删除实现。
  */
-class ExcerptRepository(
-    private val databaseManager: WorkspaceDatabaseManager,
+class ExcerptRepository private constructor(
+    private val databaseProvider: () -> WorkspaceDatabase,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val database get() = databaseManager.currentDatabase.value
+    constructor(
+        databaseManager: WorkspaceDatabaseManager,
+        deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
+    ) : this(
+        databaseProvider = { databaseManager.currentDatabase.value },
+        deviceIdProvider = deviceIdProvider,
+        currentUserIdProvider = currentUserIdProvider,
+    )
+
+    internal constructor(
+        database: WorkspaceDatabase,
+        deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
+    ) : this(
+        databaseProvider = { database },
+        deviceIdProvider = deviceIdProvider,
+        currentUserIdProvider = currentUserIdProvider,
+    )
+
+    private val database get() = databaseProvider()
     private val excerptDao get() = database.excerptDao()
     private val tagDao get() = database.tagDao()
     private val excerptTagDao get() = database.excerptTagDao()

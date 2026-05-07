@@ -1,14 +1,17 @@
 package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
-import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
+import com.gleanread.android.data.sync.DeviceIdProvider
+import com.gleanread.android.data.sync.LocalDeviceIdProvider
 
 /**
  * 种子数据初始化器，独立于业务 Repository。
  */
 class SeedDataInitializer(
     private val databaseManager: WorkspaceDatabaseManager,
+    private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
     private val database get() = databaseManager.currentDatabase.value
     suspend fun seedSampleData() {
@@ -23,11 +26,18 @@ class SeedDataInitializer(
         if (hasData) return
 
         val now = System.currentTimeMillis()
+        val ownerUserId = currentUserIdProvider.currentUserId()
+        val deviceId = deviceIdProvider.currentDeviceId()
+        val sampleData = SampleSeedData.create(
+            now = now,
+            userId = ownerUserId,
+            deviceId = deviceId,
+        )
         database.withTransaction {
-            nodeDao.insertNodes(SampleSeedData.nodes(now))
-            tagDao.insertTags(SampleSeedData.tags(now))
-            excerptDao.insertExcerpts(SampleSeedData.excerpts(now))
-            excerptTagDao.insertExcerptTags(SampleSeedData.excerptTags(now))
+            nodeDao.insertNodes(sampleData.nodes)
+            tagDao.insertTags(sampleData.tags)
+            excerptDao.insertExcerpts(sampleData.excerpts)
+            excerptTagDao.insertExcerptTags(sampleData.excerptTags)
         }
     }
 }

@@ -33,17 +33,61 @@ import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 
-class SupabaseAuthRepository(
+class SupabaseAuthRepository private constructor(
     internal val config: SupabaseConfig,
     private val httpClient: HttpClient,
     private val sessionStore: SupabaseSessionStore,
-    private val databaseManager: WorkspaceDatabaseManager,
+    private val databaseProvider: () -> WorkspaceDatabase,
+    private val guestDatabaseProvider: () -> WorkspaceDatabase,
+    private val switchToUser: (String) -> Unit,
+    private val closeCurrentDatabase: () -> Unit,
+    private val clearGuestDataAction: suspend () -> Unit,
     private val deviceIdProvider: DeviceIdProvider,
 ) {
     private val database: WorkspaceDatabase
-        get() = databaseManager.currentDatabase.value
+        get() = databaseProvider()
+
+    constructor(
+        config: SupabaseConfig,
+        httpClient: HttpClient,
+        sessionStore: SupabaseSessionStore,
+        databaseManager: WorkspaceDatabaseManager,
+        deviceIdProvider: DeviceIdProvider,
+    ) : this(
+        config = config,
+        httpClient = httpClient,
+        sessionStore = sessionStore,
+        databaseProvider = { databaseManager.currentDatabase.value },
+        guestDatabaseProvider = { databaseManager.guestDatabase },
+        switchToUser = databaseManager::switchToUser,
+        closeCurrentDatabase = databaseManager::closeCurrentDatabase,
+        clearGuestDataAction = { databaseManager.clearGuestData() },
+        deviceIdProvider = deviceIdProvider,
+    )
+
+    internal constructor(
+        config: SupabaseConfig,
+        httpClient: HttpClient,
+        sessionStore: SupabaseSessionStore,
+        database: WorkspaceDatabase,
+        deviceIdProvider: DeviceIdProvider,
+    ) : this(
+        config = config,
+        httpClient = httpClient,
+        sessionStore = sessionStore,
+        databaseProvider = { database },
+        guestDatabaseProvider = { database },
+        switchToUser = {},
+        closeCurrentDatabase = {},
+        clearGuestDataAction = {},
+        deviceIdProvider = deviceIdProvider,
+    )
 
     val session: StateFlow<AuthSession?> = sessionStore.session
+
+    suspend fun sendMagicLink(email: String): MagicLinkRequestResult {
+        return signInWithOtp(email, config.magicLinkRedirectUrl)
+    }
 
     suspend fun signInWithOtp(email: String, redirectTo: String? = null): MagicLinkRequestResult {
         if (!config.isConfigured) {
@@ -102,7 +146,7 @@ class SupabaseAuthRepository(
             val response = AuthJson.decodeFromString<AuthTokenResponse>(responseBody)
             val session = response.toSession()
             sessionStore.saveSession(session)
-            databaseManager.switchToUser(session.userId)
+            switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.message ?: "验证失败")
@@ -140,7 +184,7 @@ class SupabaseAuthRepository(
                 expiresAtMillis = parameters.authExpiresAtMillis(),
             )
             sessionStore.saveSession(session)
-            databaseManager.switchToUser(session.userId)
+            switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.message ?: "Magic Link 登录失败")
@@ -172,7 +216,7 @@ class SupabaseAuthRepository(
 
             val session = response.toSession()
             sessionStore.saveSession(session)
-            databaseManager.switchToUser(session.userId)
+            switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.toAuthMessage())
@@ -214,7 +258,7 @@ class SupabaseAuthRepository(
             ).toSession()
 
             sessionStore.saveSession(session)
-            databaseManager.switchToUser(session.userId)
+            switchToUser(session.userId)
             AuthResult.Success(session)
         }.getOrElse { error ->
             AuthResult.Failure(error.toAuthMessage())
@@ -232,7 +276,7 @@ class SupabaseAuthRepository(
             }
         }
         sessionStore.clearSession()
-        databaseManager.closeCurrentDatabase()
+        closeCurrentDatabase()
     }
 
     suspend fun updateUserMetadata(metadata: Map<String, JsonElement>): Result<Unit> {
@@ -265,7 +309,11 @@ class SupabaseAuthRepository(
      * 检查访客数据库是否有业务数据。
      */
     suspend fun hasLocalUserData(): Boolean {
-        return databaseManager.hasGuestData()
+        val guestDb = guestDatabaseProvider()
+        return guestDb.excerptDao().countExcerpts() > 0 ||
+            guestDb.nodeDao().countNodes() > 0 ||
+            guestDb.tagDao().countTags() > 0 ||
+            guestDb.excerptTagDao().countExcerptTagsByUserId(LOCAL_USER_ID) > 0
     }
 
     /**
@@ -274,8 +322,8 @@ class SupabaseAuthRepository(
      */
     suspend fun mergeLocalDataIntoCurrentAccount(): Boolean {
         val currentSession = session.value ?: return false
-        val guestDb = databaseManager.guestDatabase
-        val userDb = databaseManager.currentDatabase.value
+        val guestDb = guestDatabaseProvider()
+        val userDb = databaseProvider()
 
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
@@ -356,7 +404,7 @@ class SupabaseAuthRepository(
         }
 
         // 迁移完成后清空 guest.db
-        databaseManager.clearGuestData()
+        clearGuestDataAction()
         return true
     }
 
