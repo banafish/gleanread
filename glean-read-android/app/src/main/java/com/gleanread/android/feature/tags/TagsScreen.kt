@@ -24,10 +24,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Label
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -93,6 +95,7 @@ fun TagsScreen(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
+    onAddTag: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isSelectionMode = selectedTagIds.isNotEmpty()
@@ -121,6 +124,11 @@ fun TagsScreen(
         ) {
             if (tagGroups.isEmpty() && searchQuery.isNotBlank()) {
                 TagsSearchEmptyState(modifier = Modifier.fillMaxSize())
+            } else if (tagGroups.isEmpty()) {
+                TagsEmptyState(
+                    onAddTag = onAddTag,
+                    modifier = Modifier.fillMaxSize(),
+                )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -147,6 +155,39 @@ fun TagsScreen(
             onDismiss = onDismissDeleteDialog,
             onConfirm = onConfirmDeleteDialog,
         )
+    }
+}
+
+@Composable
+private fun TagsEmptyState(
+    onAddTag: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.Label,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Text(
+            text = stringResource(R.string.tags_empty_title),
+            modifier = Modifier.padding(top = 16.dp),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = stringResource(R.string.tags_empty_body),
+            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Button(onClick = onAddTag) {
+            Text(stringResource(R.string.tags_add_dialog_title))
+        }
     }
 }
 
@@ -459,6 +500,30 @@ private fun TagsScreenPreview() {
             isRefreshing = false,
             onRefresh = {},
             onConfirmDeleteDialog = {},
+            onAddTag = {},
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TagsEmptyScreenPreview() {
+    GleanReadTheme {
+        TagsScreen(
+            tagGroups = emptyList(),
+            isSearchVisible = false,
+            searchQuery = "",
+            selectedTagIds = emptySet(),
+            pendingDeleteTags = emptyList(),
+            onToggleSearch = {},
+            onSearchQueryChange = {},
+            onLongPressTag = {},
+            onToggleTagSelection = {},
+            onDismissDeleteDialog = {},
+            isRefreshing = false,
+            onRefresh = {},
+            onConfirmDeleteDialog = {},
+            onAddTag = {},
         )
     }
 }

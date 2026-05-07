@@ -300,6 +300,7 @@ fun MainApp() {
                         onDismissDeleteDialog = tagsViewModel::dismissDeleteDialog,
                         isRefreshing = syncState.isSyncing,
                         onRefresh = mainViewModel::syncNow,
+                        onAddTag = openAddTagDialog,
                         onConfirmDeleteDialog = {
                             mainViewModel.deleteTags(tagsUiState.pendingDeleteTagIds) {
                                 tagsViewModel.dismissDeleteDialog()

@@ -31,6 +31,5 @@ fun SettingsRoute(
         onClearMessage = viewModel::clearMessage,
         onConfirmSignOutWithUnsyncedData = viewModel::confirmSignOutWithUnsyncedData,
         onDismissUnsyncedWarning = viewModel::dismissUnsyncedWarning,
-        onClearLocalCache = viewModel::clearLocalCache,
     )
 }

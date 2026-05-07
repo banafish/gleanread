@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -147,7 +148,10 @@ fun FeedScreen(
                 }
 
                 item(key = "feed_ai_recommendation") {
-                    AiRecommendationCard(onOpenAiSummary = onOpenAiSummary)
+                    AiRecommendationCard(
+                        onOpenAiSummary = onOpenAiSummary,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(120.dp))
                 }
             }
@@ -288,8 +292,10 @@ private fun rememberFilterPainter(showInboxOnly: Boolean) = rememberVectorPainte
 @Composable
 private fun AiRecommendationCard(
     onOpenAiSummary: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Card(
+        modifier = modifier,
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
     ) {

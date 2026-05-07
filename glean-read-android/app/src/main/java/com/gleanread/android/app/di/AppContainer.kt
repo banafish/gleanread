@@ -204,7 +204,6 @@ class AppContainer(
                 syncRepository = workspaceSyncRepository,
                 appearancePreferencesRepository = appearancePreferencesRepository,
                 avatarRepository = avatarRepository,
-                databaseManager = databaseManager,
             )
         }
     }

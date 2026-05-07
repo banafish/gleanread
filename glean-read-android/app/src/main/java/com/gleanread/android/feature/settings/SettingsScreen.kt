@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
@@ -27,7 +26,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
@@ -44,15 +42,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import com.gleanread.android.R
+import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.feature.settings.component.AppearanceSection
 import com.gleanread.android.feature.settings.component.SyncSection
 import com.gleanread.android.feature.settings.component.UserAvatarSection
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,7 +71,6 @@ fun SettingsScreen(
     onClearMessage: () -> Unit,
     onConfirmSignOutWithUnsyncedData: () -> Unit = {},
     onDismissUnsyncedWarning: () -> Unit = {},
-    onClearLocalCache: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -165,19 +164,6 @@ fun SettingsScreen(
                 uiState = uiState,
                 onSyncNow = onSyncNow,
             )
-
-            // 清除本地缓存按钮
-            OutlinedButton(
-                onClick = onClearLocalCache,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.DeleteSweep,
-                    contentDescription = null,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.settings_clear_local_cache))
-            }
 
             if (uiState.isLoggedIn) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -278,10 +264,10 @@ private fun UnsyncedDataWarningDialog(
     )
 }
 
-@androidx.compose.ui.tooling.preview.Preview(showBackground = true)
+@Preview(showBackground = true)
 @Composable
 private fun SettingsScreenPreview() {
-    com.gleanread.android.core.ui.theme.GleanReadTheme {
+    GleanReadTheme {
         SettingsScreen(
             uiState = SettingsUiState(
                 isLoggedIn = true,

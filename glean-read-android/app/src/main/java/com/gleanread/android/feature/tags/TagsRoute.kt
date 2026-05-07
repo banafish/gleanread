@@ -18,6 +18,7 @@ fun TagsRoute(
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onConfirmDeleteDialog: () -> Unit,
+    onAddTag: () -> Unit,
 ) {
     val filteredTagGroups = remember(snapshot.tagGroups, uiState.searchQuery) {
         filterTagGroups(
@@ -46,6 +47,7 @@ fun TagsRoute(
         isRefreshing = isRefreshing,
         onRefresh = onRefresh,
         onConfirmDeleteDialog = onConfirmDeleteDialog,
+        onAddTag = onAddTag,
     )
 }
 

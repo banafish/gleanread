@@ -10,7 +10,6 @@ import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.data.auth.AuthSession
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 import com.gleanread.android.data.auth.SupabaseAuthRepository
-import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
 import com.gleanread.android.data.sync.WorkspaceSyncUiState
@@ -32,7 +31,6 @@ class SettingsViewModel(
     private val syncRepository: WorkspaceSyncRepository,
     private val appearancePreferencesRepository: AppearancePreferencesRepository,
     private val avatarRepository: AvatarRepository,
-    private val databaseManager: WorkspaceDatabaseManager,
 ) : ViewModel() {
     private val formState = MutableStateFlow(SettingsFormState())
 
@@ -232,18 +230,6 @@ class SettingsViewModel(
                 is WorkspaceSyncResult.Skipped -> result.message
             }
             formState.update { it.copy(message = message) }
-        }
-    }
-
-    /**
-     * 清除所有非当前活跃数据库的缓存文件。
-     */
-    fun clearLocalCache() {
-        viewModelScope.launch {
-            val deletedCount = databaseManager.deleteInactiveDatabases()
-            formState.update {
-                it.copy(message = if (deletedCount > 0) "已清除 $deletedCount 个缓存数据库" else "没有需要清除的缓存")
-            }
         }
     }
 
