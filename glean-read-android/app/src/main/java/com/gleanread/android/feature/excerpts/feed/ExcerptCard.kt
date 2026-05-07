@@ -1,6 +1,9 @@
 package com.gleanread.android.feature.excerpts.feed
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -63,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import com.gleanread.android.R
 import com.gleanread.android.core.model.ExcerptUiModel
 import com.gleanread.android.core.ui.richtext.LinkAwareText
+import com.gleanread.android.feature.excerpts.excerptContainerSharedBounds
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -71,13 +75,15 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 internal fun ExcerptCard(
     excerpt: ExcerptUiModel,
     isSelectionMode: Boolean,
     isSelected: Boolean,
     isActionsRevealed: Boolean,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     onRevealActions: () -> Unit,
     onDismissActions: () -> Unit,
     onOpenAiSummary: () -> Unit,
@@ -92,6 +98,8 @@ internal fun ExcerptCard(
             excerpt = excerpt,
             isSelectionMode = true,
             isSelected = isSelected,
+            sharedTransitionScope = sharedTransitionScope,
+            animatedVisibilityScope = animatedVisibilityScope,
             onLongPress = onLongPress,
             onClick = onClick,
             onOpenNode = onOpenNode,
@@ -153,16 +161,19 @@ internal fun ExcerptCard(
             latestOnDismissActions.value()
         }
     }
+    val shouldShowActions = isActionsRevealed || swipeOffsetPx < -EXCERPT_CARD_SWIPE_OFFSET_EPSILON
 
     Box(
         modifier = Modifier
             .fillMaxWidth(),
     ) {
-        ExcerptCardActions(
-            onOpenAiSummary = onOpenAiSummary,
-            onDelete = onDelete,
-            modifier = Modifier.matchParentSize(),
-        )
+        if (shouldShowActions) {
+            ExcerptCardActions(
+                onOpenAiSummary = onOpenAiSummary,
+                onDelete = onDelete,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Box(
             modifier = Modifier
                 .offset {
@@ -182,6 +193,8 @@ internal fun ExcerptCard(
                 excerpt = excerpt,
                 isSelectionMode = false,
                 isSelected = isSelected,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
                 onLongPress = {
                     if (swipeOffsetPx < -EXCERPT_CARD_SWIPE_OFFSET_EPSILON) {
                         closeActions()
@@ -203,12 +216,14 @@ internal fun ExcerptCard(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ExcerptCardSurface(
     excerpt: ExcerptUiModel,
     isSelectionMode: Boolean,
     isSelected: Boolean,
+    sharedTransitionScope: SharedTransitionScope?,
+    animatedVisibilityScope: AnimatedVisibilityScope?,
     onLongPress: () -> Unit,
     onClick: () -> Unit,
     onOpenNode: (String) -> Unit,
@@ -243,6 +258,11 @@ private fun ExcerptCardSurface(
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .excerptContainerSharedBounds(
+                excerptId = excerpt.id,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
             .shadow(
                 elevation = EXCERPT_CARD_ELEVATION,
                 shape = EXCERPT_CARD_SHAPE,

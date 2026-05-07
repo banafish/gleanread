@@ -3,6 +3,9 @@
 package com.gleanread.android.feature.excerpts.detail
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -64,6 +67,7 @@ import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.core.ui.richtext.InlineLinkEditor
 import com.gleanread.android.core.ui.richtext.LinkAwareText
 import com.gleanread.android.core.ui.theme.GleanReadTheme
+import com.gleanread.android.feature.excerpts.excerptContainerSharedBounds
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeBreadcrumbUiModel
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeNodePickerDestinationUiModel
 import java.time.Instant
@@ -71,6 +75,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun ExcerptDetailScreen(
     excerpt: ExcerptUiModel,
     content: String,
@@ -89,6 +94,8 @@ fun ExcerptDetailScreen(
     isTagPickerOpen: Boolean,
     isMountPickerOpen: Boolean,
     mountPickerCurrentNodeId: String?,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onBack: () -> Unit,
     onCloseEditing: () -> Unit,
@@ -122,7 +129,13 @@ fun ExcerptDetailScreen(
     }
 
     Scaffold(
-        modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier
+            .excerptContainerSharedBounds(
+                excerptId = excerpt.id,
+                sharedTransitionScope = sharedTransitionScope,
+                animatedVisibilityScope = animatedVisibilityScope,
+            )
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(

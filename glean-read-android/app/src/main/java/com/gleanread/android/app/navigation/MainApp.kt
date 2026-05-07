@@ -1,8 +1,10 @@
-@file:OptIn(ExperimentalFoundationApi::class)
+@file:OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 
 package com.gleanread.android.app.navigation
 
 import android.net.Uri
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -212,201 +214,207 @@ fun MainApp() {
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            NavHost(
-                navController = navController,
-                startDestination = MainRoutes.Feed,
-                modifier = Modifier.fillMaxSize(),
-                enterTransition = { fadeIn(animationSpec = tween(300)) },
-                exitTransition = { fadeOut(animationSpec = tween(300)) },
-            ) {
-                composable(MainRoutes.Feed) {
-                    FeedRoute(
-                        snapshot = snapshot,
-                        uiState = feedUiState,
-                        onOpenAiSummary = {
-                            aiSummaryViewModel.prepare(feedUiState.selectedExcerptIds.toList())
-                            navController.navigate(MainRoutes.AiSummary)
-                        },
-                        onOpenExcerptAiSummary = { excerptId ->
-                            feedViewModel.clearSelection()
-                            aiSummaryViewModel.prepare(listOf(excerptId))
-                            navController.navigate(MainRoutes.AiSummary)
-                        },
-                        onDeleteExcerpt = mainViewModel::deleteExcerpt,
-                        onLongPress = feedViewModel::enterSelectionMode,
-                        onToggleSelection = feedViewModel::toggleExcerptSelection,
-                        onLoadSample = mainViewModel::loadSampleData,
-                        isRefreshing = syncState.isSyncing,
-                        onRefresh = mainViewModel::syncNow,
-                        onStartRecording = { navController.navigate(MainRoutes.newExcerpt()) },
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
-                    )
-                }
-                composable(MainRoutes.Tree) {
-                    KnowledgeTreeHomeRoute(
-                        snapshot = snapshot,
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
-                        onCreateRootNode = mainViewModel::createRootNode,
-                        onCreateChildNode = mainViewModel::createChildNode,
-                        onMoveNode = mainViewModel::moveNode,
-                        onMoveNodeToPosition = mainViewModel::moveNodeToPosition,
-                        onRenameNode = mainViewModel::renameNode,
-                        onDeleteNode = mainViewModel::deleteNodeSubtree,
-                        isRefreshing = syncState.isSyncing,
-                        onRefresh = mainViewModel::syncNow,
-                    )
-                }
-                composable(
-                    route = MainRoutes.TreeBranchPattern,
-                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
-                ) { backStackEntry ->
-                    val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
-                    KnowledgeTreeBranchRoute(
-                        snapshot = snapshot,
-                        nodeId = nodeId,
-                        onBack = { navController.popBackStack() },
-                        onOpenRoot = {
-                            if (!navController.popBackStack(MainRoutes.Tree, false)) {
-                                navController.navigate(MainRoutes.Tree) {
-                                    launchSingleTop = true
-                                }
-                            }
-                        },
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
-                        onCreateRootNode = mainViewModel::createRootNode,
-                        onCreateChildNode = mainViewModel::createChildNode,
-                        onMoveNode = mainViewModel::moveNode,
-                        onMoveNodeToPosition = mainViewModel::moveNodeToPosition,
-                        onRenameNode = mainViewModel::renameNode,
-                        onDeleteNode = mainViewModel::deleteNodeSubtree,
-                        isRefreshing = syncState.isSyncing,
-                        onRefresh = mainViewModel::syncNow,
-                    )
-                }
-                composable(MainRoutes.Tags) {
-                    TagsRoute(
-                        snapshot = snapshot,
-                        uiState = tagsUiState,
-                        onToggleSearch = tagsViewModel::toggleSearch,
-                        onSearchQueryChange = tagsViewModel::updateSearchQuery,
-                        onLongPressTag = tagsViewModel::enterSelectionMode,
-                        onToggleTagSelection = tagsViewModel::toggleTagSelection,
-                        onDismissDeleteDialog = tagsViewModel::dismissDeleteDialog,
-                        isRefreshing = syncState.isSyncing,
-                        onRefresh = mainViewModel::syncNow,
-                        onAddTag = openAddTagDialog,
-                        onConfirmDeleteDialog = {
-                            mainViewModel.deleteTags(tagsUiState.pendingDeleteTagIds) {
-                                tagsViewModel.dismissDeleteDialog()
-                                tagsViewModel.clearSelection()
-                            }
-                        },
-                    )
-                }
-                composable(MainRoutes.Settings) {
-                    SettingsRoute(
-                        onNavigateToAuth = { navController.navigate(MainRoutes.Auth) }
-                    )
-                }
-                composable(MainRoutes.Auth) {
-                    AuthRoute(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                composable(MainRoutes.AiSummary) {
-                    AiSummaryRoute(
-                        snapshot = snapshot,
-                        draft = aiSummaryDraft,
-                        searchSuggestions = mainViewModel::searchSuggestions,
-                        onClose = {
-                            aiSummaryViewModel.clear()
-                            navController.popBackStack()
-                        },
-                        onSave = {
-                            aiSummaryViewModel.save {
+            SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
+                NavHost(
+                    navController = navController,
+                    startDestination = MainRoutes.Feed,
+                    modifier = Modifier.fillMaxSize(),
+                    enterTransition = { fadeIn(animationSpec = tween(300)) },
+                    exitTransition = { fadeOut(animationSpec = tween(300)) },
+                ) {
+                    composable(MainRoutes.Feed) {
+                        FeedRoute(
+                            snapshot = snapshot,
+                            uiState = feedUiState,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this,
+                            onOpenAiSummary = {
+                                aiSummaryViewModel.prepare(feedUiState.selectedExcerptIds.toList())
+                                navController.navigate(MainRoutes.AiSummary)
+                            },
+                            onOpenExcerptAiSummary = { excerptId ->
                                 feedViewModel.clearSelection()
-                                navController.popBackStack(MainRoutes.Feed, false)
-                            }
-                        },
-                        onCreateRootNode = mainViewModel::createRootNode,
-                        onCreateChildNode = mainViewModel::createChildNode,
-                        onSelectTargetNode = aiSummaryViewModel::selectTargetNode,
-                        onMarkdownChange = aiSummaryViewModel::updateMarkdown,
-                    )
-                }
-                composable(
-                    route = MainRoutes.NewExcerptPattern,
-                    arguments = listOf(
-                        navArgument("archiveNodeId") {
-                            type = NavType.StringType
-                            nullable = true
-                            defaultValue = null
-                        },
-                    ),
-                ) { backStackEntry ->
-                    val archiveNodeId = backStackEntry.arguments?.getString("archiveNodeId")
-                    NewExcerptRoute(
-                        snapshot = snapshot,
-                        initialArchiveNodeId = archiveNodeId,
-                        searchSuggestions = mainViewModel::searchSuggestions,
-                        onBack = { navController.popBackStack() },
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
-                        onCreatedExcerpt = { excerptId ->
-                            navController.popBackStack()
-                            navController.navigate(MainRoutes.excerpt(excerptId))
-                        },
-                        onCreateExcerpt = mainViewModel::createExcerpt,
-                    )
-                }
-                composable(
-                    route = MainRoutes.ExcerptPattern,
-                    arguments = listOf(navArgument("excerptId") { type = NavType.StringType }),
-                ) { backStackEntry ->
-                    val excerptId = backStackEntry.arguments?.getString("excerptId").orEmpty()
-                    ExcerptDetailRoute(
-                        snapshot = snapshot,
-                        excerptId = excerptId,
-                        searchSuggestions = mainViewModel::searchSuggestions,
-                        onBack = { navController.popBackStack() },
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
-                        onSaveExcerpt = mainViewModel::updateExcerpt,
-                    )
-                }
-                composable(
-                    route = MainRoutes.NodePattern,
-                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
-                ) { backStackEntry ->
-                    val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
-                    NodeDetailRoute(
-                        snapshot = snapshot,
-                        nodeId = nodeId,
-                        searchSuggestions = mainViewModel::searchSuggestions,
-                        onBack = { navController.popBackStack() },
-                        onOpenGraph = { navController.navigate(MainRoutes.graph(nodeId)) },
-                        onUpdateOutline = mainViewModel::updateNodeOutline,
-                        onMoveExcerptToInbox = mainViewModel::moveExcerptToInbox,
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
-                        onAddExcerpt = { navController.navigate(MainRoutes.newExcerpt(nodeId)) },
-                    )
-                }
-                composable(
-                    route = MainRoutes.GraphPattern,
-                    arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
-                ) { backStackEntry ->
-                    val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
-                    GraphRoute(
-                        snapshot = snapshot,
-                        nodeId = nodeId,
-                        onBack = { navController.popBackStack() },
-                        onOpenNode = { navController.navigate(MainRoutes.node(it)) },
-                        onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
-                    )
+                                aiSummaryViewModel.prepare(listOf(excerptId))
+                                navController.navigate(MainRoutes.AiSummary)
+                            },
+                            onDeleteExcerpt = mainViewModel::deleteExcerpt,
+                            onLongPress = feedViewModel::enterSelectionMode,
+                            onToggleSelection = feedViewModel::toggleExcerptSelection,
+                            onLoadSample = mainViewModel::loadSampleData,
+                            isRefreshing = syncState.isSyncing,
+                            onRefresh = mainViewModel::syncNow,
+                            onStartRecording = { navController.navigate(MainRoutes.newExcerpt()) },
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                        )
+                    }
+                    composable(MainRoutes.Tree) {
+                        KnowledgeTreeHomeRoute(
+                            snapshot = snapshot,
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
+                            onCreateRootNode = mainViewModel::createRootNode,
+                            onCreateChildNode = mainViewModel::createChildNode,
+                            onMoveNode = mainViewModel::moveNode,
+                            onMoveNodeToPosition = mainViewModel::moveNodeToPosition,
+                            onRenameNode = mainViewModel::renameNode,
+                            onDeleteNode = mainViewModel::deleteNodeSubtree,
+                            isRefreshing = syncState.isSyncing,
+                            onRefresh = mainViewModel::syncNow,
+                        )
+                    }
+                    composable(
+                        route = MainRoutes.TreeBranchPattern,
+                        arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
+                        val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
+                        KnowledgeTreeBranchRoute(
+                            snapshot = snapshot,
+                            nodeId = nodeId,
+                            onBack = { navController.popBackStack() },
+                            onOpenRoot = {
+                                if (!navController.popBackStack(MainRoutes.Tree, false)) {
+                                    navController.navigate(MainRoutes.Tree) {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenBranch = { navController.navigate(MainRoutes.treeBranch(it)) },
+                            onCreateRootNode = mainViewModel::createRootNode,
+                            onCreateChildNode = mainViewModel::createChildNode,
+                            onMoveNode = mainViewModel::moveNode,
+                            onMoveNodeToPosition = mainViewModel::moveNodeToPosition,
+                            onRenameNode = mainViewModel::renameNode,
+                            onDeleteNode = mainViewModel::deleteNodeSubtree,
+                            isRefreshing = syncState.isSyncing,
+                            onRefresh = mainViewModel::syncNow,
+                        )
+                    }
+                    composable(MainRoutes.Tags) {
+                        TagsRoute(
+                            snapshot = snapshot,
+                            uiState = tagsUiState,
+                            onToggleSearch = tagsViewModel::toggleSearch,
+                            onSearchQueryChange = tagsViewModel::updateSearchQuery,
+                            onLongPressTag = tagsViewModel::enterSelectionMode,
+                            onToggleTagSelection = tagsViewModel::toggleTagSelection,
+                            onDismissDeleteDialog = tagsViewModel::dismissDeleteDialog,
+                            isRefreshing = syncState.isSyncing,
+                            onRefresh = mainViewModel::syncNow,
+                            onAddTag = openAddTagDialog,
+                            onConfirmDeleteDialog = {
+                                mainViewModel.deleteTags(tagsUiState.pendingDeleteTagIds) {
+                                    tagsViewModel.dismissDeleteDialog()
+                                    tagsViewModel.clearSelection()
+                                }
+                            },
+                        )
+                    }
+                    composable(MainRoutes.Settings) {
+                        SettingsRoute(
+                            onNavigateToAuth = { navController.navigate(MainRoutes.Auth) }
+                        )
+                    }
+                    composable(MainRoutes.Auth) {
+                        AuthRoute(
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable(MainRoutes.AiSummary) {
+                        AiSummaryRoute(
+                            snapshot = snapshot,
+                            draft = aiSummaryDraft,
+                            searchSuggestions = mainViewModel::searchSuggestions,
+                            onClose = {
+                                aiSummaryViewModel.clear()
+                                navController.popBackStack()
+                            },
+                            onSave = {
+                                aiSummaryViewModel.save {
+                                    feedViewModel.clearSelection()
+                                    navController.popBackStack(MainRoutes.Feed, false)
+                                }
+                            },
+                            onCreateRootNode = mainViewModel::createRootNode,
+                            onCreateChildNode = mainViewModel::createChildNode,
+                            onSelectTargetNode = aiSummaryViewModel::selectTargetNode,
+                            onMarkdownChange = aiSummaryViewModel::updateMarkdown,
+                        )
+                    }
+                    composable(
+                        route = MainRoutes.NewExcerptPattern,
+                        arguments = listOf(
+                            navArgument("archiveNodeId") {
+                                type = NavType.StringType
+                                nullable = true
+                                defaultValue = null
+                            },
+                        ),
+                    ) { backStackEntry ->
+                        val archiveNodeId = backStackEntry.arguments?.getString("archiveNodeId")
+                        NewExcerptRoute(
+                            snapshot = snapshot,
+                            initialArchiveNodeId = archiveNodeId,
+                            searchSuggestions = mainViewModel::searchSuggestions,
+                            onBack = { navController.popBackStack() },
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                            onCreatedExcerpt = { excerptId ->
+                                navController.popBackStack()
+                                navController.navigate(MainRoutes.excerpt(excerptId))
+                            },
+                            onCreateExcerpt = mainViewModel::createExcerpt,
+                        )
+                    }
+                    composable(
+                        route = MainRoutes.ExcerptPattern,
+                        arguments = listOf(navArgument("excerptId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
+                        val excerptId = backStackEntry.arguments?.getString("excerptId").orEmpty()
+                        ExcerptDetailRoute(
+                            snapshot = snapshot,
+                            excerptId = excerptId,
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this,
+                            searchSuggestions = mainViewModel::searchSuggestions,
+                            onBack = { navController.popBackStack() },
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                            onSaveExcerpt = mainViewModel::updateExcerpt,
+                        )
+                    }
+                    composable(
+                        route = MainRoutes.NodePattern,
+                        arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
+                        val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
+                        NodeDetailRoute(
+                            snapshot = snapshot,
+                            nodeId = nodeId,
+                            searchSuggestions = mainViewModel::searchSuggestions,
+                            onBack = { navController.popBackStack() },
+                            onOpenGraph = { navController.navigate(MainRoutes.graph(nodeId)) },
+                            onUpdateOutline = mainViewModel::updateNodeOutline,
+                            onMoveExcerptToInbox = mainViewModel::moveExcerptToInbox,
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                            onAddExcerpt = { navController.navigate(MainRoutes.newExcerpt(nodeId)) },
+                        )
+                    }
+                    composable(
+                        route = MainRoutes.GraphPattern,
+                        arguments = listOf(navArgument("nodeId") { type = NavType.StringType }),
+                    ) { backStackEntry ->
+                        val nodeId = backStackEntry.arguments?.getString("nodeId").orEmpty()
+                        GraphRoute(
+                            snapshot = snapshot,
+                            nodeId = nodeId,
+                            onBack = { navController.popBackStack() },
+                            onOpenNode = { navController.navigate(MainRoutes.node(it)) },
+                            onOpenExcerpt = { navController.navigate(MainRoutes.excerpt(it)) },
+                        )
+                    }
                 }
             }
 

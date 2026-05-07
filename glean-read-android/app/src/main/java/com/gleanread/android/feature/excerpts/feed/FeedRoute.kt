@@ -1,5 +1,10 @@
+@file:OptIn(ExperimentalSharedTransitionApi::class)
+
 package com.gleanread.android.feature.excerpts.feed
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -12,6 +17,8 @@ import com.gleanread.android.core.model.WorkspaceSnapshot
 fun FeedRoute(
     snapshot: WorkspaceSnapshot,
     uiState: FeedUiState,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     onOpenAiSummary: () -> Unit,
     onOpenExcerptAiSummary: (String) -> Unit,
     onDeleteExcerpt: (String) -> Unit,
@@ -52,6 +59,8 @@ fun FeedRoute(
         selectedExcerptIds = uiState.selectedExcerptIds,
         revealedExcerptId = revealedExcerptId,
         pendingDeleteExcerpt = pendingDeleteExcerpt,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         onSearchQueryChange = {
             revealedExcerptId = null
             searchQuery = it

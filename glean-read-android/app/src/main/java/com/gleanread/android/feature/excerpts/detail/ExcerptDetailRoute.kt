@@ -1,6 +1,9 @@
 package com.gleanread.android.feature.excerpts.detail
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,9 +18,12 @@ import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeNodePickerUiModel
 
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun ExcerptDetailRoute(
     snapshot: WorkspaceSnapshot,
     excerptId: String,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     searchSuggestions: suspend (String) -> List<LinkSuggestion>,
     onBack: () -> Unit,
     onOpenNode: (String) -> Unit,
@@ -112,6 +118,8 @@ fun ExcerptDetailRoute(
         isTagPickerOpen = isTagPickerOpen,
         isMountPickerOpen = isMountPickerOpen,
         mountPickerCurrentNodeId = mountPickerCurrentNodeId,
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         searchSuggestions = searchSuggestions,
         onBack = onBack,
         onCloseEditing = resetEditor,

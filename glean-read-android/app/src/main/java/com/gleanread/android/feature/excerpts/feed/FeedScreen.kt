@@ -2,6 +2,9 @@
 
 package com.gleanread.android.feature.excerpts.feed
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -52,6 +55,7 @@ import com.gleanread.android.core.model.WorkspacePreviewData
 import com.gleanread.android.core.ui.sync.WorkspacePullToRefreshBox
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun FeedScreen(
     filteredExcerpts: List<ExcerptUiModel>,
@@ -62,6 +66,8 @@ fun FeedScreen(
     selectedExcerptIds: Set<String>,
     revealedExcerptId: String?,
     pendingDeleteExcerpt: ExcerptUiModel?,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     onSearchQueryChange: (String) -> Unit,
     onClearSearch: () -> Unit,
     onToggleInboxFilter: () -> Unit,
@@ -142,6 +148,8 @@ fun FeedScreen(
                         isSelectionMode = isSelectionMode,
                         isSelected = selectedExcerptIds.contains(excerpt.id),
                         isActionsRevealed = revealedExcerptId == excerpt.id,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
                         onRevealActions = { onRevealExcerptActions(excerpt.id) },
                         onDismissActions = { onDismissExcerptActions(excerpt.id) },
                         onOpenAiSummary = { onOpenExcerptAiSummary(excerpt.id) },
