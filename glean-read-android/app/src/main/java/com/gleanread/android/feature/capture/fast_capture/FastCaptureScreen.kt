@@ -162,9 +162,13 @@ fun FastCaptureScreen(
 
     CaptureBottomSheet(
         onDismiss = onDismiss,
-        modifier = Modifier.fillMaxHeight(sheetHeightFraction),
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(sheetHeightFraction),
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
