@@ -25,8 +25,10 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -57,6 +59,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.gleanread.android.R
 import com.gleanread.android.app.appContainer
+import com.gleanread.android.data.auth.LocalDataOwnershipChoice
 import com.gleanread.android.feature.excerpts.detail.ExcerptDetailRoute
 import com.gleanread.android.feature.excerpts.detail.NewExcerptRoute
 import com.gleanread.android.feature.excerpts.feed.FeedRoute
@@ -111,6 +114,7 @@ fun MainApp() {
     val route = currentEntry?.destination?.route ?: MainRoutes.Feed
     val snapshot by mainViewModel.snapshot.collectAsStateWithLifecycle()
     val syncState by mainViewModel.syncState.collectAsStateWithLifecycle()
+    val localDataOwnershipUiState by mainViewModel.localDataOwnershipUiState.collectAsStateWithLifecycle()
     val feedUiState by feedViewModel.uiState.collectAsStateWithLifecycle()
     val aiSummaryDraft by aiSummaryViewModel.draft.collectAsStateWithLifecycle()
     val tagsUiState by tagsViewModel.uiState.collectAsStateWithLifecycle()
@@ -423,6 +427,78 @@ fun MainApp() {
 
         }
     }
+
+    if (localDataOwnershipUiState.isDialogVisible) {
+        PendingLocalDataOwnershipDialog(
+            isSubmitting = localDataOwnershipUiState.isSubmitting,
+            onMergeLocalData = {
+                mainViewModel.choosePendingLocalDataOwnership(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) {
+                    if (route == MainRoutes.Auth) {
+                        navController.popBackStack()
+                    }
+                }
+            },
+            onKeepLocalData = {
+                mainViewModel.choosePendingLocalDataOwnership(LocalDataOwnershipChoice.KEEP_LOCAL) {
+                    if (route == MainRoutes.Auth) {
+                        navController.popBackStack()
+                    }
+                }
+            },
+            onUseCloudData = {
+                mainViewModel.choosePendingLocalDataOwnership(LocalDataOwnershipChoice.USE_CLOUD) {
+                    if (route == MainRoutes.Auth) {
+                        navController.popBackStack()
+                    }
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun PendingLocalDataOwnershipDialog(
+    isSubmitting: Boolean,
+    onMergeLocalData: () -> Unit,
+    onKeepLocalData: () -> Unit,
+    onUseCloudData: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text(stringResource(R.string.settings_ownership_title)) },
+        text = { Text(stringResource(R.string.settings_ownership_body)) },
+        confirmButton = {
+            TextButton(
+                onClick = onMergeLocalData,
+                enabled = !isSubmitting,
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(Modifier.size(8.dp))
+                }
+                Text(stringResource(R.string.settings_ownership_merge))
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(
+                    onClick = onKeepLocalData,
+                    enabled = !isSubmitting,
+                ) {
+                    Text(stringResource(R.string.settings_ownership_keep_local))
+                }
+                TextButton(
+                    onClick = onUseCloudData,
+                    enabled = !isSubmitting,
+                ) {
+                    Text(stringResource(R.string.settings_ownership_use_cloud))
+                }
+            }
+        },
+    )
 }
 
 @Composable

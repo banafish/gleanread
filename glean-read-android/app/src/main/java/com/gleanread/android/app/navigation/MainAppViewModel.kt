@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.gleanread.android.core.data.AppSnapshotStore
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
+import com.gleanread.android.data.auth.LocalDataOwnershipChoice
+import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
 import com.gleanread.android.data.repository.SeedDataInitializer
@@ -14,9 +16,11 @@ import com.gleanread.android.data.sync.WorkspaceSyncUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class MainAppViewModel(
+    private val authRepository: SupabaseAuthRepository,
     private val excerptRepository: ExcerptRepository,
     private val tagRepository: TagRepository,
     private val knowledgeTreeRepository: KnowledgeTreeRepository,
@@ -25,13 +29,22 @@ class MainAppViewModel(
     snapshotStore: AppSnapshotStore,
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(WorkspaceSnapshot.Empty)
+    private val _localDataOwnershipUiState = MutableStateFlow(LocalDataOwnershipUiState())
     val snapshot: StateFlow<WorkspaceSnapshot> = _snapshot.asStateFlow()
     val syncState: StateFlow<WorkspaceSyncUiState> = syncRepository.syncState
+    val localDataOwnershipUiState: StateFlow<LocalDataOwnershipUiState> = _localDataOwnershipUiState.asStateFlow()
 
     init {
         viewModelScope.launch {
             snapshotStore.snapshot.collect { latest ->
                 _snapshot.value = latest
+            }
+        }
+        viewModelScope.launch {
+            authRepository.pendingLocalDataOwnership.collect { pending ->
+                _localDataOwnershipUiState.update {
+                    it.copy(isDialogVisible = pending, isSubmitting = false)
+                }
             }
         }
     }
@@ -45,6 +58,39 @@ class MainAppViewModel(
     fun syncNow() {
         viewModelScope.launch {
             syncRepository.syncNow()
+        }
+    }
+
+    fun choosePendingLocalDataOwnership(
+        choice: LocalDataOwnershipChoice,
+        onFinished: () -> Unit = {},
+    ) {
+        if (_localDataOwnershipUiState.value.isSubmitting) return
+        viewModelScope.launch {
+            _localDataOwnershipUiState.update { it.copy(isSubmitting = true) }
+            when (choice) {
+                LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
+                    authRepository.mergeLocalDataIntoCurrentAccount()
+                    syncRepository.setCloudSyncEnabled(true)
+                    syncRepository.syncNow()
+                }
+
+                LocalDataOwnershipChoice.KEEP_LOCAL -> {
+                    syncRepository.setCloudSyncEnabled(true)
+                    syncRepository.syncNow()
+                }
+
+                LocalDataOwnershipChoice.USE_CLOUD -> {
+                    authRepository.clearLocalWorkspaceData()
+                    syncRepository.setCloudSyncEnabled(true)
+                    syncRepository.syncNow()
+                }
+            }
+            authRepository.clearLocalDataOwnershipRequest()
+            _localDataOwnershipUiState.update {
+                it.copy(isDialogVisible = false, isSubmitting = false)
+            }
+            onFinished()
         }
     }
 
@@ -176,3 +222,8 @@ class MainAppViewModel(
         return knowledgeTreeRepository.searchSuggestions(query)
     }
 }
+
+data class LocalDataOwnershipUiState(
+    val isDialogVisible: Boolean = false,
+    val isSubmitting: Boolean = false,
+)

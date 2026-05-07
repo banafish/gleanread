@@ -174,6 +174,7 @@ class AppContainer(
     val mainAppViewModelFactory: ViewModelProvider.Factory by lazy {
         AppViewModelFactory {
             MainAppViewModel(
+                authRepository = supabaseAuthRepository,
                 excerptRepository = excerptRepository,
                 tagRepository = tagRepository,
                 knowledgeTreeRepository = knowledgeTreeRepository,

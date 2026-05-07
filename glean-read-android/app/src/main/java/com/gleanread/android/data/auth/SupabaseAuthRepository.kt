@@ -21,7 +21,9 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -32,6 +34,9 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
+
+private const val EMAIL_ALREADY_REGISTERED_MESSAGE = "邮箱已注册，请直接登录"
+private const val SIGN_UP_PENDING_VERIFICATION_MESSAGE = "注册成功，请查收验证邮件以完成注册"
 
 class SupabaseAuthRepository private constructor(
     internal val config: SupabaseConfig,
@@ -46,6 +51,9 @@ class SupabaseAuthRepository private constructor(
 ) {
     private val database: WorkspaceDatabase
         get() = databaseProvider()
+
+    private val _pendingLocalDataOwnership = MutableStateFlow(false)
+    val pendingLocalDataOwnership: StateFlow<Boolean> = _pendingLocalDataOwnership.asStateFlow()
 
     constructor(
         config: SupabaseConfig,
@@ -84,6 +92,14 @@ class SupabaseAuthRepository private constructor(
     )
 
     val session: StateFlow<AuthSession?> = sessionStore.session
+
+    fun requestLocalDataOwnership() {
+        _pendingLocalDataOwnership.value = true
+    }
+
+    fun clearLocalDataOwnershipRequest() {
+        _pendingLocalDataOwnership.value = false
+    }
 
     suspend fun sendMagicLink(email: String): MagicLinkRequestResult {
         return signInWithOtp(email, config.magicLinkRedirectUrl)
@@ -245,8 +261,12 @@ class SupabaseAuthRepository private constructor(
 
             val response = AuthJson.decodeFromString<SignUpResponse>(responseBody)
 
+            if (response.identities?.isEmpty() == true) {
+                return AuthResult.Failure(EMAIL_ALREADY_REGISTERED_MESSAGE)
+            }
+
             if (response.accessToken.isNullOrBlank()) {
-                return AuthResult.Failure("注册成功，请查收验证邮件以完成注册")
+                return AuthResult.Failure(SIGN_UP_PENDING_VERIFICATION_MESSAGE)
             }
 
             val user = AuthUserResponse(id = response.id ?: "", email = response.email)
@@ -502,6 +522,7 @@ internal data class AuthTokenResponse(
 internal data class SignUpResponse(
     val id: String? = null,
     val email: String? = null,
+    val identities: List<JsonObject>? = null,
     @SerialName("access_token") val accessToken: String? = null,
     @SerialName("refresh_token") val refreshToken: String? = null,
     @SerialName("expires_in") val expiresInSeconds: Long? = null,
@@ -516,12 +537,17 @@ internal data class AuthUserResponse(
 
 @Serializable
 private data class SupabaseAuthErrorResponse(
+    val code: JsonElement? = null,
+    val msg: String? = null,
     val message: String? = null,
     val error: String? = null,
     @SerialName("error_description") val errorDescription: String? = null,
 ) {
     val displayMessage: String?
-        get() = message ?: errorDescription ?: error
+        get() = message ?: msg ?: errorDescription ?: error
+
+    val codeText: String?
+        get() = code?.jsonPrimitive?.toString()?.trim('"')
 }
 
 internal fun AuthTokenResponse.toSession(
@@ -540,16 +566,27 @@ internal fun AuthTokenResponse.toSession(
 }
 
 internal fun String.toSupabaseAuthErrorMessage(defaultMessage: String = "登录失败，请检查邮箱和密码"): String {
-    val remoteMessage = runCatching {
-        AuthJson.decodeFromString<SupabaseAuthErrorResponse>(this).displayMessage
+    val errorResponse = runCatching {
+        AuthJson.decodeFromString<SupabaseAuthErrorResponse>(this)
     }.getOrNull()
+    val remoteMessage = errorResponse?.displayMessage
     return when {
+        errorResponse?.codeText?.isEmailAlreadyRegisteredMessage() == true -> EMAIL_ALREADY_REGISTERED_MESSAGE
         remoteMessage.isNullOrBlank() -> defaultMessage
+        remoteMessage.isEmailAlreadyRegisteredMessage() -> EMAIL_ALREADY_REGISTERED_MESSAGE
         remoteMessage.contains("Invalid login credentials", ignoreCase = true) -> "邮箱或密码不正确"
         remoteMessage.contains("Email not confirmed", ignoreCase = true) -> "邮箱尚未确认，请先完成邮箱验证"
         remoteMessage.contains("JWT expired", ignoreCase = true) -> "登录已过期，请重新登录"
         else -> remoteMessage
     }
+}
+
+private fun String.isEmailAlreadyRegisteredMessage(): Boolean {
+    return contains("User already registered", ignoreCase = true) ||
+        contains("already registered", ignoreCase = true) ||
+        contains("already been registered", ignoreCase = true) ||
+        contains("user_already_exists", ignoreCase = true) ||
+        contains("email_exists", ignoreCase = true)
 }
 
 private fun Uri.authCallbackParameters(): Map<String, String> {

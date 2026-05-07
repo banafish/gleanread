@@ -110,6 +110,77 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
+    fun `signUpWithEmailPassword maps duplicate email auth error response`() = runBlocking {
+        sessionStore.clearSession()
+        val authClient = mockAuthClient(
+            status = HttpStatusCode.BadRequest,
+            body = """{"code":400,"msg":"User already registered"}""",
+        )
+
+        val result = repository(
+            config = SupabaseConfig(url = "https://example.supabase.co", anonKey = "anon-key"),
+            httpClient = authClient,
+        ).signUpWithEmailPassword("user@example.com", "password")
+
+        assertEquals(AuthResult.Failure("邮箱已注册，请直接登录"), result)
+        authClient.close()
+    }
+
+    @Test
+    fun `signUpWithEmailPassword maps obfuscated duplicate user response`() = runBlocking {
+        sessionStore.clearSession()
+        val authClient = mockAuthClient(
+            status = HttpStatusCode.OK,
+            body = """{"id":"fake-user","email":"user@example.com","identities":[]}""",
+        )
+
+        val result = repository(
+            config = SupabaseConfig(url = "https://example.supabase.co", anonKey = "anon-key"),
+            httpClient = authClient,
+        ).signUpWithEmailPassword("user@example.com", "password")
+
+        assertEquals(AuthResult.Failure("邮箱已注册，请直接登录"), result)
+        assertEquals(null, sessionStore.session.value)
+        authClient.close()
+    }
+
+    @Test
+    fun `signUpWithEmailPassword keeps verification prompt for new unconfirmed signup`() = runBlocking {
+        sessionStore.clearSession()
+        val authClient = mockAuthClient(
+            status = HttpStatusCode.OK,
+            body = """
+                {
+                  "id":"new-user",
+                  "email":"new@example.com",
+                  "identities":[{"id":"identity-1","user_id":"new-user","provider":"email"}]
+                }
+            """.trimIndent(),
+        )
+
+        val result = repository(
+            config = SupabaseConfig(url = "https://example.supabase.co", anonKey = "anon-key"),
+            httpClient = authClient,
+        ).signUpWithEmailPassword("new@example.com", "password")
+
+        assertEquals(AuthResult.Failure("注册成功，请查收验证邮件以完成注册"), result)
+        authClient.close()
+    }
+
+    @Test
+    fun `local data ownership request can be marked and cleared`() {
+        val repository = repository()
+
+        assertEquals(false, repository.pendingLocalDataOwnership.value)
+
+        repository.requestLocalDataOwnership()
+        assertEquals(true, repository.pendingLocalDataOwnership.value)
+
+        repository.clearLocalDataOwnershipRequest()
+        assertEquals(false, repository.pendingLocalDataOwnership.value)
+    }
+
+    @Test
     fun `sendMagicLink posts otp request with redirect url`() = runBlocking {
         var requestedPath = ""
         var redirectTo = ""

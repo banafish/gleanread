@@ -56,14 +56,15 @@ class MainActivity : ComponentActivity() {
 
         setIntent(Intent(intent).setData(null))
         lifecycleScope.launch {
+            val hasGuestData = appContainer.databaseManager.hasGuestData()
             when (val result = appContainer.supabaseAuthRepository.completeMagicLinkSignIn(uri)) {
                 is AuthResult.Success -> {
-                    if (appContainer.supabaseAuthRepository.hasLocalUserData()) {
-                        toast("Magic Link 登录成功，请在设置中选择本地数据归属")
+                    if (hasGuestData) {
+                        appContainer.supabaseAuthRepository.requestLocalDataOwnership()
                     } else {
                         appContainer.workspaceSyncRepository.setCloudSyncEnabled(true)
                         appContainer.workspaceSyncRepository.syncNow()
-                        toast("Magic Link 登录成功")
+                        toast("登录成功")
                     }
                 }
 
