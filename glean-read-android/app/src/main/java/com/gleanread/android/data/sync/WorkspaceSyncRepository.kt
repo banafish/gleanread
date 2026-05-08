@@ -79,10 +79,18 @@ class WorkspaceSyncRepository private constructor(
 
             return runCatching {
                 pullRemoteChanges(session.accessToken, session.userId)
+                val repairSnapshot = if (repairMissingRemote) {
+                    repairMissingLocalRecords(
+                        accessToken = session.accessToken,
+                        userId = session.userId,
+                    )
+                } else {
+                    null
+                }
                 uploadPendingChanges(
                     accessToken = session.accessToken,
                     userId = session.userId,
-                    repairMissingRemote = repairMissingRemote,
+                    repairRemoteSnapshot = repairSnapshot,
                 )
                 val completedAt = System.currentTimeMillis()
                 _syncState.value = WorkspaceSyncUiState(
@@ -141,7 +149,7 @@ class WorkspaceSyncRepository private constructor(
     private suspend fun uploadPendingChanges(
         accessToken: String,
         userId: String,
-        repairMissingRemote: Boolean,
+        repairRemoteSnapshot: RemoteWorkspaceSnapshot?,
     ) {
         val failures = mutableListOf<String>()
         val statuses = listOf(
@@ -155,8 +163,8 @@ class WorkspaceSyncRepository private constructor(
         uploadExcerpts(accessToken, database.excerptDao().findExcerptsBySyncStatuses(statuses))?.let(failures::add)
         uploadExcerptTags(accessToken, database.excerptTagDao().findExcerptTagsBySyncStatuses(statuses))
             ?.let(failures::add)
-        if (repairMissingRemote) {
-            uploadSyncedRecordsMissingFromRemote(accessToken, userId, failures)
+        if (repairRemoteSnapshot != null) {
+            uploadSyncedRecordsMissingFromRemote(accessToken, userId, repairRemoteSnapshot, failures)
         }
         if (failures.isNotEmpty()) {
             throw WorkspaceSyncUploadException(failures.distinct().joinToString(separator = "；"))
@@ -166,13 +174,9 @@ class WorkspaceSyncRepository private constructor(
     private suspend fun uploadSyncedRecordsMissingFromRemote(
         accessToken: String,
         userId: String,
+        remote: RemoteWorkspaceSnapshot,
         failures: MutableList<String>,
     ) {
-        val remote = remoteDataSource.fetchChanges(
-            accessToken = accessToken,
-            userId = userId,
-            updatedAfter = null,
-        )
         val remoteNodeIds = remote.nodes.mapTo(mutableSetOf(), RemoteKnowledgeTreeNode::id)
         val remoteTagIds = remote.tags.mapTo(mutableSetOf(), RemoteTag::id)
         val remoteExcerptIds = remote.excerpts.mapTo(mutableSetOf(), RemoteExcerpt::id)
@@ -273,11 +277,39 @@ class WorkspaceSyncRepository private constructor(
     }
 
     private suspend fun pullRemoteChanges(accessToken: String, userId: String) {
+        fetchAndApplyRemoteChanges(
+            accessToken = accessToken,
+            userId = userId,
+            updatedAfter = stateStore.lastPullTimeForUser(userId),
+        )
+        stateStore.saveLastPullTime(userId, System.currentTimeMillis())
+    }
+
+    private suspend fun repairMissingLocalRecords(
+        accessToken: String,
+        userId: String,
+    ): RemoteWorkspaceSnapshot {
         val now = System.currentTimeMillis()
         val remote = remoteDataSource.fetchChanges(
             accessToken = accessToken,
             userId = userId,
-            updatedAfter = stateStore.lastPullTimeForUser(userId),
+            updatedAfter = null,
+        )
+        applyRemoteRecordsMissingLocally(remote, now)
+        stateStore.saveLastPullTime(userId, System.currentTimeMillis())
+        return remote
+    }
+
+    private suspend fun fetchAndApplyRemoteChanges(
+        accessToken: String,
+        userId: String,
+        updatedAfter: Long?,
+    ): RemoteWorkspaceSnapshot {
+        val now = System.currentTimeMillis()
+        val remote = remoteDataSource.fetchChanges(
+            accessToken = accessToken,
+            userId = userId,
+            updatedAfter = updatedAfter,
         )
         database.withTransaction {
             applyRemoteNodes(remote.nodes, now)
@@ -285,7 +317,25 @@ class WorkspaceSyncRepository private constructor(
             applyRemoteExcerpts(remote.excerpts, now)
             applyRemoteExcerptTags(remote.excerptTags, now)
         }
-        stateStore.saveLastPullTime(userId, now)
+        return remote
+    }
+
+    private suspend fun applyRemoteRecordsMissingLocally(remote: RemoteWorkspaceSnapshot, now: Long) {
+        database.withTransaction {
+            val localNodeIds = database.nodeDao().getAllNodesOnce()
+                .mapTo(mutableSetOf(), KnowledgeTreeNodeEntity::id)
+            val localTagIds = database.tagDao().getAllTagsOnce()
+                .mapTo(mutableSetOf(), TagEntity::id)
+            val localExcerptIds = database.excerptDao().getAllExcerptsOnce()
+                .mapTo(mutableSetOf(), ExcerptEntity::id)
+            val localExcerptTagIds = database.excerptTagDao().getAllExcerptTagsOnce()
+                .mapTo(mutableSetOf(), ExcerptTagEntity::id)
+
+            applyRemoteNodes(remote.nodes.filter { it.id !in localNodeIds }, now)
+            applyRemoteTags(remote.tags.filter { it.id !in localTagIds }, now)
+            applyRemoteExcerpts(remote.excerpts.filter { it.id !in localExcerptIds }, now)
+            applyRemoteExcerptTags(remote.excerptTags.filter { it.id !in localExcerptTagIds }, now)
+        }
     }
 
     private suspend fun applyRemoteNodes(remoteNodes: List<RemoteKnowledgeTreeNode>, now: Long) {

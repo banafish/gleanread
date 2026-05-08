@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
                         appContainer.supabaseAuthRepository.requestLocalDataOwnership()
                     } else {
                         appContainer.workspaceSyncRepository.setCloudSyncEnabled(true)
-                        appContainer.workspaceSyncRepository.syncNow()
+                        appContainer.workspaceSyncRepository.syncNow(repairMissingRemote = true)
                         toast("登录成功")
                     }
                 }

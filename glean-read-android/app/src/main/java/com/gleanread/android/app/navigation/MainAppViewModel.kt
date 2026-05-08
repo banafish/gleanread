@@ -72,18 +72,18 @@ class MainAppViewModel(
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     authRepository.mergeLocalDataIntoCurrentAccount()
                     syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow()
+                    syncRepository.syncNow(repairMissingRemote = true)
                 }
 
                 LocalDataOwnershipChoice.KEEP_LOCAL -> {
                     syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow()
+                    syncRepository.syncNow(repairMissingRemote = true)
                 }
 
                 LocalDataOwnershipChoice.USE_CLOUD -> {
                     authRepository.clearLocalWorkspaceData()
                     syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow()
+                    syncRepository.syncNow(repairMissingRemote = true)
                 }
             }
             authRepository.clearLocalDataOwnershipRequest()

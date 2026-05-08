@@ -142,7 +142,7 @@ class SettingsViewModel(
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     authRepository.mergeLocalDataIntoCurrentAccount()
                     syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow()
+                    syncRepository.syncNow(repairMissingRemote = true)
                     formState.update {
                         it.copy(
                             isSubmitting = false,
@@ -166,7 +166,7 @@ class SettingsViewModel(
                 LocalDataOwnershipChoice.USE_CLOUD -> {
                     authRepository.clearLocalWorkspaceData()
                     syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow()
+                    syncRepository.syncNow(repairMissingRemote = true)
                     formState.update {
                         it.copy(
                             isSubmitting = false,

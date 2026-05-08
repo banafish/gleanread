@@ -206,6 +206,71 @@ class WorkspaceSyncRepositoryTest {
     }
 
     @Test
+    fun `manual repair sync downloads remote records missing locally outside the pull cursor`() = runBlocking {
+        stateStore.saveLastPullTime("user-1", 10_000L)
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "remote-only-excerpt",
+                    userId = "user-1",
+                    content = "本地漏掉的云端旧数据",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 1_000L,
+                    updateTime = 2_000L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+
+        val result = syncRepository().syncNow(repairMissingRemote = true)
+        val saved = database.excerptDao().findExcerptById("remote-only-excerpt")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(listOf(10_000L, null), remoteDataSource.updatedAfterCalls)
+        assertEquals("本地漏掉的云端旧数据", saved?.content)
+        assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
+    }
+
+    @Test
+    fun `incremental sync does not repair remote records outside the pull cursor by default`() = runBlocking {
+        stateStore.saveLastPullTime("user-1", 10_000L)
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "remote-only-default-sync",
+                    userId = "user-1",
+                    content = "默认增量不补的旧数据",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 1_000L,
+                    updateTime = 2_000L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+
+        val result = syncRepository().syncNow()
+        val saved = database.excerptDao().findExcerptById("remote-only-default-sync")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(listOf(10_000L), remoteDataSource.updatedAfterCalls)
+        assertNull(saved)
+    }
+
+    @Test
     fun `realtime applies pushed row without fetching the remote snapshot`() = runBlocking {
         val repository = syncRepository()
         val remoteExcerpt = RemoteExcerpt(
@@ -317,6 +382,16 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
     ): RemoteWorkspaceSnapshot {
         fetchCount += 1
         updatedAfterCalls += updatedAfter
-        return remoteSnapshot
+        return remoteSnapshot.filterUpdatedAfter(updatedAfter)
     }
+}
+
+private fun RemoteWorkspaceSnapshot.filterUpdatedAfter(updatedAfter: Long?): RemoteWorkspaceSnapshot {
+    if (updatedAfter == null) return this
+    return copy(
+        nodes = nodes.filter { it.updateTime > updatedAfter },
+        tags = tags.filter { it.updateTime > updatedAfter },
+        excerpts = excerpts.filter { it.updateTime > updatedAfter },
+        excerptTags = excerptTags.filter { it.updateTime > updatedAfter },
+    )
 }
