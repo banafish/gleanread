@@ -140,9 +140,9 @@ class SettingsViewModel(
     fun chooseOwnership(choice: LocalDataOwnershipChoice) {
         viewModelScope.launch {
             formState.update { it.copy(isSubmitting = true, message = null) }
+            authRepository.applyLocalDataOwnershipChoice(choice)
             when (choice) {
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
-                    authRepository.mergeLocalDataIntoCurrentAccount()
                     startBackgroundSync()
                     formState.update {
                         it.copy(
@@ -165,7 +165,6 @@ class SettingsViewModel(
                 }
 
                 LocalDataOwnershipChoice.USE_CLOUD -> {
-                    authRepository.clearLocalWorkspaceData()
                     startBackgroundSync()
                     formState.update {
                         it.copy(
@@ -224,6 +223,7 @@ class SettingsViewModel(
 
     private suspend fun performSignOut() {
         syncRepository.setCloudSyncEnabled(false)
+        syncRepository.awaitIdle()
         authRepository.signOut()
         formState.update { it.copy(message = "已退出登录") }
     }

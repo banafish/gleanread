@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 /**
  * 只负责聚合全局快照流，不包含任何 CRUD 操作。
@@ -16,7 +17,9 @@ import kotlinx.coroutines.flow.flowOf
 class WorkspaceSnapshotProvider private constructor(
     private val databaseFlow: Flow<WorkspaceDatabase>,
 ) {
-    constructor(databaseManager: WorkspaceDatabaseManager) : this(databaseManager.currentDatabase)
+    constructor(databaseManager: WorkspaceDatabaseManager) : this(
+        databaseManager.activeWorkspace.map { workspace -> workspace.database },
+    )
 
     internal constructor(database: WorkspaceDatabase) : this(flowOf(database))
 

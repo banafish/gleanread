@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.withTransaction
 import com.gleanread.android.data.model.LOCAL_USER_ID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,14 +23,23 @@ import kotlinx.coroutines.flow.asStateFlow
 class WorkspaceDatabaseManager(
     private val appContext: Context,
 ) {
-    private val _currentDatabase = MutableStateFlow<WorkspaceDatabase>(openDatabase(GUEST_DB_NAME))
+    private val initialGuestDatabase = openDatabase(GUEST_DB_NAME)
+    private val _activeWorkspace = MutableStateFlow(
+        ActiveWorkspace.guest(
+            databaseName = GUEST_DB_NAME,
+            database = initialGuestDatabase,
+        ),
+    )
+    val activeWorkspace: StateFlow<ActiveWorkspace> = _activeWorkspace.asStateFlow()
+
+    private val _currentDatabase = MutableStateFlow(initialGuestDatabase)
+    @Deprecated("Use activeWorkspace so account identity and database instance stay paired.")
     val currentDatabase: StateFlow<WorkspaceDatabase> = _currentDatabase.asStateFlow()
 
     private val databaseCache = mutableMapOf<String, WorkspaceDatabase>()
-    private var currentDbName: String = GUEST_DB_NAME
 
     init {
-        databaseCache[GUEST_DB_NAME] = _currentDatabase.value
+        databaseCache[GUEST_DB_NAME] = initialGuestDatabase
     }
 
     /**
@@ -38,10 +48,14 @@ class WorkspaceDatabaseManager(
      */
     fun switchToUser(userId: String) {
         val dbName = userDbName(userId)
-        if (dbName == currentDbName) return
         val db = getOrCreateDatabase(dbName)
+        if (dbName == _activeWorkspace.value.databaseName && _activeWorkspace.value.database === db) return
+        _activeWorkspace.value = ActiveWorkspace.user(
+            userId = userId,
+            databaseName = dbName,
+            database = db,
+        )
         _currentDatabase.value = db
-        currentDbName = dbName
         Log.d(TAG, "Switched to user database: $dbName")
     }
 
@@ -49,10 +63,13 @@ class WorkspaceDatabaseManager(
      * 切换到访客数据库。
      */
     fun switchToGuest() {
-        if (currentDbName == GUEST_DB_NAME) return
         val db = getOrCreateDatabase(GUEST_DB_NAME)
+        if (_activeWorkspace.value.databaseName == GUEST_DB_NAME && _activeWorkspace.value.database === db) return
+        _activeWorkspace.value = ActiveWorkspace.guest(
+            databaseName = GUEST_DB_NAME,
+            database = db,
+        )
         _currentDatabase.value = db
-        currentDbName = GUEST_DB_NAME
         Log.d(TAG, "Switched to guest database")
     }
 
@@ -61,11 +78,12 @@ class WorkspaceDatabaseManager(
      * 不删除数据库文件，以便下次登录时零延迟加载。
      */
     fun closeCurrentDatabase() {
-        val currentDb = _currentDatabase.value
+        val currentWorkspace = _activeWorkspace.value
+        val currentDb = currentWorkspace.database
         if (currentDb.isOpen) {
             currentDb.close()
         }
-        databaseCache.remove(currentDbName)
+        databaseCache.remove(currentWorkspace.databaseName)
         switchToGuest()
     }
 
@@ -83,7 +101,7 @@ class WorkspaceDatabaseManager(
      * @return true 如果成功删除
      */
     fun deleteDatabase(dbName: String): Boolean {
-        if (dbName == currentDbName || dbName == GUEST_DB_NAME) return false
+        if (dbName == _activeWorkspace.value.databaseName || dbName == GUEST_DB_NAME) return false
         databaseCache[dbName]?.let { db ->
             if (db.isOpen) db.close()
             databaseCache.remove(dbName)
@@ -110,7 +128,8 @@ class WorkspaceDatabaseManager(
      * 关闭所有非当前活跃数据库的连接。
      */
     fun closeInactiveDatabases() {
-        val entriesToClose = databaseCache.entries.filter { it.key != currentDbName }
+        val activeDatabaseName = _activeWorkspace.value.databaseName
+        val entriesToClose = databaseCache.entries.filter { it.key != activeDatabaseName }
         entriesToClose.forEach { (name, db) ->
             if (db.isOpen) db.close()
             databaseCache.remove(name)
@@ -124,7 +143,7 @@ class WorkspaceDatabaseManager(
      */
     fun deleteInactiveDatabases(): Int {
         val allDbNames = listUserDatabases().toMutableList()
-        if (currentDbName != GUEST_DB_NAME) {
+        if (_activeWorkspace.value.databaseName != GUEST_DB_NAME) {
             allDbNames.add(GUEST_DB_NAME)
         }
         return allDbNames.count { deleteDatabase(it) }
@@ -140,7 +159,7 @@ class WorkspaceDatabaseManager(
             ?.filter {
                 it.name.startsWith(USER_DB_PREFIX) &&
                     it.name.endsWith(DB_SUFFIX) &&
-                    it.name != currentDbName &&
+                    it.name != _activeWorkspace.value.databaseName &&
                     it.lastModified() < cutoffMillis
             }
             ?: return 0
@@ -166,10 +185,12 @@ class WorkspaceDatabaseManager(
      */
     suspend fun clearGuestData() {
         val guestDb = getOrCreateDatabase(GUEST_DB_NAME)
-        guestDb.excerptTagDao().deleteAllExcerptTags()
-        guestDb.excerptDao().deleteAllExcerpts()
-        guestDb.tagDao().deleteAllTags()
-        guestDb.nodeDao().deleteAllNodes()
+        guestDb.withTransaction {
+            guestDb.excerptTagDao().deleteAllExcerptTags()
+            guestDb.excerptDao().deleteAllExcerpts()
+            guestDb.tagDao().deleteAllTags()
+            guestDb.nodeDao().deleteAllNodes()
+        }
     }
 
     private fun getOrCreateDatabase(dbName: String): WorkspaceDatabase {

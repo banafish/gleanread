@@ -252,19 +252,8 @@ class AuthViewModel(
             } else {
                 _uiState.update { it.copy(errorMessage = null) }
             }
-            when (choice) {
-                LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
-                    authRepository.mergeLocalDataIntoCurrentAccount()
-                    startBackgroundSync()
-                }
-                LocalDataOwnershipChoice.KEEP_LOCAL -> {
-                    startBackgroundSync()
-                }
-                LocalDataOwnershipChoice.USE_CLOUD -> {
-                    authRepository.clearLocalWorkspaceData()
-                    startBackgroundSync()
-                }
-            }
+            authRepository.applyLocalDataOwnershipChoice(choice)
+            startBackgroundSync()
             _uiState.update {
                 it.copy(
                     isSubmitting = false,

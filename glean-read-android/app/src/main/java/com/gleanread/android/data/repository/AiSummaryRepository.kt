@@ -14,7 +14,7 @@ class AiSummaryRepository(
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
     private val outlineGenerator: OutlineGenerator = LocalOutlineGenerator(),
 ) {
-    private val database get() = databaseManager.currentDatabase.value
+    private val database get() = databaseManager.activeWorkspace.value.database
     private val excerptDao get() = database.excerptDao()
     private val nodeDao get() = database.nodeDao()
 

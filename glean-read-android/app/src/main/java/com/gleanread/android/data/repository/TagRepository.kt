@@ -19,13 +19,13 @@ class TagRepository(
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val database get() = databaseManager.currentDatabase.value
+    private val database get() = databaseManager.activeWorkspace.value.database
     private val tagDao get() = database.tagDao()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeAvailableTagNames(): Flow<List<String>> {
-        return databaseManager.currentDatabase.flatMapLatest { db ->
-            db.tagDao().observeTags().map { tags -> tags.map(TagEntity::tagName) }
+        return databaseManager.activeWorkspace.flatMapLatest { workspace ->
+            workspace.database.tagDao().observeTags().map { tags -> tags.map(TagEntity::tagName) }
         }
     }
 

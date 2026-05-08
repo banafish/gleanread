@@ -70,21 +70,8 @@ class MainAppViewModel(
         if (_localDataOwnershipUiState.value.isSubmitting) return
         viewModelScope.launch {
             _localDataOwnershipUiState.update { it.copy(isSubmitting = true) }
-            when (choice) {
-                LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
-                    authRepository.mergeLocalDataIntoCurrentAccount()
-                    startBackgroundSync()
-                }
-
-                LocalDataOwnershipChoice.KEEP_LOCAL -> {
-                    startBackgroundSync()
-                }
-
-                LocalDataOwnershipChoice.USE_CLOUD -> {
-                    authRepository.clearLocalWorkspaceData()
-                    startBackgroundSync()
-                }
-            }
+            authRepository.applyLocalDataOwnershipChoice(choice)
+            startBackgroundSync()
             authRepository.clearLocalDataOwnershipRequest()
             _localDataOwnershipUiState.update {
                 it.copy(isDialogVisible = false, isSubmitting = false)

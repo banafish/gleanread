@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.gleanread.android.data.auth.AuthSession
 import com.gleanread.android.data.auth.SupabaseSessionStore
 import com.gleanread.android.data.auth.SupabaseSessionRefresher
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
@@ -21,7 +22,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
 class WorkspaceSyncRepository private constructor(
-    private val databaseProvider: () -> WorkspaceDatabase,
+    private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val remoteDataSource: WorkspaceRemoteDataSource,
     private val sessionStore: SupabaseSessionStore,
     private val stateStore: WorkspaceSyncStateStore,
@@ -34,7 +35,7 @@ class WorkspaceSyncRepository private constructor(
         stateStore: WorkspaceSyncStateStore,
         sessionRefresher: SupabaseSessionRefresher? = null,
     ) : this(
-        databaseProvider = { databaseManager.currentDatabase.value },
+        activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         remoteDataSource = remoteDataSource,
         sessionStore = sessionStore,
         stateStore = stateStore,
@@ -48,14 +49,19 @@ class WorkspaceSyncRepository private constructor(
         stateStore: WorkspaceSyncStateStore,
         sessionRefresher: SupabaseSessionRefresher? = null,
     ) : this(
-        databaseProvider = { database },
+        activeWorkspaceProvider = {
+            ActiveWorkspace.user(
+                userId = DEFAULT_TEST_USER_ID,
+                databaseName = "test.db",
+                database = database,
+            )
+        },
         remoteDataSource = remoteDataSource,
         sessionStore = sessionStore,
         stateStore = stateStore,
         sessionRefresher = sessionRefresher,
     )
 
-    private val database get() = databaseProvider()
     private val _syncState = MutableStateFlow(WorkspaceSyncUiState())
     private val syncMutex = Mutex()
     val syncState: StateFlow<WorkspaceSyncUiState> = _syncState.asStateFlow()
@@ -75,12 +81,18 @@ class WorkspaceSyncRepository private constructor(
             if (!stateStore.isCloudSyncEnabled.value) {
                 return WorkspaceSyncResult.Skipped("云同步未开启")
             }
+            val activeWorkspace = activeWorkspaceProvider()
+            if (activeWorkspace.userId != session.userId) {
+                return WorkspaceSyncResult.Skipped("当前数据库不属于登录账号")
+            }
+            val activeDatabase = activeWorkspace.database
             _syncState.value = _syncState.value.copy(isSyncing = true, errorMessage = null)
 
             return runCatching {
-                pullRemoteChanges(session.accessToken, session.userId)
+                pullRemoteChanges(activeDatabase, session.accessToken, session.userId)
                 val repairSnapshot = if (repairMissingRemote) {
                     repairMissingLocalRecords(
+                        database = activeDatabase,
                         accessToken = session.accessToken,
                         userId = session.userId,
                     )
@@ -88,6 +100,7 @@ class WorkspaceSyncRepository private constructor(
                     null
                 }
                 uploadPendingChanges(
+                    database = activeDatabase,
                     accessToken = session.accessToken,
                     userId = session.userId,
                     repairRemoteSnapshot = repairSnapshot,
@@ -97,8 +110,8 @@ class WorkspaceSyncRepository private constructor(
                     isSyncing = false,
                     lastSyncTime = completedAt,
                     errorMessage = null,
-                    failedCount = countByStatus(SyncStatus.FAILED),
-                    conflictCount = countByStatus(SyncStatus.CONFLICT),
+                    failedCount = countByStatus(activeDatabase, SyncStatus.FAILED),
+                    conflictCount = countByStatus(activeDatabase, SyncStatus.CONFLICT),
                 )
                 WorkspaceSyncResult.Success(completedAt)
             }.getOrElse { error ->
@@ -106,8 +119,8 @@ class WorkspaceSyncRepository private constructor(
                 _syncState.value = _syncState.value.copy(
                     isSyncing = false,
                     errorMessage = message,
-                    failedCount = countByStatus(SyncStatus.FAILED),
-                    conflictCount = countByStatus(SyncStatus.CONFLICT),
+                    failedCount = countByStatus(activeDatabase, SyncStatus.FAILED),
+                    conflictCount = countByStatus(activeDatabase, SyncStatus.CONFLICT),
                 )
                 WorkspaceSyncResult.Failure(message)
             }
@@ -117,17 +130,26 @@ class WorkspaceSyncRepository private constructor(
     }
 
     suspend fun applyRealtimeChange(
+        userId: String,
         tableName: String,
         record: JsonObject,
     ) {
         syncMutex.withLock {
+            if (!stateStore.isCloudSyncEnabled.value || sessionStore.session.value?.userId != userId) {
+                return@withLock
+            }
+            val activeWorkspace = activeWorkspaceProvider()
+            if (activeWorkspace.userId != userId) {
+                return@withLock
+            }
+            val activeDatabase = activeWorkspace.database
             val now = System.currentTimeMillis()
-            database.withTransaction {
+            activeDatabase.withTransaction {
                 when (tableName) {
-                    REMOTE_TABLE_KNOWLEDGE_TREE_NODE -> applyRemoteNode(record.decodeRealtimeRecord(), now)
-                    REMOTE_TABLE_TAGS -> applyRemoteTag(record.decodeRealtimeRecord(), now)
-                    REMOTE_TABLE_EXCERPTS -> applyRemoteExcerpt(record.decodeRealtimeRecord(), now)
-                    REMOTE_TABLE_EXCERPT_TAGS -> applyRemoteExcerptTag(record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_KNOWLEDGE_TREE_NODE -> applyRemoteNode(activeDatabase, record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_TAGS -> applyRemoteTag(activeDatabase, record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_EXCERPTS -> applyRemoteExcerpt(activeDatabase, record.decodeRealtimeRecord(), now)
+                    REMOTE_TABLE_EXCERPT_TAGS -> applyRemoteExcerptTag(activeDatabase, record.decodeRealtimeRecord(), now)
                     else -> return@withTransaction
                 }
             }
@@ -135,6 +157,12 @@ class WorkspaceSyncRepository private constructor(
                 lastSyncTime = now,
                 errorMessage = null,
             )
+        }
+    }
+
+    suspend fun awaitIdle() {
+        syncMutex.withLock {
+            // The lock is held by sync and realtime apply work; acquiring it here waits for both to finish.
         }
     }
 
@@ -147,6 +175,7 @@ class WorkspaceSyncRepository private constructor(
     }
 
     private suspend fun uploadPendingChanges(
+        database: WorkspaceDatabase,
         accessToken: String,
         userId: String,
         repairRemoteSnapshot: RemoteWorkspaceSnapshot?,
@@ -158,13 +187,29 @@ class WorkspaceSyncRepository private constructor(
             SyncStatus.PENDING_DELETE.name,
             SyncStatus.FAILED.name,
         )
-        uploadNodes(accessToken, database.nodeDao().findNodesBySyncStatuses(statuses))?.let(failures::add)
-        uploadTags(accessToken, database.tagDao().findTagsBySyncStatuses(statuses))?.let(failures::add)
-        uploadExcerpts(accessToken, database.excerptDao().findExcerptsBySyncStatuses(statuses))?.let(failures::add)
-        uploadExcerptTags(accessToken, database.excerptTagDao().findExcerptTagsBySyncStatuses(statuses))
+        uploadNodes(
+            database = database,
+            accessToken = accessToken,
+            nodes = database.nodeDao().findNodesBySyncStatuses(statuses),
+        )?.let(failures::add)
+        uploadTags(
+            database = database,
+            accessToken = accessToken,
+            tags = database.tagDao().findTagsBySyncStatuses(statuses),
+        )?.let(failures::add)
+        uploadExcerpts(
+            database = database,
+            accessToken = accessToken,
+            excerpts = database.excerptDao().findExcerptsBySyncStatuses(statuses),
+        )?.let(failures::add)
+        uploadExcerptTags(
+            database = database,
+            accessToken = accessToken,
+            relations = database.excerptTagDao().findExcerptTagsBySyncStatuses(statuses),
+        )
             ?.let(failures::add)
         if (repairRemoteSnapshot != null) {
-            uploadSyncedRecordsMissingFromRemote(accessToken, userId, repairRemoteSnapshot, failures)
+            uploadSyncedRecordsMissingFromRemote(database, accessToken, userId, repairRemoteSnapshot, failures)
         }
         if (failures.isNotEmpty()) {
             throw WorkspaceSyncUploadException(failures.distinct().joinToString(separator = "；"))
@@ -172,6 +217,7 @@ class WorkspaceSyncRepository private constructor(
     }
 
     private suspend fun uploadSyncedRecordsMissingFromRemote(
+        database: WorkspaceDatabase,
         accessToken: String,
         userId: String,
         remote: RemoteWorkspaceSnapshot,
@@ -183,28 +229,36 @@ class WorkspaceSyncRepository private constructor(
         val remoteExcerptTagIds = remote.excerptTags.mapTo(mutableSetOf(), RemoteExcerptTag::id)
 
         uploadNodes(
+            database = database,
             accessToken = accessToken,
             nodes = database.nodeDao().getAllNodesOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteNodeIds) },
         )?.let(failures::add)
         uploadTags(
+            database = database,
             accessToken = accessToken,
             tags = database.tagDao().getAllTagsOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteTagIds) },
         )?.let(failures::add)
         uploadExcerpts(
+            database = database,
             accessToken = accessToken,
             excerpts = database.excerptDao().getAllExcerptsOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteExcerptIds) },
         )?.let(failures::add)
         uploadExcerptTags(
+            database = database,
             accessToken = accessToken,
             relations = database.excerptTagDao().getAllExcerptTagsOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteExcerptTagIds) },
         )?.let(failures::add)
     }
 
-    private suspend fun uploadNodes(accessToken: String, nodes: List<KnowledgeTreeNodeEntity>): String? {
+    private suspend fun uploadNodes(
+        database: WorkspaceDatabase,
+        accessToken: String,
+        nodes: List<KnowledgeTreeNodeEntity>,
+    ): String? {
         if (nodes.isEmpty()) return null
         val syncing = nodes.markNodesSyncing()
         database.nodeDao().updateNodes(syncing)
@@ -222,7 +276,11 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun uploadTags(accessToken: String, tags: List<TagEntity>): String? {
+    private suspend fun uploadTags(
+        database: WorkspaceDatabase,
+        accessToken: String,
+        tags: List<TagEntity>,
+    ): String? {
         if (tags.isEmpty()) return null
         val syncing = tags.markTagsSyncing()
         database.tagDao().updateTags(syncing)
@@ -240,7 +298,11 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun uploadExcerpts(accessToken: String, excerpts: List<ExcerptEntity>): String? {
+    private suspend fun uploadExcerpts(
+        database: WorkspaceDatabase,
+        accessToken: String,
+        excerpts: List<ExcerptEntity>,
+    ): String? {
         if (excerpts.isEmpty()) return null
         val syncing = excerpts.markExcerptsSyncing()
         database.excerptDao().updateExcerpts(syncing)
@@ -258,7 +320,11 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun uploadExcerptTags(accessToken: String, relations: List<ExcerptTagEntity>): String? {
+    private suspend fun uploadExcerptTags(
+        database: WorkspaceDatabase,
+        accessToken: String,
+        relations: List<ExcerptTagEntity>,
+    ): String? {
         if (relations.isEmpty()) return null
         val syncing = relations.markExcerptTagsSyncing()
         database.excerptTagDao().updateExcerptTags(syncing)
@@ -276,8 +342,9 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun pullRemoteChanges(accessToken: String, userId: String) {
+    private suspend fun pullRemoteChanges(database: WorkspaceDatabase, accessToken: String, userId: String) {
         fetchAndApplyRemoteChanges(
+            database = database,
             accessToken = accessToken,
             userId = userId,
             updatedAfter = stateStore.lastPullTimeForUser(userId),
@@ -286,6 +353,7 @@ class WorkspaceSyncRepository private constructor(
     }
 
     private suspend fun repairMissingLocalRecords(
+        database: WorkspaceDatabase,
         accessToken: String,
         userId: String,
     ): RemoteWorkspaceSnapshot {
@@ -295,12 +363,13 @@ class WorkspaceSyncRepository private constructor(
             userId = userId,
             updatedAfter = null,
         )
-        applyRemoteRecordsMissingLocally(remote, now)
+        applyRemoteRecordsMissingLocally(database, remote, now)
         stateStore.saveLastPullTime(userId, System.currentTimeMillis())
         return remote
     }
 
     private suspend fun fetchAndApplyRemoteChanges(
+        database: WorkspaceDatabase,
         accessToken: String,
         userId: String,
         updatedAfter: Long?,
@@ -312,15 +381,19 @@ class WorkspaceSyncRepository private constructor(
             updatedAfter = updatedAfter,
         )
         database.withTransaction {
-            applyRemoteNodes(remote.nodes, now)
-            applyRemoteTags(remote.tags, now)
-            applyRemoteExcerpts(remote.excerpts, now)
-            applyRemoteExcerptTags(remote.excerptTags, now)
+            applyRemoteNodes(database, remote.nodes, now)
+            applyRemoteTags(database, remote.tags, now)
+            applyRemoteExcerpts(database, remote.excerpts, now)
+            applyRemoteExcerptTags(database, remote.excerptTags, now)
         }
         return remote
     }
 
-    private suspend fun applyRemoteRecordsMissingLocally(remote: RemoteWorkspaceSnapshot, now: Long) {
+    private suspend fun applyRemoteRecordsMissingLocally(
+        database: WorkspaceDatabase,
+        remote: RemoteWorkspaceSnapshot,
+        now: Long,
+    ) {
         database.withTransaction {
             val localNodeIds = database.nodeDao().getAllNodesOnce()
                 .mapTo(mutableSetOf(), KnowledgeTreeNodeEntity::id)
@@ -331,14 +404,18 @@ class WorkspaceSyncRepository private constructor(
             val localExcerptTagIds = database.excerptTagDao().getAllExcerptTagsOnce()
                 .mapTo(mutableSetOf(), ExcerptTagEntity::id)
 
-            applyRemoteNodes(remote.nodes.filter { it.id !in localNodeIds }, now)
-            applyRemoteTags(remote.tags.filter { it.id !in localTagIds }, now)
-            applyRemoteExcerpts(remote.excerpts.filter { it.id !in localExcerptIds }, now)
-            applyRemoteExcerptTags(remote.excerptTags.filter { it.id !in localExcerptTagIds }, now)
+            applyRemoteNodes(database, remote.nodes.filter { it.id !in localNodeIds }, now)
+            applyRemoteTags(database, remote.tags.filter { it.id !in localTagIds }, now)
+            applyRemoteExcerpts(database, remote.excerpts.filter { it.id !in localExcerptIds }, now)
+            applyRemoteExcerptTags(database, remote.excerptTags.filter { it.id !in localExcerptTagIds }, now)
         }
     }
 
-    private suspend fun applyRemoteNodes(remoteNodes: List<RemoteKnowledgeTreeNode>, now: Long) {
+    private suspend fun applyRemoteNodes(
+        database: WorkspaceDatabase,
+        remoteNodes: List<RemoteKnowledgeTreeNode>,
+        now: Long,
+    ) {
         if (remoteNodes.isEmpty()) return
         val localById = database.nodeDao().getAllNodesOnce().associateBy(KnowledgeTreeNodeEntity::id)
         database.nodeDao().insertNodes(
@@ -353,7 +430,7 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteNode(remote: RemoteKnowledgeTreeNode, now: Long) {
+    private suspend fun applyRemoteNode(database: WorkspaceDatabase, remote: RemoteKnowledgeTreeNode, now: Long) {
         val local = database.nodeDao().findNodeById(remote.id)
         database.nodeDao().insertNode(
             if (local != null && local.hasConflictWith(remote.updateTime)) {
@@ -364,7 +441,7 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteTags(remoteTags: List<RemoteTag>, now: Long) {
+    private suspend fun applyRemoteTags(database: WorkspaceDatabase, remoteTags: List<RemoteTag>, now: Long) {
         if (remoteTags.isEmpty()) return
         val localById = database.tagDao().getAllTagsOnce().associateBy(TagEntity::id)
         database.tagDao().insertTags(
@@ -379,7 +456,7 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteTag(remote: RemoteTag, now: Long) {
+    private suspend fun applyRemoteTag(database: WorkspaceDatabase, remote: RemoteTag, now: Long) {
         val local = database.tagDao().findTagById(remote.id)
         database.tagDao().insertTag(
             if (local != null && local.hasConflictWith(remote.updateTime)) {
@@ -390,7 +467,11 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteExcerpts(remoteExcerpts: List<RemoteExcerpt>, now: Long) {
+    private suspend fun applyRemoteExcerpts(
+        database: WorkspaceDatabase,
+        remoteExcerpts: List<RemoteExcerpt>,
+        now: Long,
+    ) {
         if (remoteExcerpts.isEmpty()) return
         val localById = database.excerptDao().getAllExcerptsOnce().associateBy(ExcerptEntity::id)
         database.excerptDao().insertExcerpts(
@@ -405,7 +486,7 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteExcerpt(remote: RemoteExcerpt, now: Long) {
+    private suspend fun applyRemoteExcerpt(database: WorkspaceDatabase, remote: RemoteExcerpt, now: Long) {
         val local = database.excerptDao().findExcerptById(remote.id)
         database.excerptDao().insertExcerpt(
             if (local != null && local.hasConflictWith(remote.updateTime)) {
@@ -416,7 +497,11 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteExcerptTags(remoteRelations: List<RemoteExcerptTag>, now: Long) {
+    private suspend fun applyRemoteExcerptTags(
+        database: WorkspaceDatabase,
+        remoteRelations: List<RemoteExcerptTag>,
+        now: Long,
+    ) {
         if (remoteRelations.isEmpty()) return
         val localById = database.excerptTagDao().getAllExcerptTagsOnce().associateBy(ExcerptTagEntity::id)
         database.excerptTagDao().insertExcerptTags(
@@ -431,7 +516,7 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun applyRemoteExcerptTag(remote: RemoteExcerptTag, now: Long) {
+    private suspend fun applyRemoteExcerptTag(database: WorkspaceDatabase, remote: RemoteExcerptTag, now: Long) {
         val local = database.excerptTagDao().findExcerptTagById(remote.id)
         database.excerptTagDao().insertExcerptTags(
             listOf(
@@ -444,7 +529,7 @@ class WorkspaceSyncRepository private constructor(
         )
     }
 
-    private suspend fun countByStatus(status: SyncStatus): Int {
+    private suspend fun countByStatus(database: WorkspaceDatabase, status: SyncStatus): Int {
         return database.nodeDao().findNodesBySyncStatuses(listOf(status.name)).size +
             database.tagDao().findTagsBySyncStatuses(listOf(status.name)).size +
             database.excerptDao().findExcerptsBySyncStatuses(listOf(status.name)).size +
@@ -550,6 +635,8 @@ sealed interface WorkspaceSyncResult {
 }
 
 private class WorkspaceSyncUploadException(message: String) : RuntimeException(message)
+
+private const val DEFAULT_TEST_USER_ID = "user-1"
 
 private val RealtimeRecordJson = Json {
     ignoreUnknownKeys = true

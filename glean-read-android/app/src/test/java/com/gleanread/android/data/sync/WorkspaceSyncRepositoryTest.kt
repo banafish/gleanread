@@ -206,6 +206,46 @@ class WorkspaceSyncRepositoryTest {
     }
 
     @Test
+    fun `sync skips when active workspace does not match session user`() = runBlocking {
+        sessionStore.saveSession(
+            AuthSession(
+                accessToken = "token",
+                refreshToken = null,
+                userId = "user-2",
+                email = "other@example.com",
+                expiresAtMillis = null,
+            ),
+        )
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "wrong-workspace-excerpt",
+                    userId = "user-2",
+                    content = "不应写入当前库",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 1_000L,
+                    updateTime = 2_000L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+
+        val result = syncRepository().syncNow()
+        val saved = database.excerptDao().findExcerptById("wrong-workspace-excerpt")
+
+        assertTrue(result is WorkspaceSyncResult.Skipped)
+        assertNull(saved)
+        assertEquals(0, remoteDataSource.fetchCount)
+    }
+
+    @Test
     fun `manual repair sync downloads remote records missing locally outside the pull cursor`() = runBlocking {
         stateStore.saveLastPullTime("user-1", 10_000L)
         remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
@@ -288,6 +328,7 @@ class WorkspaceSyncRepositoryTest {
         )
 
         repository.applyRealtimeChange(
+            userId = "user-1",
             tableName = REMOTE_TABLE_EXCERPTS,
             record = Json.encodeToJsonElement(remoteExcerpt).jsonObject,
         )
@@ -297,6 +338,32 @@ class WorkspaceSyncRepositoryTest {
         assertEquals("实时想法", saved?.userThought)
         assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
         assertEquals(0, remoteDataSource.fetchCount)
+    }
+
+    @Test
+    fun `realtime ignores stale subscription user`() = runBlocking {
+        val repository = syncRepository()
+        val remoteExcerpt = RemoteExcerpt(
+            id = "stale-realtime-excerpt",
+            userId = "other-user",
+            content = "旧订阅事件",
+            url = null,
+            sourceTitle = null,
+            userThought = null,
+            treeNodeId = null,
+            createTime = 100L,
+            updateTime = 200L,
+            isDeleted = false,
+            deviceId = "device-remote",
+        )
+
+        repository.applyRealtimeChange(
+            userId = "other-user",
+            tableName = REMOTE_TABLE_EXCERPTS,
+            record = Json.encodeToJsonElement(remoteExcerpt).jsonObject,
+        )
+
+        assertNull(database.excerptDao().findExcerptById("stale-realtime-excerpt"))
     }
 
     @Test

@@ -50,7 +50,7 @@ class AppContainer(
     }
 
     val workspaceDatabase: WorkspaceDatabase
-        get() = databaseManager.currentDatabase.value
+        get() = databaseManager.activeWorkspace.value.database
 
     /**
      * 根据已保存的 session 恢复数据库连接。

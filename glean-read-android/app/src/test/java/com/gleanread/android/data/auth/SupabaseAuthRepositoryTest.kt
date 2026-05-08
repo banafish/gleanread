@@ -181,6 +181,36 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
+    fun `hasUnsyncedChanges treats syncing and failed records as protected`() = runBlocking {
+        database.tagDao().insertTags(
+            listOf(
+                TagEntity(
+                    id = "tag-syncing",
+                    userId = "cloud-user",
+                    tagName = "syncing",
+                    colorIcon = null,
+                    heatWeight = 1,
+                    createTime = 100L,
+                    updateTime = 100L,
+                    syncStatus = SyncStatus.SYNCING,
+                ),
+                TagEntity(
+                    id = "tag-failed",
+                    userId = "cloud-user",
+                    tagName = "failed",
+                    colorIcon = null,
+                    heatWeight = 1,
+                    createTime = 100L,
+                    updateTime = 100L,
+                    syncStatus = SyncStatus.FAILED,
+                ),
+            ),
+        )
+
+        assertTrue(repository().hasUnsyncedChanges())
+    }
+
+    @Test
     fun `sendMagicLink posts otp request with redirect url`() = runBlocking {
         var requestedPath = ""
         var redirectTo = ""

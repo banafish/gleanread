@@ -65,7 +65,7 @@ class SupabaseAuthRepository private constructor(
         config = config,
         httpClient = httpClient,
         sessionStore = sessionStore,
-        databaseProvider = { databaseManager.currentDatabase.value },
+        databaseProvider = { databaseManager.activeWorkspace.value.database },
         guestDatabaseProvider = { databaseManager.guestDatabase },
         switchToUser = databaseManager::switchToUser,
         closeCurrentDatabase = databaseManager::closeCurrentDatabase,
@@ -99,6 +99,17 @@ class SupabaseAuthRepository private constructor(
 
     fun clearLocalDataOwnershipRequest() {
         _pendingLocalDataOwnership.value = false
+    }
+
+    suspend fun applyLocalDataOwnershipChoice(choice: LocalDataOwnershipChoice): Boolean {
+        return when (choice) {
+            LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> mergeLocalDataIntoCurrentAccount()
+            LocalDataOwnershipChoice.KEEP_LOCAL -> true
+            LocalDataOwnershipChoice.USE_CLOUD -> {
+                clearLocalWorkspaceData()
+                true
+            }
+        }
     }
 
     suspend fun sendMagicLink(email: String): MagicLinkRequestResult {
@@ -445,6 +456,8 @@ class SupabaseAuthRepository private constructor(
             SyncStatus.PENDING_CREATE.name,
             SyncStatus.PENDING_UPDATE.name,
             SyncStatus.PENDING_DELETE.name,
+            SyncStatus.SYNCING.name,
+            SyncStatus.FAILED.name,
         )
         return database.nodeDao().findNodesBySyncStatuses(pendingStatuses).isNotEmpty() ||
             database.tagDao().findTagsBySyncStatuses(pendingStatuses).isNotEmpty() ||

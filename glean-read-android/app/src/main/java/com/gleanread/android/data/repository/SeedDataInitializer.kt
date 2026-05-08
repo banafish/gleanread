@@ -13,7 +13,7 @@ class SeedDataInitializer(
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val database get() = databaseManager.currentDatabase.value
+    private val database get() = databaseManager.activeWorkspace.value.database
     suspend fun seedSampleData() {
         val excerptDao = database.excerptDao()
         val nodeDao = database.nodeDao()

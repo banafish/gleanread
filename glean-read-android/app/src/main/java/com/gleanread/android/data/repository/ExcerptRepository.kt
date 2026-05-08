@@ -26,7 +26,7 @@ class ExcerptRepository private constructor(
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
         currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
     ) : this(
-        databaseProvider = { databaseManager.currentDatabase.value },
+        databaseProvider = { databaseManager.activeWorkspace.value.database },
         deviceIdProvider = deviceIdProvider,
         currentUserIdProvider = currentUserIdProvider,
     )

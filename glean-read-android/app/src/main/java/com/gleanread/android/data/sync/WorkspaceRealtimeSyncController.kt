@@ -104,6 +104,7 @@ class WorkspaceRealtimeSyncController(
                         }
                         runCatching {
                             syncRepository.applyRealtimeChange(
+                                userId = userId,
                                 tableName = change.tableName,
                                 record = record,
                             )
