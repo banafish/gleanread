@@ -1,5 +1,6 @@
 package com.gleanread.android.core.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -8,7 +9,10 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.appearance.ThemeColor
 
@@ -120,7 +124,19 @@ fun GleanReadTheme(
         ThemeColor.GRAPHITE -> if (darkTheme) GraphiteDarkColors else GraphiteLightColors
     }
 
-    // With edge-to-edge enabled in MainActivity/FastCaptureActivity, 
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            val useDarkSystemBarIcons = !darkTheme
+            val insetsController = WindowCompat.getInsetsController(window, view)
+            // Keep edge-to-edge icon contrast tied to the app-selected theme.
+            insetsController.isAppearanceLightStatusBars = useDarkSystemBarIcons
+            insetsController.isAppearanceLightNavigationBars = useDarkSystemBarIcons
+        }
+    }
+
+    // With edge-to-edge enabled in MainActivity/FastCaptureActivity,
     // we no longer explicitly set statusBarColor here.
 
     MaterialTheme(
