@@ -1,6 +1,7 @@
 package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -127,12 +128,12 @@ fun KnowledgeTreeHomeScreen(
             }
         },
     ) { innerPadding ->
+        val topAppBarPadding = innerPadding.calculateTopPadding()
+
         WorkspacePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             if (showSearchResults) {
                 KnowledgeTreeSearchContent(
@@ -141,6 +142,7 @@ fun KnowledgeTreeHomeScreen(
                     query = searchQuery,
                     recentQueries = recentQueries,
                     rootTitle = rootTitle,
+                    contentPadding = PaddingValues(top = topAppBarPadding),
                     onQueryChange = onSearchQueryChange,
                     onSearchSubmit = onSearchSubmit,
                     onOpenNode = onOpenNode,
@@ -148,13 +150,15 @@ fun KnowledgeTreeHomeScreen(
             } else if (uiState.isEmpty) {
                 KnowledgeTreeEmptyState(
                     onAddRootNode = onOpenAddRootDialog,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topAppBarPadding),
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     state = lazyListState,
-                    contentPadding = KnowledgeTreeListContentPadding,
+                    contentPadding = knowledgeTreeListContentPadding(topAppBarPadding),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.rootCards, key = { it.nodeId }) { card ->

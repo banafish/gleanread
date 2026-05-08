@@ -78,7 +78,6 @@ private val TagChipHorizontalPadding = 12.dp
 private val TagChipVerticalPadding = 8.dp
 private val TagChipCheckIconSize = 14.dp
 private val TagChipCheckSpacing = 6.dp
-private val TagsContentPadding = PaddingValues(start = 16.dp, top = 0.dp, end = 16.dp, bottom = 120.dp)
 
 @Composable
 fun TagsScreen(
@@ -115,24 +114,30 @@ fun TagsScreen(
             }
         },
     ) { innerPadding ->
+        val topAppBarPadding = innerPadding.calculateTopPadding()
+
         WorkspacePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             if (tagGroups.isEmpty() && searchQuery.isNotBlank()) {
-                TagsSearchEmptyState(modifier = Modifier.fillMaxSize())
+                TagsSearchEmptyState(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topAppBarPadding),
+                )
             } else if (tagGroups.isEmpty()) {
                 TagsEmptyState(
                     onAddTag = onAddTag,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topAppBarPadding),
                 )
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = TagsContentPadding,
+                    contentPadding = tagsContentPadding(topAppBarPadding),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     items(tagGroups, key = { it.folder }) { group ->
@@ -157,6 +162,15 @@ fun TagsScreen(
         )
     }
 }
+
+private fun tagsContentPadding(
+    topPadding: Dp,
+) = PaddingValues(
+    start = 16.dp,
+    top = topPadding,
+    end = 16.dp,
+    bottom = 120.dp,
+)
 
 @Composable
 private fun TagsEmptyState(

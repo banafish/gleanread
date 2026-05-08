@@ -1,6 +1,7 @@
 package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -129,12 +130,12 @@ fun KnowledgeTreeBranchScreen(
             }
         },
     ) { innerPadding ->
+        val topAppBarPadding = innerPadding.calculateTopPadding()
+
         WorkspacePullToRefreshBox(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize(),
+            modifier = Modifier.fillMaxSize(),
         ) {
             if (showSearchResults) {
                 KnowledgeTreeSearchContent(
@@ -143,6 +144,7 @@ fun KnowledgeTreeBranchScreen(
                     query = searchQuery,
                     recentQueries = recentQueries,
                     rootTitle = rootTitle,
+                    contentPadding = PaddingValues(top = topAppBarPadding),
                     onQueryChange = onSearchQueryChange,
                     onSearchSubmit = onSearchSubmit,
                     onOpenNode = onOpenNode,
@@ -151,7 +153,7 @@ fun KnowledgeTreeBranchScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     state = lazyListState,
-                    contentPadding = KnowledgeTreeListContentPadding,
+                    contentPadding = knowledgeTreeListContentPadding(topAppBarPadding),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     item {

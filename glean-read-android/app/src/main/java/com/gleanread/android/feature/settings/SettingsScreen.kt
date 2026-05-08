@@ -1,18 +1,15 @@
 package com.gleanread.android.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,16 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
+import com.gleanread.android.core.ui.component.LiquidGlassTopAppBarContainer
 import com.gleanread.android.core.ui.theme.GleanReadTheme
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
@@ -216,18 +209,7 @@ fun SettingsScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsTopAppBar() {
-    val colorScheme = MaterialTheme.colorScheme
-    val statusBarOverlap = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .liquidGlassTopAppBarBackground(
-                backgroundColor = colorScheme.background,
-                outlineColor = colorScheme.onBackground,
-                topOverflow = statusBarOverlap,
-            ),
-    ) {
+    LiquidGlassTopAppBarContainer {
         TopAppBar(
             title = {
                 Text(
@@ -238,50 +220,6 @@ private fun SettingsTopAppBar() {
             colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             windowInsets = WindowInsets(0),
         )
-    }
-}
-
-private fun Modifier.liquidGlassTopAppBarBackground(
-    backgroundColor: Color,
-    outlineColor: Color,
-    topOverflow: Dp,
-): Modifier = drawWithCache {
-    val topOverflowPx = topOverflow.toPx()
-    val top = -topOverflowPx
-    val bottom = size.height
-    val glassSize = Size(size.width, size.height + topOverflowPx)
-    val baseBrush = Brush.verticalGradient(
-        colors = listOf(
-            backgroundColor.copy(alpha = 0.96f),
-            backgroundColor.copy(alpha = 0.90f),
-            backgroundColor.copy(alpha = 0.82f),
-            backgroundColor.copy(alpha = 0.68f),
-        ),
-        startY = top,
-        endY = bottom,
-    )
-    val glassSheenBrush = Brush.linearGradient(
-        colors = listOf(
-            backgroundColor.copy(alpha = 0.92f),
-            Color.Transparent,
-            backgroundColor.copy(alpha = 0.36f),
-        ),
-        start = Offset(0f, top),
-        end = Offset(size.width, bottom),
-    )
-    val lowerDepthBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color.Transparent,
-            backgroundColor.copy(alpha = 0.34f),
-        ),
-        startY = top + glassSize.height * 0.42f,
-        endY = bottom,
-    )
-
-    onDrawBehind {
-        drawRect(brush = baseBrush, topLeft = Offset(0f, top), size = glassSize)
-        drawRect(brush = glassSheenBrush, topLeft = Offset(0f, top), size = glassSize)
-        drawRect(brush = lowerDepthBrush, topLeft = Offset(0f, top), size = glassSize)
     }
 }
 

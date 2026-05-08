@@ -3,6 +3,7 @@ package com.gleanread.android.feature.knowledge_tree.component
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +33,7 @@ fun KnowledgeTreeSearchContent(
     query: String,
     recentQueries: List<String>,
     rootTitle: String,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
     onQueryChange: (String) -> Unit,
     onSearchSubmit: (String) -> Unit,
     onOpenNode: (String) -> Unit,
@@ -68,6 +70,7 @@ fun KnowledgeTreeSearchContent(
     Column(modifier = modifier.fillMaxWidth()) {
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
+            contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (recentQueries.isNotEmpty()) {
