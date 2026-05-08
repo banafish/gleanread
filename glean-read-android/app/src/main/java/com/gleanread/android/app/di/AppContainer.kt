@@ -35,11 +35,15 @@ import com.gleanread.android.feature.tags.TagsViewModel
 import com.gleanread.android.core.data.AppSnapshotStore
 import io.github.jan.supabase.SupabaseClient
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class AppContainer(
     context: Context,
 ) {
     private val appContext = context.applicationContext
+    val applicationScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val databaseManager: WorkspaceDatabaseManager by lazy {
         WorkspaceDatabaseManager(appContext)
@@ -181,6 +185,7 @@ class AppContainer(
                 seedDataInitializer = seedDataInitializer,
                 syncRepository = workspaceSyncRepository,
                 snapshotStore = appSnapshotStore,
+                backgroundSyncScope = applicationScope,
             )
         }
     }
@@ -204,6 +209,7 @@ class AppContainer(
                 syncRepository = workspaceSyncRepository,
                 appearancePreferencesRepository = appearancePreferencesRepository,
                 avatarRepository = avatarRepository,
+                backgroundSyncScope = applicationScope,
             )
         }
     }
@@ -214,6 +220,7 @@ class AppContainer(
                 authRepository = supabaseAuthRepository,
                 syncRepository = workspaceSyncRepository,
                 databaseManager = databaseManager,
+                backgroundSyncScope = applicationScope,
             )
         }
     }

@@ -8,6 +8,7 @@ import com.gleanread.android.data.auth.MagicLinkRequestResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +19,7 @@ class AuthViewModel(
     private val authRepository: SupabaseAuthRepository,
     private val syncRepository: WorkspaceSyncRepository,
     private val databaseManager: WorkspaceDatabaseManager,
+    private val backgroundSyncScope: CoroutineScope,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
@@ -233,8 +235,7 @@ class AuthViewModel(
                 )
             }
         } else {
-            syncRepository.setCloudSyncEnabled(true)
-            syncRepository.syncNow(repairMissingRemote = true)
+            startBackgroundSync()
             _uiState.update {
                 it.copy(
                     isSubmitting = false,
@@ -254,17 +255,14 @@ class AuthViewModel(
             when (choice) {
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     authRepository.mergeLocalDataIntoCurrentAccount()
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                 }
                 LocalDataOwnershipChoice.KEEP_LOCAL -> {
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                 }
                 LocalDataOwnershipChoice.USE_CLOUD -> {
                     authRepository.clearLocalWorkspaceData()
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                 }
             }
             _uiState.update {
@@ -274,6 +272,13 @@ class AuthViewModel(
                     isSuccessAndFinished = true
                 )
             }
+        }
+    }
+
+    private fun startBackgroundSync() {
+        syncRepository.setCloudSyncEnabled(true)
+        backgroundSyncScope.launch {
+            syncRepository.syncNow(repairMissingRemote = true)
         }
     }
 

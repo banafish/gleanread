@@ -13,6 +13,7 @@ import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
 import com.gleanread.android.data.sync.WorkspaceSyncUiState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ class SettingsViewModel(
     private val syncRepository: WorkspaceSyncRepository,
     private val appearancePreferencesRepository: AppearancePreferencesRepository,
     private val avatarRepository: AvatarRepository,
+    private val backgroundSyncScope: CoroutineScope,
 ) : ViewModel() {
     private val formState = MutableStateFlow(SettingsFormState())
 
@@ -141,8 +143,7 @@ class SettingsViewModel(
             when (choice) {
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     authRepository.mergeLocalDataIntoCurrentAccount()
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                     formState.update {
                         it.copy(
                             isSubmitting = false,
@@ -165,8 +166,7 @@ class SettingsViewModel(
 
                 LocalDataOwnershipChoice.USE_CLOUD -> {
                     authRepository.clearLocalWorkspaceData()
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                     formState.update {
                         it.copy(
                             isSubmitting = false,
@@ -176,6 +176,13 @@ class SettingsViewModel(
                     }
                 }
             }
+        }
+    }
+
+    private fun startBackgroundSync() {
+        syncRepository.setCloudSyncEnabled(true)
+        backgroundSyncScope.launch {
+            syncRepository.syncNow(repairMissingRemote = true)
         }
     }
 

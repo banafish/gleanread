@@ -13,6 +13,7 @@ import com.gleanread.android.data.repository.SeedDataInitializer
 import com.gleanread.android.data.repository.TagRepository
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncUiState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +28,7 @@ class MainAppViewModel(
     private val seedDataInitializer: SeedDataInitializer,
     private val syncRepository: WorkspaceSyncRepository,
     snapshotStore: AppSnapshotStore,
+    private val backgroundSyncScope: CoroutineScope,
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(WorkspaceSnapshot.Empty)
     private val _localDataOwnershipUiState = MutableStateFlow(LocalDataOwnershipUiState())
@@ -71,19 +73,16 @@ class MainAppViewModel(
             when (choice) {
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     authRepository.mergeLocalDataIntoCurrentAccount()
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                 }
 
                 LocalDataOwnershipChoice.KEEP_LOCAL -> {
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                 }
 
                 LocalDataOwnershipChoice.USE_CLOUD -> {
                     authRepository.clearLocalWorkspaceData()
-                    syncRepository.setCloudSyncEnabled(true)
-                    syncRepository.syncNow(repairMissingRemote = true)
+                    startBackgroundSync()
                 }
             }
             authRepository.clearLocalDataOwnershipRequest()
@@ -91,6 +90,13 @@ class MainAppViewModel(
                 it.copy(isDialogVisible = false, isSubmitting = false)
             }
             onFinished()
+        }
+    }
+
+    private fun startBackgroundSync() {
+        syncRepository.setCloudSyncEnabled(true)
+        backgroundSyncScope.launch {
+            syncRepository.syncNow(repairMissingRemote = true)
         }
     }
 
