@@ -136,6 +136,7 @@ fun KnowledgeTreeBranchScreen(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize(),
+            indicatorTopPadding = topAppBarPadding,
         ) {
             if (showSearchResults) {
                 KnowledgeTreeSearchContent(

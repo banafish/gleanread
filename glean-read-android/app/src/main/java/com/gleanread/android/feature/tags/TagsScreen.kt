@@ -120,6 +120,7 @@ fun TagsScreen(
             isRefreshing = isRefreshing,
             onRefresh = onRefresh,
             modifier = Modifier.fillMaxSize(),
+            indicatorTopPadding = topAppBarPadding,
         ) {
             if (tagGroups.isEmpty() && searchQuery.isNotBlank()) {
                 TagsSearchEmptyState(
