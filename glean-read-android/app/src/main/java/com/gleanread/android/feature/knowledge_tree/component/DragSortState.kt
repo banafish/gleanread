@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -17,6 +18,7 @@ import com.gleanread.android.feature.knowledge_tree.model.DragListItemInfo
 import com.gleanread.android.feature.knowledge_tree.model.DropTargetInfo
 import com.gleanread.android.feature.knowledge_tree.model.calculateDropTarget
 import com.gleanread.android.feature.knowledge_tree.model.calculateItemDisplacements
+import kotlin.math.roundToInt
 
 private val DragAutoScrollZone = 48.dp
 private val DragAutoScrollSpeed = 2400.dp
@@ -25,14 +27,20 @@ private val DisabledDragNodeCallbacks = DragNodeCallbacks()
 
 class DragSortState(
     private val draggedNodeIdProvider: () -> String?,
+    private val draggedItemTopProvider: () -> Float?,
     private val dragOffsetYProvider: () -> Float,
     private val itemDisplacementsProvider: () -> Map<String, Float>,
+    val onDragStartAtViewportOffset: (Offset) -> Unit,
+    val onDragContainerPositioned: (Float) -> Unit,
+    val onDragItemPositioned: (String, Float, Float) -> Unit,
+    val onDragItemDisposed: (String) -> Unit,
     val onDragStart: (String, Offset) -> Unit,
     val onDragMove: (Offset) -> Unit,
     val onDragEnd: () -> Unit,
     val onDragCancel: () -> Unit,
 ) {
     val draggedNodeId: String? get() = draggedNodeIdProvider()
+    val draggedItemTop: Float? get() = draggedItemTopProvider()
     val dragOffsetY: Float get() = dragOffsetYProvider()
     val itemDisplacements: Map<String, Float> get() = itemDisplacementsProvider()
     val isDragInProgress: Boolean get() = draggedNodeId != null
@@ -101,6 +109,8 @@ fun rememberDragSortState(
     val autoScrollSpeedPxPerSecond = with(density) { DragAutoScrollSpeed.toPx() }
 
     var dragSession by remember { mutableStateOf<DragSession?>(null) }
+    var dragContainerRootY by remember { mutableFloatStateOf(0f) }
+    val dragItemBounds = remember { mutableMapOf<String, DragItemBounds>() }
 
     LaunchedEffect(dragSession?.nodeId, autoScrollZonePx, autoScrollSpeedPxPerSecond) {
         if (dragSession == null) return@LaunchedEffect
@@ -121,12 +131,15 @@ fun rememberDragSortState(
             )
             if (scrollVelocity != 0f) {
                 val consumed = lazyListState.dispatchRawDelta(scrollVelocity * elapsedSeconds)
+                val visibleItems = dragItemBounds.toDragListItems(
+                    nodeIds = currentNodeIds,
+                    containerRootY = dragContainerRootY,
+                )
                 val nextSession = session
                     .compensateScroll(consumed)
                     .withDropTarget(
-                        lazyListState = lazyListState,
+                        visibleItems = visibleItems,
                         nodeIds = currentNodeIds,
-                        firstNodeItemIndex = currentFirstNodeItemIndex,
                     )
                 dragSession = nextSession
             }
@@ -137,9 +150,9 @@ fun rememberDragSortState(
         derivedStateOf {
             val session = dragSession ?: return@derivedStateOf emptyMap()
             calculateItemDisplacements(
-                visibleItems = lazyListState.toDragListItems(
+                visibleItems = dragItemBounds.toDragListItems(
                     nodeIds = currentNodeIds,
-                    firstNodeItemIndex = currentFirstNodeItemIndex,
+                    containerRootY = dragContainerRootY,
                 ),
                 draggedNodeId = session.nodeId,
                 nodeIds = currentNodeIds,
@@ -153,8 +166,36 @@ fun rememberDragSortState(
     return remember(lazyListState) {
         DragSortState(
             draggedNodeIdProvider = { dragSession?.nodeId },
+            draggedItemTopProvider = { dragSession?.itemTop },
             dragOffsetYProvider = { dragSession?.dragOffsetY ?: 0f },
             itemDisplacementsProvider = { itemDisplacements },
+            onDragStartAtViewportOffset = { startOffset ->
+                val pointerRootY = dragContainerRootY + startOffset.y
+                val nodeId = findDragNodeIdAt(pointerRootY, dragItemBounds)
+                val bounds = nodeId?.let(dragItemBounds::get)
+                if (nodeId != null && bounds != null) {
+                    val touchY = (pointerRootY - bounds.top).coerceIn(
+                        minimumValue = 0f,
+                        maximumValue = bounds.height,
+                    )
+                    dragSession = DragSession(
+                        nodeId = nodeId,
+                        pointerViewportY = startOffset.y,
+                        pointerOffsetInDraggedItemY = touchY,
+                        itemSize = bounds.height,
+                    )
+                    currentOnNodeDragStart(nodeId)
+                }
+            },
+            onDragContainerPositioned = { rootY ->
+                dragContainerRootY = rootY
+            },
+            onDragItemPositioned = { nodeId, rootY, height ->
+                dragItemBounds[nodeId] = DragItemBounds(top = rootY, height = height)
+            },
+            onDragItemDisposed = { nodeId ->
+                dragItemBounds.remove(nodeId)
+            },
             onDragStart = { nodeId, startOffset ->
                 val draggedItemInfo = lazyListState
                     .toDragListItems(currentNodeIds, currentFirstNodeItemIndex)
@@ -176,18 +217,24 @@ fun rememberDragSortState(
                 dragSession = dragSession
                     ?.moveBy(offset.y)
                     ?.withDropTarget(
-                        lazyListState = lazyListState,
+                        visibleItems = dragItemBounds.toDragListItems(
+                            nodeIds = currentNodeIds,
+                            containerRootY = dragContainerRootY,
+                        ),
                         nodeIds = currentNodeIds,
-                        firstNodeItemIndex = currentFirstNodeItemIndex,
                     )
             },
             onDragEnd = {
                 val session = dragSession
-                currentOnNodeDragEnd(session?.nodeId, session?.dropTarget)
+                if (session != null) {
+                    currentOnNodeDragEnd(session.nodeId, session.dropTarget)
+                }
                 dragSession = null
             },
             onDragCancel = {
-                currentOnNodeDragCancel()
+                if (dragSession != null) {
+                    currentOnNodeDragCancel()
+                }
                 dragSession = null
             },
         )
@@ -202,6 +249,9 @@ private data class DragSession(
     val itemSize: Float,
     val dropTarget: DropTargetInfo? = null,
 ) {
+    val itemTop: Float
+        get() = pointerViewportY - pointerOffsetInDraggedItemY
+
     val referenceY: Float
         get() = if (dragOffsetY < 0f) {
             pointerViewportY - pointerOffsetInDraggedItemY
@@ -221,13 +271,12 @@ private data class DragSession(
     }
 
     fun withDropTarget(
-        lazyListState: LazyListState,
+        visibleItems: List<DragListItemInfo>,
         nodeIds: List<String>,
-        firstNodeItemIndex: Int,
     ): DragSession {
         return copy(
             dropTarget = calculateDropTarget(
-                visibleItems = lazyListState.toDragListItems(nodeIds, firstNodeItemIndex),
+                visibleItems = visibleItems,
                 draggedNodeId = nodeId,
                 nodeIds = nodeIds,
                 referenceY = referenceY,
@@ -236,7 +285,24 @@ private data class DragSession(
     }
 }
 
-private fun calculateAutoScrollVelocity(
+internal data class DragItemBounds(
+    val top: Float,
+    val height: Float,
+) {
+    val bottom: Float
+        get() = top + height
+}
+
+internal fun findDragNodeIdAt(
+    pointerRootY: Float,
+    itemBounds: Map<String, DragItemBounds>,
+): String? {
+    return itemBounds.entries
+        .firstOrNull { (_, bounds) -> pointerRootY >= bounds.top && pointerRootY <= bounds.bottom }
+        ?.key
+}
+
+internal fun calculateAutoScrollVelocity(
     pointerY: Float,
     viewportHeight: Float,
     zonePx: Float,
@@ -244,11 +310,26 @@ private fun calculateAutoScrollVelocity(
 ): Float {
     if (viewportHeight <= 0f || zonePx <= 0f) return 0f
     return when {
-        pointerY in 0f..zonePx ->
+        pointerY < zonePx ->
             -maxSpeedPxPerSecond * (1f - pointerY / zonePx).coerceIn(0f, 1f)
-        pointerY > viewportHeight - zonePx && pointerY <= viewportHeight ->
+        pointerY > viewportHeight - zonePx ->
             maxSpeedPxPerSecond * (1f - (viewportHeight - pointerY) / zonePx).coerceIn(0f, 1f)
         else -> 0f
+    }
+}
+
+private fun Map<String, DragItemBounds>.toDragListItems(
+    nodeIds: List<String>,
+    containerRootY: Float,
+): List<DragListItemInfo> {
+    return nodeIds.mapIndexedNotNull { nodeIndex, nodeId ->
+        val bounds = get(nodeId) ?: return@mapIndexedNotNull null
+        DragListItemInfo(
+            nodeIndex = nodeIndex,
+            nodeId = nodeId,
+            offset = (bounds.top - containerRootY).roundToInt(),
+            size = bounds.height.roundToInt(),
+        )
     }
 }
 

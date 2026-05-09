@@ -1,9 +1,11 @@
 package com.gleanread.android.feature.knowledge_tree
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -13,8 +15,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.gleanread.android.R
@@ -33,7 +37,8 @@ import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeSearc
 import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeTopBar
 import com.gleanread.android.feature.knowledge_tree.component.MoveNodeBottomSheet
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
-import com.gleanread.android.feature.knowledge_tree.component.dragCallbacksFor
+import com.gleanread.android.feature.knowledge_tree.component.dragSortItemBounds
+import com.gleanread.android.feature.knowledge_tree.component.draggableNodeList
 import com.gleanread.android.feature.knowledge_tree.component.ignoreDuringDrag
 import com.gleanread.android.feature.knowledge_tree.component.rememberDragSortState
 import com.gleanread.android.feature.knowledge_tree.component.visualStateFor
@@ -45,6 +50,7 @@ import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeBranchUiState
+import kotlin.math.roundToInt
 
 @Composable
 fun KnowledgeTreeBranchScreen(
@@ -153,52 +159,76 @@ fun KnowledgeTreeBranchScreen(
                     onOpenNode = onOpenNode,
                 )
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    state = lazyListState,
-                    contentPadding = knowledgeTreeListContentPadding(topAppBarPadding),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    item {
-                        BreadcrumbBar(
-                            breadcrumbs = uiState.breadcrumbs,
-                            onNavigateToBreadcrumb = onOpenBreadcrumb,
-                        )
-                    }
-                    if (uiState.isEmpty) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .draggableNodeList(dragSortState),
+                        state = lazyListState,
+                        contentPadding = knowledgeTreeListContentPadding(topAppBarPadding),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         item {
-                            Text(
-                                text = stringResource(R.string.knowledge_tree_branch_empty),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            BreadcrumbBar(
+                                breadcrumbs = uiState.breadcrumbs,
+                                onNavigateToBreadcrumb = onOpenBreadcrumb,
                             )
                         }
-                    } else {
-                        items(uiState.items, key = { it.nodeId }) { node ->
-                            val dragVisualState = dragSortState.visualStateFor(node.nodeId)
-                            // 仅同级 depth==1 节点可拖拽
-                            val dragCallbacks = dragSortState.dragCallbacksFor(
-                                nodeId = node.nodeId,
-                                enabled = node.depth == 1,
-                            )
-                            BranchNodeItem(
-                                node = node,
-                                onToggle = onToggleNodeWhenIdle,
-                                onOpenDetail = onOpenNodeWhenIdle,
-                                onOpenBranch = onOpenBranchWhenIdle,
-                                onAddChild = onOpenAddChildDialog,
-                                onMove = onOpenMoveNodeSheet,
-                                onRename = onOpenRenameDialog,
-                                onDelete = onOpenDeleteDialog,
-                                onDragStart = dragCallbacks.onDragStart,
-                                onDragMove = dragCallbacks.onDragMove,
-                                onDragEnd = dragCallbacks.onDragEnd,
-                                onDragCancel = dragCallbacks.onDragCancel,
-                                isDragging = dragVisualState.isDragging,
-                                itemDisplacement = dragVisualState.itemDisplacement,
-                                dragOffsetY = dragVisualState.dragOffsetY,
-                                modifier = Modifier.zIndex(dragVisualState.zIndex),
-                            )
+                        if (uiState.isEmpty) {
+                            item {
+                                Text(
+                                    text = stringResource(R.string.knowledge_tree_branch_empty),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                )
+                            }
+                        } else {
+                            items(uiState.items, key = { it.nodeId }) { node ->
+                                val dragVisualState = dragSortState.visualStateFor(node.nodeId)
+                                val isDraggedPlaceholder = dragVisualState.isDragging
+                                BranchNodeItem(
+                                    node = node,
+                                    onToggle = onToggleNodeWhenIdle,
+                                    onOpenDetail = onOpenNodeWhenIdle,
+                                    onOpenBranch = onOpenBranchWhenIdle,
+                                    onAddChild = onOpenAddChildDialog,
+                                    onMove = onOpenMoveNodeSheet,
+                                    onRename = onOpenRenameDialog,
+                                    onDelete = onOpenDeleteDialog,
+                                    isDragging = false,
+                                    itemDisplacement = if (isDraggedPlaceholder) {
+                                        0f
+                                    } else {
+                                        dragVisualState.itemDisplacement
+                                    },
+                                    modifier = Modifier
+                                        .dragSortItemBounds(dragSortState, node.nodeId)
+                                        .zIndex(if (isDraggedPlaceholder) 0f else dragVisualState.zIndex)
+                                        .alpha(if (isDraggedPlaceholder) 0f else 1f),
+                                )
+                            }
                         }
+                    }
+
+                    val draggedNode = uiState.items.firstOrNull {
+                        it.nodeId == dragSortState.draggedNodeId
+                    }
+                    val draggedItemTop = dragSortState.draggedItemTop
+                    if (draggedNode != null && draggedItemTop != null) {
+                        BranchNodeItem(
+                            node = draggedNode,
+                            onToggle = {},
+                            onOpenDetail = {},
+                            onOpenBranch = {},
+                            onAddChild = {},
+                            onMove = {},
+                            onRename = {},
+                            onDelete = {},
+                            isDragging = true,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .offset { IntOffset(x = 0, y = draggedItemTop.roundToInt()) }
+                                .zIndex(1f),
+                        )
                     }
                 }
             }
