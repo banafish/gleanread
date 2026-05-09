@@ -1,30 +1,49 @@
 package com.gleanread.android.data.repository
 
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
+import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
  * Tag 的 CRUD 仓库。
  */
-class TagRepository(
-    private val databaseManager: WorkspaceDatabaseManager,
+class TagRepository internal constructor(
+    private val activeWorkspaceProvider: () -> ActiveWorkspace,
+    private val activeWorkspaceFlow: Flow<ActiveWorkspace>,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val database get() = databaseManager.activeWorkspace.value.database
-    private val tagDao get() = database.tagDao()
+    constructor(
+        databaseManager: WorkspaceDatabaseManager,
+        deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    ) : this(
+        activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
+        activeWorkspaceFlow = databaseManager.activeWorkspace,
+        deviceIdProvider = deviceIdProvider,
+    )
+
+    internal constructor(
+        database: WorkspaceDatabase,
+        deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        ownerUserId: String = LOCAL_USER_ID,
+    ) : this(
+        activeWorkspaceProvider = { singleDatabaseWorkspace(database, ownerUserId) },
+        activeWorkspaceFlow = flowOf(singleDatabaseWorkspace(database, ownerUserId)),
+        deviceIdProvider = deviceIdProvider,
+    )
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeAvailableTagNames(): Flow<List<String>> {
-        return databaseManager.activeWorkspace.flatMapLatest { workspace ->
+        return activeWorkspaceFlow.flatMapLatest { workspace ->
             workspace.database.tagDao().observeTags().map { tags -> tags.map(TagEntity::tagName) }
         }
     }
@@ -33,9 +52,12 @@ class TagRepository(
         val normalizedTagName = ExcerptRepository.normalizeTagName(rawTagName)
         if (normalizedTagName.isEmpty()) return ""
 
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val tagDao = database.tagDao()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         val existing = tagDao.findTagByName(ownerUserId, normalizedTagName)
 
         return if (existing == null) {
@@ -78,9 +100,12 @@ class TagRepository(
     suspend fun deleteTags(tagIds: Set<String>) {
         if (tagIds.isEmpty()) return
 
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val tagDao = database.tagDao()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         val tagsToDelete = tagDao.getTagsOnce().filter { tagIds.contains(it.id) }
         if (tagsToDelete.isEmpty()) return
         tagDao.updateTags(

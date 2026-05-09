@@ -3,9 +3,11 @@ package com.gleanread.android.data.repository
 import androidx.room.withTransaction
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.ExcerptTagEntity
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
+import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
@@ -16,36 +18,26 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
  * 合并了原 SnapshotRepository 和 ExcerptCaptureRepository 中摘录相关的逻辑，
  * 消除重复的创建/更新/删除实现。
  */
-class ExcerptRepository private constructor(
-    private val databaseProvider: () -> WorkspaceDatabase,
+class ExcerptRepository internal constructor(
+    private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
     constructor(
         databaseManager: WorkspaceDatabaseManager,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
     ) : this(
-        databaseProvider = { databaseManager.activeWorkspace.value.database },
+        activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         deviceIdProvider = deviceIdProvider,
-        currentUserIdProvider = currentUserIdProvider,
     )
 
     internal constructor(
         database: WorkspaceDatabase,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
+        ownerUserId: String = LOCAL_USER_ID,
     ) : this(
-        databaseProvider = { database },
+        activeWorkspaceProvider = { singleDatabaseWorkspace(database, ownerUserId) },
         deviceIdProvider = deviceIdProvider,
-        currentUserIdProvider = currentUserIdProvider,
     )
-
-    private val database get() = databaseProvider()
-    private val excerptDao get() = database.excerptDao()
-    private val tagDao get() = database.tagDao()
-    private val excerptTagDao get() = database.excerptTagDao()
-    private val nodeDao get() = database.nodeDao()
 
     /**
      * 创建摘录并关联 tag。
@@ -68,10 +60,15 @@ class ExcerptRepository private constructor(
         val excerptId = EntityIdGenerator.newDraftExcerptId()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val excerptDao = database.excerptDao()
+        val excerptTagDao = database.excerptTagDao()
+        val nodeDao = database.nodeDao()
         database.withTransaction {
             val resolvedArchiveNodeId = archiveNodeId?.takeIf { nodeDao.findNodeById(it) != null }
-            val targetTags = resolveTags(tagNames, now, autoCreateTags, ownerUserId)
+            val targetTags = resolveTags(database, tagNames, now, autoCreateTags, ownerUserId)
 
             excerptDao.insertExcerpt(
                 ExcerptEntity(
@@ -124,7 +121,13 @@ class ExcerptRepository private constructor(
         if (trimmedContent.isEmpty()) return false
 
         var updated = false
-        val ownerUserId = currentUserIdProvider.currentUserId()
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val excerptDao = database.excerptDao()
+        val tagDao = database.tagDao()
+        val excerptTagDao = database.excerptTagDao()
+        val nodeDao = database.nodeDao()
         database.withTransaction {
             val excerpt = excerptDao.findExcerptById(excerptId) ?: return@withTransaction
             val resolvedArchiveNodeId = when {
@@ -225,10 +228,13 @@ class ExcerptRepository private constructor(
     }
 
     suspend fun deleteExcerpt(excerptId: String) {
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val excerptDao = database.excerptDao()
         val excerpt = excerptDao.findExcerptById(excerptId) ?: return
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         excerptDao.updateExcerpts(
             listOf(
                 excerpt.copy(
@@ -250,11 +256,13 @@ class ExcerptRepository private constructor(
      * @param autoCreate 为 true 时自动创建不存在的 tag 并更新已有 tag 的热度权重。
      */
     private suspend fun resolveTags(
+        database: WorkspaceDatabase,
         tagNames: Set<String>,
         now: Long,
         autoCreate: Boolean,
         ownerUserId: String,
     ): List<TagEntity> {
+        val tagDao = database.tagDao()
         val normalizedNames = tagNames
             .map(::normalizeTagName)
             .filter(String::isNotEmpty)

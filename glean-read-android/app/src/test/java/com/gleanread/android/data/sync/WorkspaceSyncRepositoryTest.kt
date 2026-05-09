@@ -9,6 +9,7 @@ import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.SyncStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.encodeToJsonElement
@@ -17,6 +18,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -202,6 +204,7 @@ class WorkspaceSyncRepositoryTest {
 
         assertTrue(result is WorkspaceSyncResult.Success)
         assertNull(remoteDataSource.updatedAfterCalls.single())
+        assertEquals(2_000L, stateStore.lastPullTimeForUser("user-1"))
         assertEquals("云端旧数据", saved?.content)
     }
 
@@ -392,6 +395,64 @@ class WorkspaceSyncRepositoryTest {
         assertTrue(result is WorkspaceSyncResult.Failure)
         assertTrue((result as WorkspaceSyncResult.Failure).message.contains("missing content column"))
         assertEquals(SyncStatus.FAILED, saved?.syncStatus)
+    }
+
+    @Test
+    fun `sync preserves cancellation while leaving record retryable`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-cancelled",
+                userId = "user-1",
+                content = "上传时取消",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                localDirtyTime = 200L,
+            ),
+        )
+        remoteDataSource.excerptUploadError = CancellationException("cancelled")
+
+        try {
+            syncRepository().syncNow()
+            fail("syncNow should preserve coroutine cancellation")
+        } catch (error: CancellationException) {
+            assertEquals("cancelled", error.message)
+        }
+
+        val saved = database.excerptDao().findExcerptById("excerpt-cancelled")
+        assertEquals(SyncStatus.SYNCING, saved?.syncStatus)
+    }
+
+    @Test
+    fun `sync retries rows left in syncing state`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-syncing",
+                userId = "user-1",
+                content = "上次同步中断",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.SYNCING,
+                localDirtyTime = 200L,
+            ),
+        )
+
+        val result = syncRepository().syncNow()
+        val saved = database.excerptDao().findExcerptById("excerpt-syncing")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(listOf("excerpt-syncing"), remoteDataSource.uploadedExcerpts.map(RemoteExcerpt::id))
+        assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
     }
 
     private fun syncRepository(): WorkspaceSyncRepository {

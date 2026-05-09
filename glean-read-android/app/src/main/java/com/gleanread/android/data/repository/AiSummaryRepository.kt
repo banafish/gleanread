@@ -1,7 +1,6 @@
 package com.gleanread.android.data.repository
 
 import androidx.room.withTransaction
-import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.OutlineDraft
 import com.gleanread.android.data.model.SyncStatus
@@ -11,14 +10,11 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class AiSummaryRepository(
     private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
     private val outlineGenerator: OutlineGenerator = LocalOutlineGenerator(),
 ) {
-    private val database get() = databaseManager.activeWorkspace.value.database
-    private val excerptDao get() = database.excerptDao()
-    private val nodeDao get() = database.nodeDao()
-
     suspend fun generateOutline(selectedExcerptIds: List<String>): OutlineDraft {
+        val database = databaseManager.activeWorkspace.value.database
+        val excerptDao = database.excerptDao()
         val excerpts = excerptDao.getExcerptsOnce()
             .filter { selectedExcerptIds.contains(it.id) }
             .sortedByDescending { it.createTime }
@@ -32,9 +28,13 @@ class AiSummaryRepository(
     ): String {
         val resolvedNodeId = targetNodeId.takeIf { it.isNotBlank() } ?: return ""
         if (selectedExcerptIds.isEmpty()) return ""
+        val workspace = databaseManager.activeWorkspace.value
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val excerptDao = database.excerptDao()
+        val nodeDao = database.nodeDao()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         var savedNodeId = ""
         database.withTransaction {
             val node = nodeDao.findNodeById(resolvedNodeId) ?: return@withTransaction

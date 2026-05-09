@@ -9,6 +9,7 @@ import com.gleanread.android.data.avatar.AvatarRepository
 import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.data.auth.AuthSession
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
+import com.gleanread.android.data.auth.LocalDataOwnershipResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncResult
@@ -140,7 +141,16 @@ class SettingsViewModel(
     fun chooseOwnership(choice: LocalDataOwnershipChoice) {
         viewModelScope.launch {
             formState.update { it.copy(isSubmitting = true, message = null) }
-            authRepository.applyLocalDataOwnershipChoice(choice)
+            when (val result = authRepository.applyLocalDataOwnershipChoice(choice)) {
+                is LocalDataOwnershipResult.Failure -> {
+                    formState.update {
+                        it.copy(isSubmitting = false, message = result.message)
+                    }
+                    return@launch
+                }
+
+                LocalDataOwnershipResult.Applied -> Unit
+            }
             when (choice) {
                 LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> {
                     startBackgroundSync()

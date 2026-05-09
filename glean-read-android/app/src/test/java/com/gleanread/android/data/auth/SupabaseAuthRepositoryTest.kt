@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -90,6 +91,59 @@ class SupabaseAuthRepositoryTest {
         assertEquals(SyncStatus.PENDING_UPDATE, saved.syncStatus)
         assertEquals(null, saved.syncError)
         assertTrue(saved.localDirtyTime != null)
+    }
+
+    @Test
+    fun `apply ownership merge copies guest data into active user database and clears guest`() = runBlocking {
+        val guestDatabase = Room.inMemoryDatabaseBuilder(
+            context,
+            WorkspaceDatabase::class.java,
+        ).allowMainThreadQueries().build()
+        val userDatabase = Room.inMemoryDatabaseBuilder(
+            context,
+            WorkspaceDatabase::class.java,
+        ).allowMainThreadQueries().build()
+        try {
+            guestDatabase.tagDao().insertTag(
+                TagEntity(
+                    id = "guest-tag",
+                    userId = LOCAL_USER_ID,
+                    tagName = "guest",
+                    colorIcon = null,
+                    heatWeight = 1,
+                    createTime = 100L,
+                    updateTime = 100L,
+                    syncStatus = SyncStatus.SYNCED,
+                ),
+            )
+            val repository = SupabaseAuthRepository(
+                config = SupabaseConfig(url = "", anonKey = ""),
+                httpClient = httpClient,
+                sessionStore = sessionStore,
+                activeWorkspaceProvider = {
+                    ActiveWorkspace.user(
+                        userId = "cloud-user",
+                        databaseName = "user.db",
+                        database = userDatabase,
+                    )
+                },
+                guestDatabaseProvider = { guestDatabase },
+                clearGuestDataAction = { guestDatabase.tagDao().deleteAllTags() },
+                deviceIdProvider = DeviceIdProvider { "test-device" },
+            )
+
+            val result = repository.applyLocalDataOwnershipChoice(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT)
+            val saved = userDatabase.tagDao().getAllTagsOnce().single()
+
+            assertEquals(LocalDataOwnershipResult.Applied, result)
+            assertEquals("guest-tag", saved.id)
+            assertEquals("cloud-user", saved.userId)
+            assertEquals(SyncStatus.PENDING_UPDATE, saved.syncStatus)
+            assertEquals(0, guestDatabase.tagDao().getAllTagsOnce().size)
+        } finally {
+            guestDatabase.close()
+            userDatabase.close()
+        }
     }
 
     @Test

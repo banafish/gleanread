@@ -12,6 +12,7 @@ import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.SyncStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -88,7 +89,7 @@ class WorkspaceSyncRepository private constructor(
             val activeDatabase = activeWorkspace.database
             _syncState.value = _syncState.value.copy(isSyncing = true, errorMessage = null)
 
-            return runCatching {
+            return try {
                 pullRemoteChanges(activeDatabase, session.accessToken, session.userId)
                 val repairSnapshot = if (repairMissingRemote) {
                     repairMissingLocalRecords(
@@ -114,7 +115,10 @@ class WorkspaceSyncRepository private constructor(
                     conflictCount = countByStatus(activeDatabase, SyncStatus.CONFLICT),
                 )
                 WorkspaceSyncResult.Success(completedAt)
-            }.getOrElse { error ->
+            } catch (error: CancellationException) {
+                _syncState.value = _syncState.value.copy(isSyncing = false)
+                throw error
+            } catch (error: Throwable) {
                 val message = error.message ?: "同步失败"
                 _syncState.value = _syncState.value.copy(
                     isSyncing = false,
@@ -185,6 +189,7 @@ class WorkspaceSyncRepository private constructor(
             SyncStatus.PENDING_CREATE.name,
             SyncStatus.PENDING_UPDATE.name,
             SyncStatus.PENDING_DELETE.name,
+            SyncStatus.SYNCING.name,
             SyncStatus.FAILED.name,
         )
         uploadNodes(
@@ -259,20 +264,17 @@ class WorkspaceSyncRepository private constructor(
         accessToken: String,
         nodes: List<KnowledgeTreeNodeEntity>,
     ): String? {
-        if (nodes.isEmpty()) return null
-        val syncing = nodes.markNodesSyncing()
-        database.nodeDao().updateNodes(syncing)
-        return runCatching {
-            remoteDataSource.upsertNodes(accessToken, syncing.map { it.toRemote() })
-        }.fold(
-            onSuccess = {
-                database.nodeDao().updateNodes(syncing.markNodesSynced())
-                null
+        return uploadRecords(
+            records = nodes,
+            label = "知识树节点",
+            markSyncing = List<KnowledgeTreeNodeEntity>::markNodesSyncing,
+            updateLocalRecords = database.nodeDao()::updateNodes,
+            uploadRemoteRecords = { remote ->
+                remoteDataSource.upsertNodes(accessToken, remote)
             },
-            onFailure = {
-                database.nodeDao().updateNodes(syncing.markNodesFailed(it))
-                it.toUploadFailureMessage("知识树节点")
-            },
+            toRemote = KnowledgeTreeNodeEntity::toRemote,
+            markSynced = List<KnowledgeTreeNodeEntity>::markNodesSynced,
+            markFailed = List<KnowledgeTreeNodeEntity>::markNodesFailed,
         )
     }
 
@@ -281,20 +283,17 @@ class WorkspaceSyncRepository private constructor(
         accessToken: String,
         tags: List<TagEntity>,
     ): String? {
-        if (tags.isEmpty()) return null
-        val syncing = tags.markTagsSyncing()
-        database.tagDao().updateTags(syncing)
-        return runCatching {
-            remoteDataSource.upsertTags(accessToken, syncing.map { it.toRemote() })
-        }.fold(
-            onSuccess = {
-                database.tagDao().updateTags(syncing.markTagsSynced())
-                null
+        return uploadRecords(
+            records = tags,
+            label = "标签",
+            markSyncing = List<TagEntity>::markTagsSyncing,
+            updateLocalRecords = database.tagDao()::updateTags,
+            uploadRemoteRecords = { remote ->
+                remoteDataSource.upsertTags(accessToken, remote)
             },
-            onFailure = {
-                database.tagDao().updateTags(syncing.markTagsFailed(it))
-                it.toUploadFailureMessage("标签")
-            },
+            toRemote = TagEntity::toRemote,
+            markSynced = List<TagEntity>::markTagsSynced,
+            markFailed = List<TagEntity>::markTagsFailed,
         )
     }
 
@@ -303,20 +302,17 @@ class WorkspaceSyncRepository private constructor(
         accessToken: String,
         excerpts: List<ExcerptEntity>,
     ): String? {
-        if (excerpts.isEmpty()) return null
-        val syncing = excerpts.markExcerptsSyncing()
-        database.excerptDao().updateExcerpts(syncing)
-        return runCatching {
-            remoteDataSource.upsertExcerpts(accessToken, syncing.map { it.toRemote() })
-        }.fold(
-            onSuccess = {
-                database.excerptDao().updateExcerpts(syncing.markExcerptsSynced())
-                null
+        return uploadRecords(
+            records = excerpts,
+            label = "摘录",
+            markSyncing = List<ExcerptEntity>::markExcerptsSyncing,
+            updateLocalRecords = database.excerptDao()::updateExcerpts,
+            uploadRemoteRecords = { remote ->
+                remoteDataSource.upsertExcerpts(accessToken, remote)
             },
-            onFailure = {
-                database.excerptDao().updateExcerpts(syncing.markExcerptsFailed(it))
-                it.toUploadFailureMessage("摘录")
-            },
+            toRemote = ExcerptEntity::toRemote,
+            markSynced = List<ExcerptEntity>::markExcerptsSynced,
+            markFailed = List<ExcerptEntity>::markExcerptsFailed,
         )
     }
 
@@ -325,31 +321,53 @@ class WorkspaceSyncRepository private constructor(
         accessToken: String,
         relations: List<ExcerptTagEntity>,
     ): String? {
-        if (relations.isEmpty()) return null
-        val syncing = relations.markExcerptTagsSyncing()
-        database.excerptTagDao().updateExcerptTags(syncing)
-        return runCatching {
-            remoteDataSource.upsertExcerptTags(accessToken, syncing.map { it.toRemote() })
-        }.fold(
-            onSuccess = {
-                database.excerptTagDao().updateExcerptTags(syncing.markExcerptTagsSynced())
-                null
+        return uploadRecords(
+            records = relations,
+            label = "摘录标签关系",
+            markSyncing = List<ExcerptTagEntity>::markExcerptTagsSyncing,
+            updateLocalRecords = database.excerptTagDao()::updateExcerptTags,
+            uploadRemoteRecords = { remote ->
+                remoteDataSource.upsertExcerptTags(accessToken, remote)
             },
-            onFailure = {
-                database.excerptTagDao().updateExcerptTags(syncing.markExcerptTagsFailed(it))
-                it.toUploadFailureMessage("摘录标签关系")
-            },
+            toRemote = ExcerptTagEntity::toRemote,
+            markSynced = List<ExcerptTagEntity>::markExcerptTagsSynced,
+            markFailed = List<ExcerptTagEntity>::markExcerptTagsFailed,
         )
     }
 
+    private suspend fun <LocalRecord, RemoteRecord> uploadRecords(
+        records: List<LocalRecord>,
+        label: String,
+        markSyncing: (List<LocalRecord>) -> List<LocalRecord>,
+        updateLocalRecords: suspend (List<LocalRecord>) -> Unit,
+        uploadRemoteRecords: suspend (List<RemoteRecord>) -> Unit,
+        toRemote: (LocalRecord) -> RemoteRecord,
+        markSynced: (List<LocalRecord>) -> List<LocalRecord>,
+        markFailed: (List<LocalRecord>, Throwable) -> List<LocalRecord>,
+    ): String? {
+        if (records.isEmpty()) return null
+        val syncing = markSyncing(records)
+        updateLocalRecords(syncing)
+        return try {
+            uploadRemoteRecords(syncing.map(toRemote))
+            updateLocalRecords(markSynced(syncing))
+            null
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            updateLocalRecords(markFailed(syncing, error))
+            error.toUploadFailureMessage(label)
+        }
+    }
+
     private suspend fun pullRemoteChanges(database: WorkspaceDatabase, accessToken: String, userId: String) {
-        fetchAndApplyRemoteChanges(
+        val remote = fetchAndApplyRemoteChanges(
             database = database,
             accessToken = accessToken,
             userId = userId,
             updatedAfter = stateStore.lastPullTimeForUser(userId),
         )
-        stateStore.saveLastPullTime(userId, System.currentTimeMillis())
+        remote.maxUpdateTime()?.let { stateStore.saveLastPullTime(userId, it) }
     }
 
     private suspend fun repairMissingLocalRecords(
@@ -364,7 +382,7 @@ class WorkspaceSyncRepository private constructor(
             updatedAfter = null,
         )
         applyRemoteRecordsMissingLocally(database, remote, now)
-        stateStore.saveLastPullTime(userId, System.currentTimeMillis())
+        remote.maxUpdateTime()?.let { stateStore.saveLastPullTime(userId, it) }
         return remote
     }
 
@@ -645,6 +663,15 @@ private val RealtimeRecordJson = Json {
 
 private inline fun <reified T> JsonObject.decodeRealtimeRecord(): T {
     return RealtimeRecordJson.decodeFromJsonElement(this)
+}
+
+private fun RemoteWorkspaceSnapshot.maxUpdateTime(): Long? {
+    return listOfNotNull(
+        nodes.maxOfOrNull(RemoteKnowledgeTreeNode::updateTime),
+        tags.maxOfOrNull(RemoteTag::updateTime),
+        excerpts.maxOfOrNull(RemoteExcerpt::updateTime),
+        excerptTags.maxOfOrNull(RemoteExcerptTag::updateTime),
+    ).maxOrNull()
 }
 
 private fun Throwable.toUploadFailureMessage(label: String): String {

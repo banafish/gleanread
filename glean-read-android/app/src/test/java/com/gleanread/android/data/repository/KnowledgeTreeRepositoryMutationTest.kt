@@ -53,7 +53,7 @@ class KnowledgeTreeRepositoryMutationTest {
         val accountUserId = "user-account-1"
         val accountTreeRepository = KnowledgeTreeRepository(
             database = database,
-            currentUserIdProvider = CurrentUserIdProvider { accountUserId },
+            ownerUserId = accountUserId,
         )
 
         val rootId = accountTreeRepository.createRootNode("账号根节点")

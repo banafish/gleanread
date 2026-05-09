@@ -2,6 +2,7 @@ package com.gleanread.android.data.repository
 
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.TagEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -106,7 +107,7 @@ class ExcerptRepositoryTest {
         val accountUserId = "user-account-1"
         val accountRepository = ExcerptRepository(
             database = database,
-            currentUserIdProvider = CurrentUserIdProvider { accountUserId },
+            ownerUserId = accountUserId,
         )
 
         val excerptId = accountRepository.createExcerpt(
@@ -126,5 +127,40 @@ class ExcerptRepositoryTest {
         assertEquals(accountUserId, saved?.userId)
         assertEquals(accountUserId, tag?.userId)
         assertEquals(accountUserId, relations.single().userId)
+    }
+
+    @Test
+    fun `createExcerpt uses one active workspace snapshot for database and owner`() = runBlocking {
+        val secondDatabase = Room.inMemoryDatabaseBuilder(
+            ApplicationProvider.getApplicationContext(),
+            WorkspaceDatabase::class.java,
+        ).allowMainThreadQueries().build()
+        try {
+            var calls = 0
+            val accountRepository = ExcerptRepository(
+                activeWorkspaceProvider = {
+                    calls += 1
+                    if (calls == 1) {
+                        ActiveWorkspace.user("user-a", "a.db", database)
+                    } else {
+                        ActiveWorkspace.user("user-b", "b.db", secondDatabase)
+                    }
+                },
+            )
+
+            val excerptId = accountRepository.createExcerpt(
+                content = "账号 A 摘录",
+                thought = "",
+                url = null,
+                sourceTitle = null,
+                tagNames = emptySet(),
+                archiveNodeId = null,
+            )
+
+            assertEquals("user-a", database.excerptDao().findExcerptById(excerptId)?.userId)
+            assertEquals(0, secondDatabase.excerptDao().getAllExcerptsOnce().size)
+        } finally {
+            secondDatabase.close()
+        }
     }
 }

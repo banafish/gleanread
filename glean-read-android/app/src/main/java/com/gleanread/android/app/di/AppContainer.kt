@@ -9,12 +9,10 @@ import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.appearance.AppearancePreferencesRepository
 import com.gleanread.android.data.avatar.AvatarRepository
-import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.remote.SupabaseConfig
 import com.gleanread.android.data.remote.SupabaseHttpClientFactory
 import com.gleanread.android.data.remote.SupabaseRealtimeClientFactory
 import com.gleanread.android.data.repository.AiSummaryRepository
-import com.gleanread.android.data.repository.CurrentUserIdProvider
 import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
 import com.gleanread.android.data.repository.SeedDataInitializer
@@ -97,12 +95,6 @@ class AppContainer(
         )
     }
 
-    private val currentUserIdProvider: CurrentUserIdProvider by lazy {
-        CurrentUserIdProvider {
-            supabaseSessionStore.session.value?.userId ?: LOCAL_USER_ID
-        }
-    }
-
     val supabaseAuthRepository: SupabaseAuthRepository by lazy {
         SupabaseAuthRepository(
             config = supabaseConfig,
@@ -136,15 +128,15 @@ class AppContainer(
     }
 
     val excerptRepository: ExcerptRepository by lazy {
-        ExcerptRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
+        ExcerptRepository(databaseManager, deviceIdentityStore)
     }
 
     val tagRepository: TagRepository by lazy {
-        TagRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
+        TagRepository(databaseManager, deviceIdentityStore)
     }
 
     val knowledgeTreeRepository: KnowledgeTreeRepository by lazy {
-        KnowledgeTreeRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
+        KnowledgeTreeRepository(databaseManager, deviceIdentityStore)
     }
 
     val snapshotProvider: WorkspaceSnapshotProvider by lazy {
@@ -152,11 +144,11 @@ class AppContainer(
     }
 
     val seedDataInitializer: SeedDataInitializer by lazy {
-        SeedDataInitializer(databaseManager, deviceIdentityStore, currentUserIdProvider)
+        SeedDataInitializer(databaseManager, deviceIdentityStore)
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {
-        AiSummaryRepository(databaseManager, deviceIdentityStore, currentUserIdProvider)
+        AiSummaryRepository(databaseManager, deviceIdentityStore)
     }
 
     val appSnapshotStore: AppSnapshotStore by lazy {

@@ -102,13 +102,15 @@ class WorkspaceRealtimeSyncController(
                             Log.d(TAG, "Realtime change ignored because payload has no record.")
                             return@collect
                         }
-                        runCatching {
+                        try {
                             syncRepository.applyRealtimeChange(
                                 userId = userId,
                                 tableName = change.tableName,
                                 record = record,
                             )
-                        }.onFailure { error ->
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Throwable) {
                             Log.w(TAG, "Realtime change apply failed for ${change.tableName}.", error)
                         }
                     }

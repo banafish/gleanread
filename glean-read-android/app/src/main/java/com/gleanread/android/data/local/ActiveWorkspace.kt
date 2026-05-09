@@ -1,5 +1,7 @@
 package com.gleanread.android.data.local
 
+import com.gleanread.android.data.model.LOCAL_USER_ID
+
 /**
  * 当前可写工作区快照。
  *
@@ -13,6 +15,9 @@ data class ActiveWorkspace(
 ) {
     val userId: String?
         get() = (owner as? ActiveWorkspaceOwner.User)?.userId
+
+    val writeUserId: String
+        get() = userId ?: LOCAL_USER_ID
 
     val isGuest: Boolean
         get() = owner == ActiveWorkspaceOwner.Guest

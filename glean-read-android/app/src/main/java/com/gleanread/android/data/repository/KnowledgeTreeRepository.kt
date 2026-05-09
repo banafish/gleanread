@@ -4,44 +4,41 @@ import androidx.room.withTransaction
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.core.richtext.LinkSuggestionType
 import com.gleanread.android.data.local.ExcerptEntity
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.LocalSuggestionCandidate
+import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
 
-class KnowledgeTreeRepository private constructor(
-    private val databaseProvider: () -> WorkspaceDatabase,
+class KnowledgeTreeRepository internal constructor(
+    private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
     constructor(
         databaseManager: WorkspaceDatabaseManager,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
     ) : this(
-        databaseProvider = { databaseManager.activeWorkspace.value.database },
+        activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         deviceIdProvider = deviceIdProvider,
-        currentUserIdProvider = currentUserIdProvider,
     )
 
     internal constructor(
         database: WorkspaceDatabase,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-        currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
+        ownerUserId: String = LOCAL_USER_ID,
     ) : this(
-        databaseProvider = { database },
+        activeWorkspaceProvider = { singleDatabaseWorkspace(database, ownerUserId) },
         deviceIdProvider = deviceIdProvider,
-        currentUserIdProvider = currentUserIdProvider,
     )
 
-    private val database get() = databaseProvider()
-    private val excerptDao get() = database.excerptDao()
-    private val nodeDao get() = database.nodeDao()
-
     suspend fun searchSuggestions(query: String): List<LinkSuggestion> {
+        val database = activeWorkspaceProvider().database
+        val nodeDao = database.nodeDao()
+        val excerptDao = database.excerptDao()
         val nodes = nodeDao.getNodesOnce()
         val excerpts = excerptDao.getExcerptsOnce()
         val nodeSuggestions = nodes.map {
@@ -72,11 +69,14 @@ class KnowledgeTreeRepository private constructor(
     suspend fun createRootNode(title: String): String {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return ""
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
         val now = System.currentTimeMillis()
         val nodeId = EntityIdGenerator.newNodeId()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
-        val sortOrder = calculateSortOrderForAppend(null)
+        val sortOrder = calculateSortOrderForAppend(database, null)
         nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
@@ -98,12 +98,15 @@ class KnowledgeTreeRepository private constructor(
     suspend fun createChildNode(parentId: String, title: String): String {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return ""
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
         val parentNode = nodeDao.findNodeById(parentId) ?: return ""
         val now = System.currentTimeMillis()
         val nodeId = EntityIdGenerator.newNodeId()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
-        val sortOrder = calculateSortOrderForAppend(parentId)
+        val sortOrder = calculateSortOrderForAppend(database, parentId)
         nodeDao.insertNode(
             KnowledgeTreeNodeEntity(
                 id = nodeId,
@@ -125,10 +128,13 @@ class KnowledgeTreeRepository private constructor(
     suspend fun renameNode(nodeId: String, title: String) {
         val trimmed = title.trim()
         if (trimmed.isEmpty()) return
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
         val node = nodeDao.findNodeById(nodeId) ?: return
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         nodeDao.updateNode(
             node.copy(
                 userId = ownerUserId,
@@ -143,6 +149,10 @@ class KnowledgeTreeRepository private constructor(
     }
 
     suspend fun moveNode(nodeId: String, newParentId: String?) {
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
         database.withTransaction {
             val allNodes = nodeDao.getNodesOnce()
             val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
@@ -165,10 +175,9 @@ class KnowledgeTreeRepository private constructor(
             }
             if (newParentId in descendantIds) return@withTransaction
 
-            val sortOrder = calculateSortOrderForAppend(newParentId)
+            val sortOrder = calculateSortOrderForAppend(database, newParentId)
             val now = System.currentTimeMillis()
             val deviceId = deviceIdProvider.currentDeviceId()
-            val ownerUserId = currentUserIdProvider.currentUserId()
             nodeDao.updateNode(
                 targetNode.copy(
                     userId = ownerUserId,
@@ -190,6 +199,10 @@ class KnowledgeTreeRepository private constructor(
      * @param targetIndex 在同级节点列表中的插入位置
      */
     suspend fun moveNodeToPosition(nodeId: String, targetIndex: Int) {
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
         database.withTransaction {
             val targetNode = nodeDao.findNodeById(nodeId) ?: return@withTransaction
             val siblings = nodeDao.getSiblingsOnce(targetNode.parentId)
@@ -199,16 +212,18 @@ class KnowledgeTreeRepository private constructor(
             val normalizedTargetIndex = targetIndex.coerceIn(0, siblings.lastIndex)
             if (currentIndex == normalizedTargetIndex) return@withTransaction
 
+            val deviceId = deviceIdProvider.currentDeviceId()
             val newSortOrder = calculateSortOrderAt(
+                database = database,
                 targetIndex = normalizedTargetIndex,
                 parentId = targetNode.parentId,
                 excludeNodeId = nodeId,
+                ownerUserId = ownerUserId,
+                deviceId = deviceId,
             )
             if (newSortOrder == targetNode.sortOrder) return@withTransaction
 
             val now = System.currentTimeMillis()
-            val deviceId = deviceIdProvider.currentDeviceId()
-            val ownerUserId = currentUserIdProvider.currentUserId()
             nodeDao.updateNode(
                 targetNode.copy(
                     userId = ownerUserId,
@@ -224,9 +239,13 @@ class KnowledgeTreeRepository private constructor(
     }
 
     suspend fun deleteNodeSubtree(nodeId: String) {
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
+        val excerptDao = database.excerptDao()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         database.withTransaction {
             val allNodes = nodeDao.getNodesOnce()
             val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
@@ -276,10 +295,13 @@ class KnowledgeTreeRepository private constructor(
     }
 
     suspend fun updateNodeOutline(nodeId: String, rawMarkdown: String) {
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val nodeDao = database.nodeDao()
         val node = nodeDao.findNodeById(nodeId) ?: return
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         nodeDao.updateNode(
             node.copy(
                 userId = ownerUserId,
@@ -294,12 +316,15 @@ class KnowledgeTreeRepository private constructor(
     }
 
     suspend fun moveExcerptToInbox(excerptId: String) {
+        val workspace = activeWorkspaceProvider()
+        val database = workspace.database
+        val ownerUserId = workspace.writeUserId
+        val excerptDao = database.excerptDao()
         val excerpt = excerptDao.findExcerptById(excerptId) ?: return
         if (excerpt.treeNodeId == null || excerpt.isDeleted) return
 
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
-        val ownerUserId = currentUserIdProvider.currentUserId()
         excerptDao.updateExcerpts(
             listOf(
                 excerpt.copy(
@@ -324,8 +349,8 @@ class KnowledgeTreeRepository private constructor(
     /**
      * 计算追加到指定父节点末尾的排序值。
      */
-    private suspend fun calculateSortOrderForAppend(parentId: String?): Long {
-        val maxSortOrder = nodeDao.maxSortOrder(parentId)
+    private suspend fun calculateSortOrderForAppend(database: WorkspaceDatabase, parentId: String?): Long {
+        val maxSortOrder = database.nodeDao().maxSortOrder(parentId)
         return (maxSortOrder ?: 0) + SORT_ORDER_GAP
     }
 
@@ -335,11 +360,14 @@ class KnowledgeTreeRepository private constructor(
      * 间隔不足时触发局部重排。
      */
     private suspend fun calculateSortOrderAt(
+        database: WorkspaceDatabase,
         targetIndex: Int,
         parentId: String?,
         excludeNodeId: String? = null,
+        ownerUserId: String,
+        deviceId: String,
     ): Long {
-        val siblings = nodeDao.getSiblingsOnce(parentId).let { list ->
+        val siblings = database.nodeDao().getSiblingsOnce(parentId).let { list ->
             if (excludeNodeId != null) list.filter { it.id != excludeNodeId } else list
         }
         val prevSortOrder = siblings.getOrNull(targetIndex - 1)?.sortOrder
@@ -347,14 +375,14 @@ class KnowledgeTreeRepository private constructor(
 
         // 无前后兄弟，追加到末尾
         if (prevSortOrder == null && nextSortOrder == null) {
-            return calculateSortOrderForAppend(parentId)
+            return calculateSortOrderForAppend(database, parentId)
         }
         // 插入到列表开头
         if (prevSortOrder == null) {
             val newOrder = nextSortOrder!! - SORT_ORDER_GAP
             if (newOrder <= Long.MIN_VALUE + 1) {
-                rebalanceSiblings(parentId)
-                return calculateSortOrderAt(targetIndex, parentId, excludeNodeId)
+                rebalanceSiblings(database, parentId, ownerUserId, deviceId)
+                return calculateSortOrderAt(database, targetIndex, parentId, excludeNodeId, ownerUserId, deviceId)
             }
             return newOrder
         }
@@ -365,8 +393,8 @@ class KnowledgeTreeRepository private constructor(
         // 插入到两个节点之间
         val mid = (prevSortOrder + nextSortOrder) / 2
         if (mid <= prevSortOrder + 1 || mid >= nextSortOrder - 1) {
-            rebalanceSiblings(parentId)
-            return calculateSortOrderAt(targetIndex, parentId, excludeNodeId)
+            rebalanceSiblings(database, parentId, ownerUserId, deviceId)
+            return calculateSortOrderAt(database, targetIndex, parentId, excludeNodeId, ownerUserId, deviceId)
         }
         return mid
     }
@@ -374,13 +402,17 @@ class KnowledgeTreeRepository private constructor(
     /**
      * 对指定父节点下所有兄弟节点重新分配排序值（间隔 SORT_ORDER_GAP），在事务中执行。
      */
-    private suspend fun rebalanceSiblings(parentId: String?) {
+    private suspend fun rebalanceSiblings(
+        database: WorkspaceDatabase,
+        parentId: String?,
+        ownerUserId: String,
+        deviceId: String,
+    ) {
+        val nodeDao = database.nodeDao()
         database.withTransaction {
             val siblings = nodeDao.getSiblingsOnce(parentId)
             if (siblings.isEmpty()) return@withTransaction
             val now = System.currentTimeMillis()
-            val deviceId = deviceIdProvider.currentDeviceId()
-            val ownerUserId = currentUserIdProvider.currentUserId()
             val reordered = siblings.mapIndexed { index, node ->
                 node.copy(
                     sortOrder = (index + 1).toLong() * SORT_ORDER_GAP,

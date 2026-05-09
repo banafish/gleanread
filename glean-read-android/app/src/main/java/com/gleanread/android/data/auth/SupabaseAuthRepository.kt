@@ -2,6 +2,7 @@ package com.gleanread.android.data.auth
 
 import android.net.Uri
 import androidx.room.withTransaction
+import com.gleanread.android.data.local.ActiveWorkspace
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.model.LOCAL_USER_ID
@@ -21,6 +22,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -42,7 +44,7 @@ class SupabaseAuthRepository private constructor(
     internal val config: SupabaseConfig,
     private val httpClient: HttpClient,
     private val sessionStore: SupabaseSessionStore,
-    private val databaseProvider: () -> WorkspaceDatabase,
+    private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val guestDatabaseProvider: () -> WorkspaceDatabase,
     private val switchToUser: (String) -> Unit,
     private val closeCurrentDatabase: () -> Unit,
@@ -50,7 +52,7 @@ class SupabaseAuthRepository private constructor(
     private val deviceIdProvider: DeviceIdProvider,
 ) {
     private val database: WorkspaceDatabase
-        get() = databaseProvider()
+        get() = activeWorkspaceProvider().database
 
     private val _pendingLocalDataOwnership = MutableStateFlow(false)
     val pendingLocalDataOwnership: StateFlow<Boolean> = _pendingLocalDataOwnership.asStateFlow()
@@ -65,7 +67,7 @@ class SupabaseAuthRepository private constructor(
         config = config,
         httpClient = httpClient,
         sessionStore = sessionStore,
-        databaseProvider = { databaseManager.activeWorkspace.value.database },
+        activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         guestDatabaseProvider = { databaseManager.guestDatabase },
         switchToUser = databaseManager::switchToUser,
         closeCurrentDatabase = databaseManager::closeCurrentDatabase,
@@ -83,11 +85,31 @@ class SupabaseAuthRepository private constructor(
         config = config,
         httpClient = httpClient,
         sessionStore = sessionStore,
-        databaseProvider = { database },
+        activeWorkspaceProvider = { database.asSingleActiveWorkspace(sessionStore.session.value?.userId) },
         guestDatabaseProvider = { database },
         switchToUser = {},
         closeCurrentDatabase = {},
         clearGuestDataAction = {},
+        deviceIdProvider = deviceIdProvider,
+    )
+
+    internal constructor(
+        config: SupabaseConfig,
+        httpClient: HttpClient,
+        sessionStore: SupabaseSessionStore,
+        activeWorkspaceProvider: () -> ActiveWorkspace,
+        guestDatabaseProvider: () -> WorkspaceDatabase,
+        clearGuestDataAction: suspend () -> Unit,
+        deviceIdProvider: DeviceIdProvider,
+    ) : this(
+        config = config,
+        httpClient = httpClient,
+        sessionStore = sessionStore,
+        activeWorkspaceProvider = activeWorkspaceProvider,
+        guestDatabaseProvider = guestDatabaseProvider,
+        switchToUser = {},
+        closeCurrentDatabase = {},
+        clearGuestDataAction = clearGuestDataAction,
         deviceIdProvider = deviceIdProvider,
     )
 
@@ -101,14 +123,24 @@ class SupabaseAuthRepository private constructor(
         _pendingLocalDataOwnership.value = false
     }
 
-    suspend fun applyLocalDataOwnershipChoice(choice: LocalDataOwnershipChoice): Boolean {
-        return when (choice) {
-            LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> mergeLocalDataIntoCurrentAccount()
-            LocalDataOwnershipChoice.KEEP_LOCAL -> true
-            LocalDataOwnershipChoice.USE_CLOUD -> {
-                clearLocalWorkspaceData()
-                true
+    suspend fun applyLocalDataOwnershipChoice(choice: LocalDataOwnershipChoice): LocalDataOwnershipResult {
+        return try {
+            val applied = when (choice) {
+                LocalDataOwnershipChoice.MERGE_TO_ACCOUNT -> mergeLocalDataIntoCurrentAccount()
+                LocalDataOwnershipChoice.KEEP_LOCAL -> true
+                LocalDataOwnershipChoice.USE_CLOUD -> {
+                    clearLocalWorkspaceData()
+                }
             }
+            if (applied) {
+                LocalDataOwnershipResult.Applied
+            } else {
+                LocalDataOwnershipResult.Failure("当前登录状态不可用，请重新登录")
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            LocalDataOwnershipResult.Failure(error.message ?: "处理本地数据失败")
         }
     }
 
@@ -127,7 +159,7 @@ class SupabaseAuthRepository private constructor(
 
         val actionName = if (redirectTo != null) "Magic Link" else "验证码"
 
-        return runCatching {
+        return try {
             val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/otp") {
                 if (redirectTo != null) {
                     parameter("redirect_to", redirectTo)
@@ -144,7 +176,9 @@ class SupabaseAuthRepository private constructor(
             }
 
             MagicLinkRequestResult.Sent
-        }.getOrElse { error ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
             MagicLinkRequestResult.Failure(error.message ?: "发送${actionName}失败")
         }
     }
@@ -159,7 +193,7 @@ class SupabaseAuthRepository private constructor(
             return AuthResult.Failure("验证码不能为空")
         }
 
-        return runCatching {
+        return try {
             val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/verify") {
                 header("apikey", config.anonKey)
                 contentType(ContentType.Application.Json)
@@ -175,7 +209,9 @@ class SupabaseAuthRepository private constructor(
             sessionStore.saveSession(session)
             switchToUser(session.userId)
             AuthResult.Success(session)
-        }.getOrElse { error ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
             AuthResult.Failure(error.message ?: "验证失败")
         }
     }
@@ -201,7 +237,7 @@ class SupabaseAuthRepository private constructor(
             return AuthResult.Failure("Magic Link 缺少登录凭据")
         }
 
-        return runCatching {
+        return try {
             val user = fetchCurrentUser(accessToken)
             val session = AuthSession(
                 accessToken = accessToken,
@@ -213,7 +249,9 @@ class SupabaseAuthRepository private constructor(
             sessionStore.saveSession(session)
             switchToUser(session.userId)
             AuthResult.Success(session)
-        }.getOrElse { error ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
             AuthResult.Failure(error.message ?: "Magic Link 登录失败")
         }
     }
@@ -227,7 +265,7 @@ class SupabaseAuthRepository private constructor(
             return AuthResult.Failure("请输入邮箱和密码")
         }
 
-        return runCatching {
+        return try {
             val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/token") {
                 parameter("grant_type", "password")
                 header("apikey", config.anonKey)
@@ -245,7 +283,9 @@ class SupabaseAuthRepository private constructor(
             sessionStore.saveSession(session)
             switchToUser(session.userId)
             AuthResult.Success(session)
-        }.getOrElse { error ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
             AuthResult.Failure(error.toAuthMessage())
         }
     }
@@ -259,7 +299,7 @@ class SupabaseAuthRepository private constructor(
             return AuthResult.Failure("请输入邮箱和密码")
         }
 
-        return runCatching {
+        return try {
             val httpResponse = httpClient.post("${config.normalizedUrl}/auth/v1/signup") {
                 header("apikey", config.anonKey)
                 contentType(ContentType.Application.Json)
@@ -291,7 +331,9 @@ class SupabaseAuthRepository private constructor(
             sessionStore.saveSession(session)
             switchToUser(session.userId)
             AuthResult.Success(session)
-        }.getOrElse { error ->
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
             AuthResult.Failure(error.toAuthMessage())
         }
     }
@@ -299,11 +341,15 @@ class SupabaseAuthRepository private constructor(
     suspend fun signOut() {
         val accessToken = session.value?.accessToken
         if (config.isConfigured && accessToken != null) {
-            runCatching {
+            try {
                 httpClient.post("${config.normalizedUrl}/auth/v1/logout") {
                     header("apikey", config.anonKey)
                     bearerAuth(accessToken)
                 }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Throwable) {
+                // Local sign-out should continue even when Supabase logout cannot be reached.
             }
         }
         sessionStore.clearSession()
@@ -314,7 +360,7 @@ class SupabaseAuthRepository private constructor(
         val token = session.value?.accessToken ?: return Result.failure(Exception("尚未登录"))
         if (!config.isConfigured) return Result.failure(Exception("Supabase 尚未配置"))
 
-        return runCatching {
+        return runAuthCatching {
             val response = httpClient.put("${config.normalizedUrl}/auth/v1/user") {
                 header("apikey", config.anonKey)
                 bearerAuth(token)
@@ -331,7 +377,7 @@ class SupabaseAuthRepository private constructor(
         val token = session.value?.accessToken ?: return Result.failure(Exception("尚未登录"))
         if (!config.isConfigured) return Result.failure(Exception("Supabase 尚未配置"))
 
-        return runCatching {
+        return runAuthCatching {
             fetchCurrentUser(token)
         }
     }
@@ -354,7 +400,9 @@ class SupabaseAuthRepository private constructor(
     suspend fun mergeLocalDataIntoCurrentAccount(): Boolean {
         val currentSession = session.value ?: return false
         val guestDb = guestDatabaseProvider()
-        val userDb = databaseProvider()
+        val activeWorkspace = activeWorkspaceProvider()
+        if (activeWorkspace.userId != currentSession.userId) return false
+        val userDb = activeWorkspace.database
 
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
@@ -439,13 +487,18 @@ class SupabaseAuthRepository private constructor(
         return true
     }
 
-    suspend fun clearLocalWorkspaceData() {
+    private suspend fun clearLocalWorkspaceData(): Boolean {
+        val currentSession = session.value ?: return false
+        val activeWorkspace = activeWorkspaceProvider()
+        if (activeWorkspace.userId != currentSession.userId) return false
+        val database = activeWorkspace.database
         database.withTransaction {
             database.excerptTagDao().deleteAllExcerptTags()
             database.excerptDao().deleteAllExcerpts()
             database.tagDao().deleteAllTags()
             database.nodeDao().deleteAllNodes()
         }
+        return true
     }
 
     /**
@@ -632,3 +685,23 @@ private fun String.urlDecode(): String {
 }
 
 private class SupabaseAuthException(message: String) : RuntimeException(message)
+
+private fun WorkspaceDatabase.asSingleActiveWorkspace(userId: String?): ActiveWorkspace {
+    return if (userId == null) {
+        ActiveWorkspace.guest(SINGLE_DATABASE_NAME, this)
+    } else {
+        ActiveWorkspace.user(userId, SINGLE_DATABASE_NAME, this)
+    }
+}
+
+private suspend fun <T> runAuthCatching(block: suspend () -> T): Result<T> {
+    return try {
+        Result.success(block())
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Throwable) {
+        Result.failure(error)
+    }
+}
+
+private const val SINGLE_DATABASE_NAME = "single.db"

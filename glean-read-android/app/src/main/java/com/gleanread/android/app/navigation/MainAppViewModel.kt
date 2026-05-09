@@ -6,6 +6,7 @@ import com.gleanread.android.core.data.AppSnapshotStore
 import com.gleanread.android.core.model.WorkspaceSnapshot
 import com.gleanread.android.core.richtext.LinkSuggestion
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
+import com.gleanread.android.data.auth.LocalDataOwnershipResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.repository.ExcerptRepository
 import com.gleanread.android.data.repository.KnowledgeTreeRepository
@@ -69,14 +70,23 @@ class MainAppViewModel(
     ) {
         if (_localDataOwnershipUiState.value.isSubmitting) return
         viewModelScope.launch {
-            _localDataOwnershipUiState.update { it.copy(isSubmitting = true) }
-            authRepository.applyLocalDataOwnershipChoice(choice)
-            startBackgroundSync()
-            authRepository.clearLocalDataOwnershipRequest()
-            _localDataOwnershipUiState.update {
-                it.copy(isDialogVisible = false, isSubmitting = false)
+            _localDataOwnershipUiState.update { it.copy(isSubmitting = true, errorMessage = null) }
+            when (val result = authRepository.applyLocalDataOwnershipChoice(choice)) {
+                LocalDataOwnershipResult.Applied -> {
+                    startBackgroundSync()
+                    authRepository.clearLocalDataOwnershipRequest()
+                    _localDataOwnershipUiState.update {
+                        it.copy(isDialogVisible = false, isSubmitting = false, errorMessage = null)
+                    }
+                    onFinished()
+                }
+
+                is LocalDataOwnershipResult.Failure -> {
+                    _localDataOwnershipUiState.update {
+                        it.copy(isSubmitting = false, errorMessage = result.message)
+                    }
+                }
             }
-            onFinished()
         }
     }
 
@@ -219,4 +229,5 @@ class MainAppViewModel(
 data class LocalDataOwnershipUiState(
     val isDialogVisible: Boolean = false,
     val isSubmitting: Boolean = false,
+    val errorMessage: String? = null,
 )

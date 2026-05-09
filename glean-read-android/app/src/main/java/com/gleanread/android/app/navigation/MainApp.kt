@@ -12,6 +12,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -431,6 +432,7 @@ fun MainApp() {
     if (localDataOwnershipUiState.isDialogVisible) {
         PendingLocalDataOwnershipDialog(
             isSubmitting = localDataOwnershipUiState.isSubmitting,
+            errorMessage = localDataOwnershipUiState.errorMessage,
             onMergeLocalData = {
                 mainViewModel.choosePendingLocalDataOwnership(LocalDataOwnershipChoice.MERGE_TO_ACCOUNT) {
                     if (route == MainRoutes.Auth) {
@@ -452,13 +454,25 @@ fun MainApp() {
 @Composable
 private fun PendingLocalDataOwnershipDialog(
     isSubmitting: Boolean,
+    errorMessage: String?,
     onMergeLocalData: () -> Unit,
     onKeepLocalData: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = {},
         title = { Text(stringResource(R.string.auth_local_data_title)) },
-        text = { Text(stringResource(R.string.auth_local_data_body)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.auth_local_data_body))
+                errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+            }
+        },
         confirmButton = {
             TextButton(
                 onClick = onMergeLocalData,

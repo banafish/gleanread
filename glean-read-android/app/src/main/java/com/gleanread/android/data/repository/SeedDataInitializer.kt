@@ -11,10 +11,10 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class SeedDataInitializer(
     private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
-    private val currentUserIdProvider: CurrentUserIdProvider = LocalCurrentUserIdProvider,
 ) {
-    private val database get() = databaseManager.activeWorkspace.value.database
     suspend fun seedSampleData() {
+        val workspace = databaseManager.activeWorkspace.value
+        val database = workspace.database
         val excerptDao = database.excerptDao()
         val nodeDao = database.nodeDao()
         val tagDao = database.tagDao()
@@ -26,7 +26,7 @@ class SeedDataInitializer(
         if (hasData) return
 
         val now = System.currentTimeMillis()
-        val ownerUserId = currentUserIdProvider.currentUserId()
+        val ownerUserId = workspace.writeUserId
         val deviceId = deviceIdProvider.currentDeviceId()
         val sampleData = SampleSeedData.create(
             now = now,

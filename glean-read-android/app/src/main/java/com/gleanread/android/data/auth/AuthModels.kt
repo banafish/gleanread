@@ -23,3 +23,8 @@ enum class LocalDataOwnershipChoice {
     KEEP_LOCAL,
     USE_CLOUD,
 }
+
+sealed interface LocalDataOwnershipResult {
+    data object Applied : LocalDataOwnershipResult
+    data class Failure(val message: String) : LocalDataOwnershipResult
+}

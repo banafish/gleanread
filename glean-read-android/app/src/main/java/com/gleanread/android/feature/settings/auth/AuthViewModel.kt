@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.gleanread.android.data.auth.AuthResult
 import com.gleanread.android.data.auth.LocalDataOwnershipChoice
+import com.gleanread.android.data.auth.LocalDataOwnershipResult
 import com.gleanread.android.data.auth.MagicLinkRequestResult
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
@@ -252,14 +253,23 @@ class AuthViewModel(
             } else {
                 _uiState.update { it.copy(errorMessage = null) }
             }
-            authRepository.applyLocalDataOwnershipChoice(choice)
-            startBackgroundSync()
-            _uiState.update {
-                it.copy(
-                    isSubmitting = false,
-                    showOwnershipDialog = false,
-                    isSuccessAndFinished = true
-                )
+            when (val result = authRepository.applyLocalDataOwnershipChoice(choice)) {
+                LocalDataOwnershipResult.Applied -> {
+                    startBackgroundSync()
+                    _uiState.update {
+                        it.copy(
+                            isSubmitting = false,
+                            showOwnershipDialog = false,
+                            isSuccessAndFinished = true
+                        )
+                    }
+                }
+
+                is LocalDataOwnershipResult.Failure -> {
+                    _uiState.update {
+                        it.copy(isSubmitting = false, errorMessage = result.message)
+                    }
+                }
             }
         }
     }
