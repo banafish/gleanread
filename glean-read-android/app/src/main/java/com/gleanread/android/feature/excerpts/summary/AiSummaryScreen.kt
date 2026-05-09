@@ -66,6 +66,7 @@ fun AiSummaryScreen(
     onSave: () -> Unit,
     onOpenMountNodeSheet: () -> Unit,
     onMarkdownChange: (String) -> Unit,
+    onRegenerateOutline: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
@@ -122,19 +123,44 @@ fun AiSummaryScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item(key = "outline_header") {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.AutoAwesome,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = stringResource(R.string.ai_summary_outline_title),
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onBackground,
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.ai_summary_outline_title),
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                        )
+                    }
+                    IconButton(
+                        onClick = onRegenerateOutline,
+                        enabled = !draft.isGenerating,
+                    ) {
+                        if (draft.isGenerating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = stringResource(R.string.ai_summary_regenerate_outline),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                 }
             }
 
@@ -149,14 +175,23 @@ fun AiSummaryScreen(
                         CircularProgressIndicator()
                     }
                 } else {
-                    InlineLinkEditor(
-                        rawText = draft.markdown,
-                        placeholder = stringResource(R.string.ai_summary_outline_placeholder),
-                        onRawTextChange = onMarkdownChange,
-                        searchSuggestions = searchSuggestions,
-                        modifier = Modifier.fillMaxWidth(),
-                        minLines = 8
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        draft.errorMessage?.let { message ->
+                            Text(
+                                text = message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                        InlineLinkEditor(
+                            rawText = draft.markdown,
+                            placeholder = stringResource(R.string.ai_summary_outline_placeholder),
+                            onRawTextChange = onMarkdownChange,
+                            searchSuggestions = searchSuggestions,
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 8
+                        )
+                    }
                 }
             }
 
@@ -265,6 +300,7 @@ private fun AiSummaryScreenPreview() {
             onSave = {},
             onOpenMountNodeSheet = {},
             onMarkdownChange = {},
+            onRegenerateOutline = {},
         )
     }
 }

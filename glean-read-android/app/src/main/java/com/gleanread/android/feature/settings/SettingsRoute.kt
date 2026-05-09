@@ -72,6 +72,9 @@ fun SettingsRoute(
         onClearMessage = viewModel::clearMessage,
         onConfirmSignOutWithUnsyncedData = viewModel::confirmSignOutWithUnsyncedData,
         onDismissUnsyncedWarning = viewModel::dismissUnsyncedWarning,
+        onSaveAiConfig = viewModel::saveAiConfig,
+        onTestAiConnection = viewModel::testAiConnection,
+        onClearAiConnectionMessage = viewModel::clearAiConnectionMessage,
     )
 }
 

@@ -25,6 +25,7 @@ fun AiSummaryRoute(
     onCreateChildNode: (String, String, (String) -> Unit) -> Unit,
     onSelectTargetNode: (String?) -> Unit,
     onMarkdownChange: (String) -> Unit,
+    onRegenerateOutline: () -> Unit,
 ) {
     var showMountNodeSheet by rememberSaveable { mutableStateOf(false) }
     var currentMountNodeId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -47,6 +48,7 @@ fun AiSummaryRoute(
             showMountNodeSheet = true
         },
         onMarkdownChange = onMarkdownChange,
+        onRegenerateOutline = onRegenerateOutline,
     )
 
     if (showMountNodeSheet) {

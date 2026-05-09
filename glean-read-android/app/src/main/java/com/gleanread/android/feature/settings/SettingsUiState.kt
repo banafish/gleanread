@@ -1,5 +1,6 @@
 package com.gleanread.android.feature.settings
 
+import com.gleanread.android.data.ai.AiConfig
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.appearance.ThemeColor
 
@@ -16,6 +17,10 @@ data class SettingsUiState(
     val lastSyncTime: Long? = null,
     val failedCount: Int = 0,
     val conflictCount: Int = 0,
+    val aiConfig: AiConfig = AiConfig(),
+    val isTestingAiConnection: Boolean = false,
+    val aiConnectionMessage: String? = null,
+    val isAiConnectionSuccess: Boolean? = null,
     val message: String? = null,
     val showOwnershipDialog: Boolean = false,
     val showUnsyncedWarning: Boolean = false,

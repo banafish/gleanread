@@ -2,6 +2,9 @@ package com.gleanread.android.feature.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.gleanread.android.data.ai.AiConfig
+import com.gleanread.android.data.ai.AiConfigRepository
+import com.gleanread.android.data.ai.OpenAiCompatibleOutlineGenerator
 import com.gleanread.android.data.appearance.AppearancePreferencesRepository
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
@@ -33,9 +36,16 @@ class SettingsViewModel(
     private val syncRepository: WorkspaceSyncRepository,
     private val appearancePreferencesRepository: AppearancePreferencesRepository,
     private val avatarRepository: AvatarRepository,
+    private val aiConfigRepository: AiConfigRepository,
+    private val openAiOutlineGenerator: OpenAiCompatibleOutlineGenerator,
     private val backgroundSyncScope: CoroutineScope,
 ) : ViewModel() {
     private val formState = MutableStateFlow(SettingsFormState())
+    private val storedAiConfig = aiConfigRepository.aiConfigFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Eagerly,
+        initialValue = AiConfig(),
+    )
 
     val uiState: StateFlow<SettingsUiState> = combine(
         authRepository.session,
@@ -44,6 +54,7 @@ class SettingsViewModel(
         appearancePreferencesRepository.themeModeFlow,
         appearancePreferencesRepository.themeColorFlow,
         appearancePreferencesRepository.avatarUrlFlow,
+        storedAiConfig,
         formState,
     ) { args ->
         val session = args[0] as AuthSession?
@@ -52,7 +63,8 @@ class SettingsViewModel(
         val themeMode = args[3] as ThemeMode
         val themeColor = args[4] as ThemeColor
         val avatarUrl = args[5] as String?
-        val form = args[6] as SettingsFormState
+        val aiConfig = args[6] as AiConfig
+        val form = args[7] as SettingsFormState
 
         SettingsUiState(
             isLoggedIn = session != null,
@@ -67,6 +79,10 @@ class SettingsViewModel(
             lastSyncTime = syncState.lastSyncTime,
             failedCount = syncState.failedCount,
             conflictCount = syncState.conflictCount,
+            aiConfig = form.aiConfigOverride ?: aiConfig,
+            isTestingAiConnection = form.isTestingAiConnection,
+            aiConnectionMessage = form.aiConnectionMessage,
+            isAiConnectionSuccess = form.isAiConnectionSuccess,
             message = form.message ?: syncState.errorMessage,
             showOwnershipDialog = form.showOwnershipDialog,
             showUnsyncedWarning = form.showUnsyncedWarning,
@@ -112,6 +128,54 @@ class SettingsViewModel(
     fun setThemeColor(color: ThemeColor) {
         viewModelScope.launch {
             appearancePreferencesRepository.setThemeColor(color)
+        }
+    }
+
+    fun saveAiConfig(config: AiConfig) {
+        formState.update {
+            it.copy(
+                aiConfigOverride = config,
+                aiConnectionMessage = null,
+                isAiConnectionSuccess = null,
+                message = null,
+            )
+        }
+        viewModelScope.launch {
+            aiConfigRepository.setAiConfig(config)
+        }
+    }
+
+    fun testAiConnection(config: AiConfig) {
+        viewModelScope.launch {
+            formState.update {
+                it.copy(
+                    isTestingAiConnection = true,
+                    aiConnectionMessage = null,
+                    isAiConnectionSuccess = null,
+                    message = null,
+                )
+            }
+            val result = openAiOutlineGenerator.testConnection(config)
+            val message = result.fold(
+                onSuccess = { "AI 接口连接成功" },
+                onFailure = { error -> error.message ?: "AI 接口连接失败" },
+            )
+            formState.update {
+                it.copy(
+                    isTestingAiConnection = false,
+                    aiConnectionMessage = message,
+                    isAiConnectionSuccess = result.isSuccess,
+                )
+            }
+        }
+    }
+
+    fun clearAiConnectionMessage() {
+        formState.update {
+            it.copy(
+                aiConnectionMessage = null,
+                isAiConnectionSuccess = null,
+            )
         }
     }
 
@@ -259,6 +323,10 @@ class SettingsViewModel(
 private data class SettingsFormState(
     val isSubmitting: Boolean = false,
     val isAvatarUploading: Boolean = false,
+    val aiConfigOverride: AiConfig? = null,
+    val isTestingAiConnection: Boolean = false,
+    val aiConnectionMessage: String? = null,
+    val isAiConnectionSuccess: Boolean? = null,
     val message: String? = null,
     val showOwnershipDialog: Boolean = false,
     val showUnsyncedWarning: Boolean = false,

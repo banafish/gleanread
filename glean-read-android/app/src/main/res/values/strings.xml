@@ -104,6 +104,7 @@
     <string name="ai_summary_mount_title">挂载到节点</string>
     <string name="ai_summary_outline_placeholder">让 AI 生成一个可编辑的大纲</string>
     <string name="ai_summary_outline_title">生成大纲</string>
+    <string name="ai_summary_regenerate_outline">重新生成大纲</string>
     <string name="ai_summary_title">AI 总结</string>
 
     <string name="node_detail_add_excerpt">添加摘录</string>
@@ -212,6 +213,20 @@
     <string name="settings_sync_now">立即同步</string>
     <string name="settings_sync_title">同步</string>
     <string name="settings_syncing">同步中</string>
+    <string name="settings_ai_base_url_label">接口域名</string>
+    <string name="settings_ai_base_url_placeholder">例如 api.openai.com</string>
+    <string name="settings_ai_config_dialog_title">配置 AI 接口</string>
+    <string name="settings_ai_config_summary_empty">点击配置接口、Token 和模型</string>
+    <string name="settings_ai_config_title">AI 接口</string>
+    <string name="settings_ai_configured">已配置 AI 接口</string>
+    <string name="settings_ai_hide_token">隐藏 token</string>
+    <string name="settings_ai_model_label">模型</string>
+    <string name="settings_ai_model_placeholder">例如 gpt-4o-mini</string>
+    <string name="settings_ai_not_configured">未配置 AI 接口</string>
+    <string name="settings_ai_show_token">显示 token</string>
+    <string name="settings_ai_test_connection">测试连接</string>
+    <string name="settings_ai_token_label">Token</string>
+    <string name="settings_ai_token_placeholder">输入 API token</string>
     <string name="settings_title">设置</string>
     <string name="settings_appearance_title">外观</string>
     <string name="settings_theme_mode_light">浅色</string>

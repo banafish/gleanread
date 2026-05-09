@@ -2,6 +2,8 @@ package com.gleanread.android.app.di
 
 import android.content.Context
 import androidx.lifecycle.ViewModelProvider
+import com.gleanread.android.data.ai.AiConfigRepository
+import com.gleanread.android.data.ai.OpenAiCompatibleOutlineGenerator
 import com.gleanread.android.data.auth.SupabaseAuthRepository
 import com.gleanread.android.data.auth.SupabaseSessionRefresher
 import com.gleanread.android.data.auth.SupabaseSessionStore
@@ -148,11 +150,26 @@ class AppContainer(
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {
-        AiSummaryRepository(databaseManager, deviceIdentityStore)
+        AiSummaryRepository(
+            databaseManager = databaseManager,
+            deviceIdProvider = deviceIdentityStore,
+            outlineGenerator = openAiOutlineGenerator,
+        )
     }
 
     val appSnapshotStore: AppSnapshotStore by lazy {
         AppSnapshotStore(snapshotProvider)
+    }
+
+    val aiConfigRepository: AiConfigRepository by lazy {
+        AiConfigRepository(appContext)
+    }
+
+    private val openAiOutlineGenerator: OpenAiCompatibleOutlineGenerator by lazy {
+        OpenAiCompatibleOutlineGenerator(
+            httpClient = supabaseHttpClient,
+            configProvider = aiConfigRepository::currentConfig,
+        )
     }
 
     val appearancePreferencesRepository: AppearancePreferencesRepository by lazy {
@@ -201,6 +218,8 @@ class AppContainer(
                 syncRepository = workspaceSyncRepository,
                 appearancePreferencesRepository = appearancePreferencesRepository,
                 avatarRepository = avatarRepository,
+                aiConfigRepository = aiConfigRepository,
+                openAiOutlineGenerator = openAiOutlineGenerator,
                 backgroundSyncScope = applicationScope,
             )
         }

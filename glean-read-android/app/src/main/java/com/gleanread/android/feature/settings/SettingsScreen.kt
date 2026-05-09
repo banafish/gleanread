@@ -47,10 +47,12 @@ import androidx.compose.ui.unit.dp
 import com.gleanread.android.R
 import com.gleanread.android.core.ui.component.LiquidGlassTopAppBarContainer
 import com.gleanread.android.core.ui.theme.GleanReadTheme
+import com.gleanread.android.data.ai.AiConfig
 import com.gleanread.android.data.appearance.ThemeColor
 import com.gleanread.android.data.appearance.ThemeMode
 import com.gleanread.android.data.avatar.CompressedImage
 import com.gleanread.android.feature.settings.component.AccessibilitySection
+import com.gleanread.android.feature.settings.component.AiConfigSection
 import com.gleanread.android.feature.settings.component.AppearanceSection
 import com.gleanread.android.feature.settings.component.SyncSection
 import com.gleanread.android.feature.settings.component.UserAvatarSection
@@ -75,6 +77,9 @@ fun SettingsScreen(
     onClearMessage: () -> Unit,
     onConfirmSignOutWithUnsyncedData: () -> Unit = {},
     onDismissUnsyncedWarning: () -> Unit = {},
+    onSaveAiConfig: (AiConfig) -> Unit = {},
+    onTestAiConnection: (AiConfig) -> Unit = {},
+    onClearAiConnectionMessage: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -158,6 +163,16 @@ fun SettingsScreen(
             SyncSection(
                 uiState = uiState,
                 onSyncNow = onSyncNow,
+            )
+
+            AiConfigSection(
+                aiConfig = uiState.aiConfig,
+                isTestingConnection = uiState.isTestingAiConnection,
+                connectionMessage = uiState.aiConnectionMessage,
+                isConnectionSuccess = uiState.isAiConnectionSuccess,
+                onSaveConfig = onSaveAiConfig,
+                onTestConnection = onTestAiConnection,
+                onClearConnectionMessage = onClearAiConnectionMessage,
             )
 
             AccessibilitySection(

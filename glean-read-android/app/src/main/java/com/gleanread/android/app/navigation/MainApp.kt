@@ -332,6 +332,7 @@ fun MainApp() {
                             onCreateChildNode = mainViewModel::createChildNode,
                             onSelectTargetNode = aiSummaryViewModel::selectTargetNode,
                             onMarkdownChange = aiSummaryViewModel::updateMarkdown,
+                            onRegenerateOutline = aiSummaryViewModel::regenerateOutline,
                         )
                     }
                     composable(

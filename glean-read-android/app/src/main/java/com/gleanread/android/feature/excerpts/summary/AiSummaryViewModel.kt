@@ -14,6 +14,7 @@ data class AiSummaryDraft(
     val title: String = "",
     val markdown: String = "",
     val isGenerating: Boolean = false,
+    val errorMessage: String? = null,
     val targetNodeId: String? = null,
 )
 
@@ -29,20 +30,47 @@ class AiSummaryViewModel(
             selectedExcerptIds = selectedIds,
             isGenerating = true,
         )
+        generateOutline(selectedIds)
+    }
+
+    fun regenerateOutline() {
+        val selectedIds = _draft.value.selectedExcerptIds
+        if (selectedIds.isEmpty()) return
+        _draft.update {
+            it.copy(
+                isGenerating = true,
+                errorMessage = null,
+            )
+        }
+        generateOutline(selectedIds)
+    }
+
+    private fun generateOutline(selectedIds: List<String>) {
         viewModelScope.launch {
-            val generated = aiSummaryRepository.generateOutline(selectedIds)
-            _draft.update { state ->
-                state.copy(
-                    title = generated.title,
-                    markdown = generated.markdown,
-                    isGenerating = false,
-                )
+            runCatching {
+                aiSummaryRepository.generateOutline(selectedIds)
+            }.onSuccess { generated ->
+                _draft.update { state ->
+                    state.copy(
+                        title = generated.title,
+                        markdown = generated.markdown,
+                        isGenerating = false,
+                        errorMessage = null,
+                    )
+                }
+            }.onFailure { error ->
+                _draft.update { state ->
+                    state.copy(
+                        isGenerating = false,
+                        errorMessage = error.message ?: "生成大纲失败",
+                    )
+                }
             }
         }
     }
 
     fun updateMarkdown(value: String) {
-        _draft.update { it.copy(markdown = value) }
+        _draft.update { it.copy(markdown = value, errorMessage = null) }
     }
 
     fun selectTargetNode(nodeId: String?) {
