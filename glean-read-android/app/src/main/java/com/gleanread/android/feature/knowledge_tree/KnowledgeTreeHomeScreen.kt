@@ -11,11 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -36,6 +32,10 @@ import com.gleanread.android.feature.knowledge_tree.component.KnowledgeTreeTopBa
 import com.gleanread.android.feature.knowledge_tree.component.MoveNodeBottomSheet
 import com.gleanread.android.feature.knowledge_tree.component.RenameNodeDialog
 import com.gleanread.android.feature.knowledge_tree.component.RootNodeCard
+import com.gleanread.android.feature.knowledge_tree.component.dragCallbacksFor
+import com.gleanread.android.feature.knowledge_tree.component.ignoreDuringDrag
+import com.gleanread.android.feature.knowledge_tree.component.rememberDragSortState
+import com.gleanread.android.feature.knowledge_tree.component.visualStateFor
 import com.gleanread.android.feature.knowledge_tree.model.DeleteDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.DropTargetInfo
 import com.gleanread.android.feature.knowledge_tree.model.KnowledgeTreeHomeUiState
@@ -44,7 +44,6 @@ import com.gleanread.android.feature.knowledge_tree.model.NodeActionTarget
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogType
 import com.gleanread.android.feature.knowledge_tree.model.NodeDialogUiState
 import com.gleanread.android.feature.knowledge_tree.model.buildKnowledgeTreeHomeUiState
-import com.gleanread.android.feature.knowledge_tree.model.rememberDragSortState
 
 @Composable
 fun KnowledgeTreeHomeScreen(
@@ -80,7 +79,6 @@ fun KnowledgeTreeHomeScreen(
     onMoveNodeSheetNavigate: (String?) -> Unit,
     onOpenMoveNodeCreateDialog: () -> Unit,
     onConfirmMoveNodeSheet: () -> Unit,
-    isDragging: Boolean = false,
     onNodeDragStart: (String) -> Unit = {},
     onNodeDragEnd: (String?, DropTargetInfo?) -> Unit = { _, _ -> },
     onNodeDragCancel: () -> Unit = {},
@@ -98,6 +96,9 @@ fun KnowledgeTreeHomeScreen(
         onNodeDragCancel = onNodeDragCancel,
         firstNodeItemIndex = 0,
     )
+    val onToggleNodeWhenIdle = dragSortState.ignoreDuringDrag(onToggleNode)
+    val onOpenNodeWhenIdle = dragSortState.ignoreDuringDrag(onOpenNode)
+    val onOpenBranchWhenIdle = dragSortState.ignoreDuringDrag(onOpenBranch)
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -163,24 +164,25 @@ fun KnowledgeTreeHomeScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(uiState.rootCards, key = { it.nodeId }) { card ->
-                        val isCardDragging = dragSortState.isDragging(card.nodeId)
+                        val dragVisualState = dragSortState.visualStateFor(card.nodeId)
+                        val dragCallbacks = dragSortState.dragCallbacksFor(card.nodeId)
                         RootNodeCard(
                             card = card,
-                            onToggle = if (dragSortState.draggedNodeId != null) { {} } else onToggleNode,
-                            onOpenDetail = if (dragSortState.draggedNodeId != null) { {} } else onOpenNode,
-                            onOpenBranch = if (dragSortState.draggedNodeId != null) { {} } else onOpenBranch,
+                            onToggle = onToggleNodeWhenIdle,
+                            onOpenDetail = onOpenNodeWhenIdle,
+                            onOpenBranch = onOpenBranchWhenIdle,
                             onAddChild = onOpenAddChildDialog,
                             onMove = onOpenMoveNodeSheet,
                             onRename = onOpenRenameDialog,
                             onDelete = onOpenDeleteDialog,
-                            onDragStart = { offset -> dragSortState.onDragStart(card.nodeId, offset) },
-                            onDragMove = dragSortState.onDragMove,
-                            onDragEnd = dragSortState.onDragEnd,
-                            onDragCancel = dragSortState.onDragCancel,
-                            isDragging = isCardDragging,
-                            itemDisplacement = dragSortState.itemDisplacement(card.nodeId),
-                            dragOffsetY = if (isCardDragging) dragSortState.dragOffsetY else 0f,
-                            modifier = Modifier.zIndex(if (isCardDragging) 1f else 0f),
+                            onDragStart = dragCallbacks.onDragStart,
+                            onDragMove = dragCallbacks.onDragMove,
+                            onDragEnd = dragCallbacks.onDragEnd,
+                            onDragCancel = dragCallbacks.onDragCancel,
+                            isDragging = dragVisualState.isDragging,
+                            itemDisplacement = dragVisualState.itemDisplacement,
+                            dragOffsetY = dragVisualState.dragOffsetY,
+                            modifier = Modifier.zIndex(dragVisualState.zIndex),
                         )
                     }
                 }

@@ -192,12 +192,19 @@ class KnowledgeTreeRepository private constructor(
     suspend fun moveNodeToPosition(nodeId: String, targetIndex: Int) {
         database.withTransaction {
             val targetNode = nodeDao.findNodeById(nodeId) ?: return@withTransaction
+            val siblings = nodeDao.getSiblingsOnce(targetNode.parentId)
+            val currentIndex = siblings.indexOfFirst { it.id == nodeId }
+            if (currentIndex < 0) return@withTransaction
+
+            val normalizedTargetIndex = targetIndex.coerceIn(0, siblings.lastIndex)
+            if (currentIndex == normalizedTargetIndex) return@withTransaction
 
             val newSortOrder = calculateSortOrderAt(
-                targetIndex = targetIndex,
+                targetIndex = normalizedTargetIndex,
                 parentId = targetNode.parentId,
                 excludeNodeId = nodeId,
             )
+            if (newSortOrder == targetNode.sortOrder) return@withTransaction
 
             val now = System.currentTimeMillis()
             val deviceId = deviceIdProvider.currentDeviceId()

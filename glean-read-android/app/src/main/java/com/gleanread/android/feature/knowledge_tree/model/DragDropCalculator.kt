@@ -1,13 +1,21 @@
 package com.gleanread.android.feature.knowledge_tree.model
 
-import androidx.compose.foundation.lazy.LazyListState
 import kotlin.math.abs
 
-/** 拖拽自动滚动的边缘区域大小（px） */
-const val DRAG_AUTO_SCROLL_ZONE = 48f
+data class DragListItemInfo(
+    val nodeIndex: Int,
+    val nodeId: String,
+    val offset: Int,
+    val size: Int,
+)
 
-/** 拖拽自动滚动的最大速度（px/s） */
-const val DRAG_AUTO_SCROLL_SPEED = 2400f
+/**
+ * 拖拽目标位置信息。
+ * @param targetIndex 在同级节点列表中的插入位置
+ */
+data class DropTargetInfo(
+    val targetIndex: Int,
+)
 
 /**
  * 根据当前拖拽 Y 偏移量和列表状态，计算 drop 目标位置。
@@ -17,42 +25,21 @@ const val DRAG_AUTO_SCROLL_SPEED = 2400f
  * 仅用于同级排序，不支持跨层级移动。
  */
 fun calculateDropTarget(
-    listState: LazyListState,
+    visibleItems: List<DragListItemInfo>,
     draggedNodeId: String?,
     nodeIds: List<String>,
-    dragOffsetY: Float,
-    firstNodeItemIndex: Int = 0,
+    referenceY: Float?,
 ): DropTargetInfo? {
     if (draggedNodeId == null || nodeIds.isEmpty()) return null
-
-    val visibleItems = listState.layoutInfo.visibleItemsInfo
+    if (referenceY == null) return null
     if (visibleItems.isEmpty()) return null
 
     val draggedNodeIndex = nodeIds.indexOf(draggedNodeId)
     if (draggedNodeIndex < 0) return null
 
-    val draggedGlobalIndex = draggedNodeIndex + firstNodeItemIndex
-    val draggedItemInfo = visibleItems.firstOrNull { it.index == draggedGlobalIndex }
-        ?: return null
-
-    // 根据拖拽方向选择参考边界：向上拖用上边界，向下拖用下边界
-    val referenceY = if (dragOffsetY < 0) {
-        // 向上拖：上边界位置
-        draggedItemInfo.offset + dragOffsetY
-    } else {
-        // 向下拖：下边界位置
-        draggedItemInfo.offset + draggedItemInfo.size + dragOffsetY
-    }
-
     // 收集可见节点（排除被拖拽节点），按位置排序
     val sortedVisibleNodes = visibleItems
-        .filter { it.index >= firstNodeItemIndex }
-        .mapNotNull { itemInfo ->
-            val nodeIndex = itemInfo.index - firstNodeItemIndex
-            val nodeId = nodeIds.getOrNull(nodeIndex) ?: return@mapNotNull null
-            if (nodeId == draggedNodeId) return@mapNotNull null
-            DragVisibleNode(nodeIndex, nodeId, itemInfo.offset, itemInfo.size)
-        }
+        .filter { it.nodeId != draggedNodeId }
         .sortedBy { it.offset }
 
     if (sortedVisibleNodes.isEmpty()) return null
@@ -85,31 +72,28 @@ fun calculateDropTarget(
  * 其他节点保持不动。当目标位置与原位相同时，不产生任何位移。
  */
 fun calculateItemDisplacements(
-    listState: LazyListState,
+    visibleItems: List<DragListItemInfo>,
     draggedNodeId: String?,
     nodeIds: List<String>,
+    draggedItemSize: Float?,
     dragOffsetY: Float,
-    firstNodeItemIndex: Int = 0,
+    referenceY: Float?,
 ): Map<String, Float> {
     if (draggedNodeId == null || nodeIds.isEmpty()) return emptyMap()
-
-    val visibleItems = listState.layoutInfo.visibleItemsInfo
+    if (draggedItemSize == null) return emptyMap()
     if (visibleItems.isEmpty()) return emptyMap()
 
     val draggedNodeIndex = nodeIds.indexOf(draggedNodeId)
     if (draggedNodeIndex < 0) return emptyMap()
 
-    val draggedGlobalIndex = draggedNodeIndex + firstNodeItemIndex
-    val draggedItemInfo = visibleItems.firstOrNull { it.index == draggedGlobalIndex }
-        ?: return emptyMap()
-
-    val draggedHeight = draggedItemInfo.size.toFloat()
-
     // 微小偏移时（不足卡片高度 1/4）不产生位移，避免刚长按时其他节点跳动
-    if (abs(dragOffsetY) < draggedHeight / 4f) return emptyMap()
+    if (abs(dragOffsetY) < draggedItemSize / 4f) return emptyMap()
 
     val dropTarget = calculateDropTarget(
-        listState, draggedNodeId, nodeIds, dragOffsetY, firstNodeItemIndex,
+        visibleItems = visibleItems,
+        draggedNodeId = draggedNodeId,
+        nodeIds = nodeIds,
+        referenceY = referenceY,
     ) ?: return emptyMap()
 
     val targetIndex = dropTarget.targetIndex
@@ -120,9 +104,8 @@ fun calculateItemDisplacements(
     val displacements = mutableMapOf<String, Float>()
 
     for (itemInfo in visibleItems) {
-        if (itemInfo.index < firstNodeItemIndex) continue
-        val nodeIndex = itemInfo.index - firstNodeItemIndex
-        val nodeId = nodeIds.getOrNull(nodeIndex) ?: continue
+        val nodeIndex = itemInfo.nodeIndex
+        val nodeId = itemInfo.nodeId
         if (nodeId == draggedNodeId) continue
 
         // 此节点在"排除被拖拽节点"后的列表中的索引
@@ -131,22 +114,15 @@ fun calculateItemDisplacements(
         if (draggedNodeIndex > targetIndex) {
             // 向上拖：原位与目标之间的节点向下移
             if (adjustedIndex in targetIndex until draggedNodeIndex) {
-                displacements[nodeId] = draggedHeight
+                displacements[nodeId] = draggedItemSize
             }
         } else if (draggedNodeIndex < targetIndex) {
             // 向下拖：原位与目标之间的节点向上移
             if (adjustedIndex in draggedNodeIndex until targetIndex) {
-                displacements[nodeId] = -draggedHeight
+                displacements[nodeId] = -draggedItemSize
             }
         }
     }
 
     return displacements
 }
-
-private data class DragVisibleNode(
-    val nodeIndex: Int,
-    val nodeId: String,
-    val offset: Int,
-    val size: Int,
-)

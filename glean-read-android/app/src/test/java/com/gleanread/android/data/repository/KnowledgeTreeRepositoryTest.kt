@@ -3,6 +3,7 @@ package com.gleanread.android.data.repository
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.gleanread.android.data.local.WorkspaceDatabase
+import com.gleanread.android.data.model.SyncStatus
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -114,6 +115,28 @@ class KnowledgeTreeRepositoryTest {
         assertEquals(child3, siblings[0].id)
         assertEquals(child1, siblings[1].id)
         assertEquals(child2, siblings[2].id)
+    }
+
+    @Test
+    fun `moveNodeToPosition ignores unchanged target index`() = runBlocking {
+        val rootId = repository.createRootNode("根")
+        repository.createChildNode(rootId, "子1")
+        val child2 = repository.createChildNode(rootId, "子2")
+        repository.createChildNode(rootId, "子3")
+        val savedChild = database.nodeDao().findNodeById(child2)!!.copy(
+            syncStatus = SyncStatus.SYNCED,
+            updateTime = 1234L,
+            localDirtyTime = null,
+        )
+        database.nodeDao().updateNode(savedChild)
+
+        repository.moveNodeToPosition(child2, 1)
+
+        val unchangedChild = database.nodeDao().findNodeById(child2)
+        assertEquals(savedChild.sortOrder, unchangedChild?.sortOrder)
+        assertEquals(SyncStatus.SYNCED, unchangedChild?.syncStatus)
+        assertEquals(1234L, unchangedChild?.updateTime)
+        assertNull(unchangedChild?.localDirtyTime)
     }
 
     @Test

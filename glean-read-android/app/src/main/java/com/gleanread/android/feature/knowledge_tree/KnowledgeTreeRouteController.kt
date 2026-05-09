@@ -22,7 +22,6 @@ internal data class KnowledgeTreeRouteController(
     val nodeDialogState: NodeDialogUiState?,
     val deleteDialogState: DeleteDialogUiState?,
     val moveNodeSheetState: MoveNodeSheetUiState?,
-    val isDragging: Boolean,
     val setExpandedIds: (Set<String>) -> Unit,
     val expandNode: (String) -> Unit,
     val toggleNode: (String) -> Unit,
@@ -39,9 +38,6 @@ internal data class KnowledgeTreeRouteController(
     val dismissNodeDialog: () -> Unit,
     val dismissDeleteDialog: () -> Unit,
     val dismissMoveNodeSheet: () -> Unit,
-    val onDragStart: (nodeId: String) -> Unit,
-    val onDragEnd: () -> Unit,
-    val onDragCancel: () -> Unit,
 )
 
 @Composable
@@ -63,7 +59,6 @@ internal fun rememberKnowledgeTreeRouteController(
     var moveNodeSheetState by rememberSaveable(routeKey, stateSaver = MoveNodeSheetUiStateSaver) {
         mutableStateOf<MoveNodeSheetUiState?>(null)
     }
-    var isDragging by remember { mutableStateOf(false) }
 
     return KnowledgeTreeRouteController(
         expandedIds = expandedIds,
@@ -73,7 +68,6 @@ internal fun rememberKnowledgeTreeRouteController(
         nodeDialogState = nodeDialogState,
         deleteDialogState = deleteDialogState,
         moveNodeSheetState = moveNodeSheetState,
-        isDragging = isDragging,
         setExpandedIds = { expandedIds = it },
         expandNode = { nodeId -> expandedIds = expandedIds + nodeId },
         toggleNode = { nodeId ->
@@ -137,15 +131,6 @@ internal fun rememberKnowledgeTreeRouteController(
         dismissNodeDialog = { nodeDialogState = null },
         dismissDeleteDialog = { deleteDialogState = null },
         dismissMoveNodeSheet = { moveNodeSheetState = null },
-        onDragStart = { _ ->
-            isDragging = true
-        },
-        onDragEnd = {
-            isDragging = false
-        },
-        onDragCancel = {
-            isDragging = false
-        },
     )
 }
 

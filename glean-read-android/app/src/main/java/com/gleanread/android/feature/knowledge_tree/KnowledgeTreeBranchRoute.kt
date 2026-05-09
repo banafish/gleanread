@@ -144,18 +144,14 @@ fun KnowledgeTreeBranchRoute(
             }
             controller.dismissMoveNodeSheet()
         },
-        isDragging = controller.isDragging,
-        onNodeDragStart = { dragNodeId ->
+        onNodeDragStart = {
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-            controller.onDragStart(dragNodeId)
         },
         onNodeDragEnd = { draggedId, dropTarget ->
             if (draggedId != null && dropTarget != null) {
                 onMoveNodeToPosition(draggedId, dropTarget.targetIndex)
             }
-            controller.onDragEnd()
         },
-        onNodeDragCancel = controller.onDragCancel,
     )
 }
 
