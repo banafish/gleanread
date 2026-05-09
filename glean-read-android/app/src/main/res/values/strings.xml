@@ -215,6 +215,8 @@
     <string name="settings_syncing">同步中</string>
     <string name="settings_ai_base_url_label">接口域名</string>
     <string name="settings_ai_base_url_placeholder">例如 api.openai.com</string>
+    <string name="settings_ai_config_description">配置 AI 接口后，可使用 AI 总结摘录并生成知识大纲</string>
+    <string name="settings_ai_config_dialog_description">请填写 OpenAI 兼容接口的连接信息</string>
     <string name="settings_ai_config_dialog_title">配置 AI 接口</string>
     <string name="settings_ai_config_summary_empty">点击配置接口、Token 和模型</string>
     <string name="settings_ai_config_title">AI 接口</string>

@@ -1,13 +1,11 @@
 package com.gleanread.android.feature.settings.component
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -74,6 +72,13 @@ fun AiConfigSection(
         Text(
             text = stringResource(R.string.settings_ai_config_title),
             style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
+        // AI 用途说明：帮助用户理解配置 AI 的作用
+        Text(
+            text = stringResource(R.string.settings_ai_config_description),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp),
         )
 
@@ -190,6 +195,12 @@ private fun AiConfigDialog(
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 接口类型说明：提示用户需要 OpenAI 兼容接口
+                Text(
+                    text = stringResource(R.string.settings_ai_config_dialog_description),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 AiConfigTextField(
                     label = stringResource(R.string.settings_ai_base_url_label),
                     value = baseUrl,
@@ -331,17 +342,11 @@ private fun AiConfigTextField(
                 unfocusedIndicatorColor = Color.Transparent,
                 disabledIndicatorColor = Color.Transparent,
                 errorIndicatorColor = Color.Transparent,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                // 与登录页面保持一致的无边框样式
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 60.dp)
-                .border(
-                    width = 1.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(32.dp),
-                ),
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
