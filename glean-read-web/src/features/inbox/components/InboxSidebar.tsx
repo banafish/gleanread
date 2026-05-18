@@ -1,5 +1,5 @@
-import { Inbox, ListFilter, RotateCcw, Tag } from "lucide-react";
-import { moveExcerptToNode } from "@/db/repositories/workspaceRepository";
+import { Inbox, ListFilter, RotateCcw, Tag, Trash2 } from "lucide-react";
+import { deleteExcerpt, moveExcerptToNode } from "@/db/repositories/workspaceRepository";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { getInboxExcerpts } from "@/features/workbench/workbenchSelectors";
@@ -18,6 +18,7 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
   const setInboxFilter = useWorkbenchStore((state) => state.setInboxFilter);
   const setSelectedNodeId = useWorkbenchStore((state) => state.setSelectedNodeId);
   const setSelectedExcerptId = useWorkbenchStore((state) => state.setSelectedExcerptId);
+  const setTrashOpen = useWorkbenchStore((state) => state.setTrashOpen);
 
   const snapshot: WorkspaceSnapshot = { nodes, excerpts, tags, excerptTags, recentSearches };
   const items = getInboxExcerpts(snapshot, inboxFilter);
@@ -31,6 +32,17 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
     await refreshWorkspace();
   };
 
+  const handleDeleteExcerpt = async (excerptId: string) => {
+    if (!session?.userId) {
+      return;
+    }
+    await deleteExcerpt(session.userId, excerptId);
+    if (useWorkbenchStore.getState().selectedExcerptId === excerptId) {
+      setSelectedExcerptId(null);
+    }
+    await refreshWorkspace();
+  };
+
   if (collapsed) {
     return (
       <aside className="flex h-full flex-col items-center border-r border-app-border bg-app-surface py-4">
@@ -38,6 +50,15 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
           <Inbox size={18} />
         </div>
         <div className="mt-3 text-xs font-semibold text-app-muted">{items.length}</div>
+        <button
+          type="button"
+          className="mt-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-app-border bg-app-surface2 text-app-muted transition hover:text-app-text"
+          title="垃圾篓"
+          aria-label="打开垃圾篓"
+          onClick={() => setTrashOpen(true)}
+        >
+          <Trash2 size={16} />
+        </button>
       </aside>
     );
   }
@@ -101,6 +122,21 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
             <div className="mt-3 text-xs text-app-muted">
               {excerpt.sourceTitle ?? excerpt.url ?? "未记录来源"}
             </div>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <div className="text-xs text-app-muted" />
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-app-muted hover:bg-app-surface2 hover:text-app-danger"
+                title="删除摘录"
+                aria-label="删除摘录"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  void handleDeleteExcerpt(excerpt.id);
+                }}
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
             {excerpt.userThought ? (
               <div className="mt-2 rounded-lg bg-app-surface2 px-3 py-2 text-xs leading-5 text-app-muted">
                 {excerpt.userThought}
@@ -130,6 +166,12 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
             ) : null}
           </article>
         ))}
+      </div>
+      <div className="border-t border-app-border p-3">
+        <Button type="button" variant="secondary" className="h-10 w-full" onClick={() => setTrashOpen(true)}>
+          <Trash2 size={16} />
+          垃圾篓
+        </Button>
       </div>
     </aside>
   );

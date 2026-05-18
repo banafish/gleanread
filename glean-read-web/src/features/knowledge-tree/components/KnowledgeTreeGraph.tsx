@@ -9,7 +9,14 @@ import ReactFlow, {
   type NodeTypes,
   type Viewport,
 } from "reactflow";
-import { createChildNode, createSiblingNode, deleteNodeSubtree, moveExcerptToNode, renameNode } from "@/db/repositories/workspaceRepository";
+import {
+  createChildNode,
+  createSiblingNode,
+  deleteNodeSubtree,
+  moveExcerptToNode,
+  renameNode,
+  reorderNodeSibling,
+} from "@/db/repositories/workspaceRepository";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { buildKnowledgeGraph, VIRTUAL_ROOT_ID } from "@/features/knowledge-tree/treeAdapters";
@@ -186,6 +193,18 @@ function KnowledgeTreeGraphInner() {
     [refreshWorkspace, setHoveredNodeId, setSelectedNodeId, userId]
   );
 
+  const handleMoveSibling = useCallback(
+    async (nodeId: string, direction: "up" | "down") => {
+      if (!userId) {
+        return;
+      }
+      await reorderNodeSibling(userId, nodeId, direction);
+      await refreshWorkspace();
+      setSelectedNodeId(nodeId);
+    },
+    [refreshWorkspace, setSelectedNodeId, userId]
+  );
+
   const graphData = useMemo(
     () =>
       buildKnowledgeGraph(snapshot, expandedNodeIds, {
@@ -203,6 +222,7 @@ function KnowledgeTreeGraphInner() {
         },
         onAddChild: handleAddChild,
         onAddSibling: handleAddSibling,
+        onMoveSibling: handleMoveSibling,
         onRename: handleRename,
         onDelete: handleDelete,
         onDropExcerpt: handleDropExcerpt,
@@ -214,6 +234,7 @@ function KnowledgeTreeGraphInner() {
       handleAddSibling,
       handleDelete,
       handleDropExcerpt,
+      handleMoveSibling,
       handleRename,
       hoveredNodeId,
       selectedNodeId,
@@ -253,6 +274,11 @@ function KnowledgeTreeGraphInner() {
         }
         return;
       }
+      if (event.shiftKey && selected && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+        event.preventDefault();
+        void handleMoveSibling(selected, event.key === "ArrowUp" ? "up" : "down");
+        return;
+      }
       if (event.key === " ") {
         event.preventDefault();
         setDrawerOpen(!drawerOpen);
@@ -271,7 +297,16 @@ function KnowledgeTreeGraphInner() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawerOpen, graphData.visibleNodeIds, handleAddChild, handleAddSibling, searchOpen, setDrawerOpen, setSelectedNodeId]);
+  }, [
+    drawerOpen,
+    graphData.visibleNodeIds,
+    handleAddChild,
+    handleAddSibling,
+    handleMoveSibling,
+    searchOpen,
+    setDrawerOpen,
+    setSelectedNodeId,
+  ]);
 
   return (
     <div className="h-full min-h-0 overflow-hidden bg-app-bg">

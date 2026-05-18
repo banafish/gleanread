@@ -158,6 +158,7 @@ export interface WorkbenchViewState {
   inboxFilter: InboxFilter;
   searchOpen: boolean;
   searchQuery: string;
+  trashOpen: boolean;
   themeMode: ThemeMode;
   leftPanelWidth: number;
   rightPanelWidth: number;

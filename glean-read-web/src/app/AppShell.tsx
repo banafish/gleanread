@@ -5,6 +5,7 @@ import { KnowledgeTreeGraph } from "@/features/knowledge-tree/components/Knowled
 import { SearchDialog } from "@/features/workbench/components/SearchDialog";
 import { WorkbenchPreferenceSync } from "@/features/workbench/components/WorkbenchPreferenceSync";
 import { WorkbenchTopBar } from "@/features/workbench/components/WorkbenchTopBar";
+import { TrashDialog } from "@/features/workbench/components/TrashDialog";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { useSyncEngine } from "@/features/sync/useSyncEngine";
 
@@ -90,6 +91,7 @@ export function AppShell() {
         ) : null}
       </div>
       <SearchDialog />
+      <TrashDialog />
       <WorkbenchPreferenceSync />
     </div>
   );

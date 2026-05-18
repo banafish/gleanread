@@ -31,9 +31,10 @@ function PreviewStateLoader() {
       inboxFilter: "inbox",
       searchOpen: false,
       searchQuery: "",
+      trashOpen: false,
       themeMode: "dark",
-      leftPanelWidth: 300,
-      rightPanelWidth: 380,
+      leftPanelWidth: 280,
+      rightPanelWidth: 400,
       expandedNodeIds: {
         "node-product": true,
         "node-state": true,
@@ -105,6 +106,7 @@ function NodeCardPreview() {
         onToggleExpanded: () => undefined,
         onAddChild: () => undefined,
         onAddSibling: () => undefined,
+        onMoveSibling: () => undefined,
         onRename: () => undefined,
         onDelete: () => undefined,
         onDropExcerpt: () => undefined,
@@ -138,7 +140,7 @@ function WorkbenchPreviewFrame() {
   return (
     <div className="h-[680px] overflow-hidden rounded-2xl border border-app-border bg-app-bg">
       <WorkbenchTopBar syncMessage="本地优先 Preview" />
-      <div className="grid h-[calc(680px-3.5rem)] min-h-0 grid-cols-[300px_minmax(0,1fr)_380px]">
+      <div className="grid h-[calc(680px-3.5rem)] min-h-0 grid-cols-[280px_minmax(0,1fr)_400px]">
         <InboxSidebar />
         <KnowledgeTreeGraph />
         <DetailDrawer />

@@ -1,5 +1,5 @@
 import type { DragEvent, MouseEvent } from "react";
-import { ChevronDown, ChevronRight, FileText, MoreHorizontal, Pin, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, FileText, MoreHorizontal, Pin, Plus, Trash2 } from "lucide-react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { cx } from "@/shared/utils";
 import type { KnowledgeGraphNodeData } from "@/features/knowledge-tree/treeAdapters";
@@ -12,6 +12,8 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
   const { viewModel } = data;
   const isVirtualRoot = Boolean(viewModel.isVirtualRoot);
   const canDropExcerpt = !isVirtualRoot;
+  const actionButtonClass =
+    "inline-flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface2 text-app-muted transition hover:text-app-text disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:text-app-muted";
 
   const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
     if (!canDropExcerpt) {
@@ -96,13 +98,14 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
 
         <div
           className={cx(
-            "flex shrink-0 flex-col gap-1 opacity-0 transition group-hover:opacity-100",
+            "grid shrink-0 grid-cols-2 gap-1 opacity-0 transition group-hover:opacity-100",
+            isVirtualRoot && "grid-cols-1",
             data.isSelected && "opacity-100"
           )}
         >
           <button
             type="button"
-            className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface2 text-app-muted hover:text-app-text"
+            className={actionButtonClass}
             title="添加子节点"
             aria-label="添加子节点"
             onClick={(event) => {
@@ -116,7 +119,7 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
             <>
               <button
                 type="button"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface2 text-app-muted hover:text-app-text"
+                className={actionButtonClass}
                 title="重命名"
                 aria-label="重命名"
                 onClick={(event) => {
@@ -128,7 +131,33 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
               </button>
               <button
                 type="button"
-                className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface2 text-app-muted hover:text-app-danger"
+                className={actionButtonClass}
+                title="上移"
+                aria-label="上移节点"
+                disabled={!data.canMoveUp}
+                onClick={(event) => {
+                  stop(event);
+                  data.onMoveSibling(viewModel.id, "up");
+                }}
+              >
+                <ArrowUp size={14} />
+              </button>
+              <button
+                type="button"
+                className={actionButtonClass}
+                title="下移"
+                aria-label="下移节点"
+                disabled={!data.canMoveDown}
+                onClick={(event) => {
+                  stop(event);
+                  data.onMoveSibling(viewModel.id, "down");
+                }}
+              >
+                <ArrowDown size={14} />
+              </button>
+              <button
+                type="button"
+                className={cx(actionButtonClass, "hover:text-app-danger")}
                 title="删除"
                 aria-label="删除"
                 onClick={(event) => {

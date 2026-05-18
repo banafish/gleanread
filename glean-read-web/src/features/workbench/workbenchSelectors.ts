@@ -96,6 +96,25 @@ export function getNodeBreadthFirstOrder(snapshot: WorkspaceSnapshot, expandedNo
     .map((node) => node.id);
 }
 
+export function getTrashNodes(snapshot: WorkspaceSnapshot): KnowledgeTreeNode[] {
+  const deletedNodeIds = new Set(snapshot.nodes.filter((node) => node.isDeleted).map((node) => node.id));
+  return snapshot.nodes
+    .filter((node) => node.isDeleted && (!node.parentId || !deletedNodeIds.has(node.parentId)))
+    .sort((a, b) => b.updateTime - a.updateTime || a.nodeTitle.localeCompare(b.nodeTitle));
+}
+
+export function getTrashExcerpts(snapshot: WorkspaceSnapshot): Excerpt[] {
+  return snapshot.excerpts
+    .filter((excerpt) => excerpt.isDeleted)
+    .sort((a, b) => b.updateTime - a.updateTime || a.createTime - b.createTime);
+}
+
+export function getTrashTags(snapshot: WorkspaceSnapshot): Tag[] {
+  return snapshot.tags
+    .filter((tag) => tag.isDeleted)
+    .sort((a, b) => b.updateTime - a.updateTime || a.tagName.localeCompare(b.tagName));
+}
+
 export function getInboxExcerpts(snapshot: WorkspaceSnapshot, filter: InboxFilter): ExcerptViewModel[] {
   const tagMap = buildTagMap(snapshot.tags);
   const excerptTagMap = new Map<string, ExcerptTag[]>();

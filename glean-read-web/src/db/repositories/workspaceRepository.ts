@@ -10,12 +10,13 @@ import type {
   WorkspacePreference,
   WorkspaceSnapshot,
 } from "@/shared/models";
-import { createId, getSubtreeIds, now, trimOrNull } from "@/shared/utils";
+import { createId, getSubtreeIds, isDescendant, now, sortByOrderAndTime, trimOrNull } from "@/shared/utils";
 
 const DEVICE_ID = "local-device";
+const SORT_ORDER_STEP = 65_536;
 
 async function getCurrentUserId(): Promise<string> {
-  const session = await db.sessions.orderBy("email").first();
+  const session = await db.sessions.get("current");
   return session?.userId ?? "local-user";
 }
 
@@ -95,7 +96,7 @@ export async function addRecentSearch(userId: string, query: string): Promise<vo
 export async function createChildNode(userId: string, parentId: string | null, title: string): Promise<KnowledgeTreeNode> {
   const snapshot = await getWorkspaceSnapshot(userId);
   const siblings = snapshot.nodes.filter((node) => node.parentId === parentId);
-  const sortOrder = (Math.max(0, ...siblings.map((node) => node.sortOrder)) + 65_536) || 65_536;
+  const sortOrder = (Math.max(0, ...siblings.map((node) => node.sortOrder)) + SORT_ORDER_STEP) || SORT_ORDER_STEP;
   const node: KnowledgeTreeNode = {
     id: createId("node"),
     userId,
@@ -123,6 +124,73 @@ export async function createSiblingNode(userId: string, nodeId: string, title: s
     return null;
   }
   return createChildNode(userId, node.parentId, title);
+}
+
+export async function moveNode(userId: string, nodeId: string, targetParentId: string | null): Promise<void> {
+  const node = await db.nodes.get(nodeId);
+  if (!node) {
+    return;
+  }
+  const snapshot = await getWorkspaceSnapshot(userId);
+  if (targetParentId === node.id || (targetParentId && isDescendant(snapshot.nodes, node.id, targetParentId))) {
+    return;
+  }
+  const siblings = snapshot.nodes.filter((item) => item.parentId === targetParentId && item.id !== nodeId);
+  const sortOrder = (Math.max(0, ...siblings.map((item) => item.sortOrder)) + SORT_ORDER_STEP) || SORT_ORDER_STEP;
+  await db.nodes.put({
+    ...node,
+    parentId: targetParentId,
+    sortOrder,
+    updateTime: now(),
+    deviceId: DEVICE_ID,
+    syncStatus: "pending",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: now(),
+  });
+}
+
+export async function reorderNodeSibling(userId: string, nodeId: string, direction: "up" | "down"): Promise<void> {
+  const snapshot = await getWorkspaceSnapshot(userId);
+  const node = snapshot.nodes.find((item) => item.id === nodeId && item.userId === userId);
+  if (!node) {
+    return;
+  }
+  const siblings = sortByOrderAndTime(snapshot.nodes.filter((item) => item.parentId === node.parentId));
+  const currentIndex = siblings.findIndex((item) => item.id === nodeId);
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblings.length) {
+    return;
+  }
+
+  const nextOrder = [...siblings];
+  const [moved] = nextOrder.splice(currentIndex, 1);
+  nextOrder.splice(targetIndex, 0, moved);
+  const timestamp = now();
+
+  await db.transaction("rw", db.nodes, async () => {
+    for (let index = 0; index < nextOrder.length; index += 1) {
+      const sibling = nextOrder[index];
+      const sortOrder = (index + 1) * SORT_ORDER_STEP;
+      if (sibling.sortOrder === sortOrder) {
+        continue;
+      }
+      const row = await db.nodes.get(sibling.id);
+      if (!row) {
+        continue;
+      }
+      await db.nodes.put({
+        ...row,
+        sortOrder,
+        updateTime: timestamp,
+        deviceId: DEVICE_ID,
+        syncStatus: "pending",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: timestamp,
+      });
+    }
+  });
 }
 
 export async function renameNode(userId: string, nodeId: string, title: string): Promise<void> {
@@ -201,6 +269,28 @@ export async function deleteNodeSubtree(userId: string, nodeId: string): Promise
   });
 }
 
+export async function restoreNodeSubtree(userId: string, nodeId: string): Promise<void> {
+  const snapshot = await getWorkspaceSnapshot(userId);
+  const ids = getSubtreeIds(snapshot.nodes, nodeId);
+  await db.transaction("rw", db.nodes, async () => {
+    for (const id of ids) {
+      const node = await db.nodes.get(id);
+      if (node) {
+        await db.nodes.put({
+          ...node,
+          isDeleted: false,
+          updateTime: now(),
+          deviceId: DEVICE_ID,
+          syncStatus: "pending",
+          syncError: null,
+          retryCount: 0,
+          localDirtyTime: now(),
+        });
+      }
+    }
+  });
+}
+
 export async function moveExcerptToNode(userId: string, excerptId: string, treeNodeId: string | null): Promise<void> {
   const excerpt = await db.excerpts.get(excerptId);
   if (!excerpt) {
@@ -212,6 +302,40 @@ export async function moveExcerptToNode(userId: string, excerptId: string, treeN
     updateTime: now(),
     deviceId: DEVICE_ID,
     syncStatus: "pending",
+    localDirtyTime: now(),
+  });
+}
+
+export async function deleteExcerpt(userId: string, excerptId: string): Promise<void> {
+  const excerpt = await db.excerpts.get(excerptId);
+  if (!excerpt) {
+    return;
+  }
+  await db.excerpts.put({
+    ...excerpt,
+    isDeleted: true,
+    updateTime: now(),
+    deviceId: DEVICE_ID,
+    syncStatus: "pending",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: now(),
+  });
+}
+
+export async function restoreExcerpt(userId: string, excerptId: string): Promise<void> {
+  const excerpt = await db.excerpts.get(excerptId);
+  if (!excerpt) {
+    return;
+  }
+  await db.excerpts.put({
+    ...excerpt,
+    isDeleted: false,
+    updateTime: now(),
+    deviceId: DEVICE_ID,
+    syncStatus: "pending",
+    syncError: null,
+    retryCount: 0,
     localDirtyTime: now(),
   });
 }
@@ -251,10 +375,12 @@ export async function updateExcerpt(
     });
 
     const currentRelations = await db.excerptTags.where({ excerptId }).toArray();
-    const currentTagIds = new Set(currentRelations.map((relation) => relation.tagId));
+    const currentRelationMap = new Map(currentRelations.map((relation) => [relation.tagId, relation]));
+    const activeRelations = currentRelations.filter((relation) => !relation.isDeleted);
+    const currentTagIds = new Set(activeRelations.map((relation) => relation.tagId));
     const nextTagIds = new Set(payload.tagIds);
 
-    for (const relation of currentRelations) {
+    for (const relation of activeRelations) {
       if (!nextTagIds.has(relation.tagId)) {
         await db.excerptTags.put({
           ...relation,
@@ -268,7 +394,20 @@ export async function updateExcerpt(
     }
 
     for (const tagId of nextTagIds) {
-      if (!currentTagIds.has(tagId)) {
+      const existingRelation = currentRelationMap.get(tagId);
+      if (existingRelation?.isDeleted) {
+        await db.excerptTags.put({
+          ...existingRelation,
+          isDeleted: false,
+          updateTime: now(),
+          deviceId: DEVICE_ID,
+          syncStatus: "pending",
+          syncError: null,
+          retryCount: 0,
+          localDirtyTime: now(),
+        });
+        await updateTagHeat(userId, tagId, 1);
+      } else if (!currentTagIds.has(tagId)) {
         await db.excerptTags.add({
           id: createId("excerpt-tag"),
           userId,
@@ -287,6 +426,40 @@ export async function updateExcerpt(
         await updateTagHeat(userId, tagId, 1);
       }
     }
+  });
+}
+
+export async function deleteTag(userId: string, tagId: string): Promise<void> {
+  const tag = await db.tags.get(tagId);
+  if (!tag) {
+    return;
+  }
+  await db.tags.put({
+    ...tag,
+    isDeleted: true,
+    updateTime: now(),
+    deviceId: DEVICE_ID,
+    syncStatus: "pending",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: now(),
+  });
+}
+
+export async function restoreTag(userId: string, tagId: string): Promise<void> {
+  const tag = await db.tags.get(tagId);
+  if (!tag) {
+    return;
+  }
+  await db.tags.put({
+    ...tag,
+    isDeleted: false,
+    updateTime: now(),
+    deviceId: DEVICE_ID,
+    syncStatus: "pending",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: now(),
   });
 }
 
@@ -325,6 +498,21 @@ export async function ensureTag(userId: string, tagName: string, colorIcon: stri
   }
   const existing = await db.tags.where({ userId, tagName: trimmed }).first();
   if (existing) {
+    if (existing.isDeleted) {
+      const revived: Tag = {
+        ...existing,
+        isDeleted: false,
+        colorIcon: existing.colorIcon ?? colorIcon,
+        updateTime: now(),
+        deviceId: DEVICE_ID,
+        syncStatus: "pending",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: now(),
+      };
+      await db.tags.put(revived);
+      return revived;
+    }
     return existing;
   }
   const tag: Tag = {

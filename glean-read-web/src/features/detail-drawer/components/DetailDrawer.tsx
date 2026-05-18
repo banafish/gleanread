@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { Maximize2, Minimize2, PanelRightClose, Plus, RotateCcw, Tag as TagIcon, X } from "lucide-react";
+import { Maximize2, Minimize2, PanelRightClose, Plus, RotateCcw, Tag as TagIcon, Trash2, X } from "lucide-react";
 import {
   ensureTag,
+  deleteExcerpt,
+  deleteTag,
   moveExcerptToNode,
+  moveNode,
   renameNode,
   updateExcerpt,
   updateNodeOutline,
@@ -13,7 +16,7 @@ import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { getNodeFeed, getSelectedNode } from "@/features/workbench/workbenchSelectors";
 import { Badge, Button, IconButton, Input, SectionTitle, Textarea } from "@/shared/components";
 import type { ExcerptViewModel, Tag, WorkspaceSnapshot } from "@/shared/models";
-import { cx } from "@/shared/utils";
+import { cx, isDescendant } from "@/shared/utils";
 
 function ExcerptThoughtEditor({
   excerpt,
@@ -47,10 +50,12 @@ function ExcerptTagEditor({
   excerpt,
   tags,
   onSetTags,
+  onDeleteTag,
 }: {
   excerpt: ExcerptViewModel;
   tags: Tag[];
   onSetTags: (excerpt: ExcerptViewModel, tagIds: string[], newTagName?: string) => Promise<void>;
+  onDeleteTag: (tagId: string) => Promise<void>;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -89,6 +94,17 @@ function ExcerptTagEditor({
               onClick={() => void onSetTags(excerpt, excerpt.tags.filter((item) => item.id !== tag.id).map((item) => item.id))}
             >
               <X size={12} />
+            </button>
+            <button
+              type="button"
+              className="text-app-muted hover:text-app-danger"
+              title="删除标签"
+              aria-label="删除标签"
+              onClick={() => {
+                void onDeleteTag(tag.id);
+              }}
+            >
+              <Trash2 size={12} />
             </button>
           </span>
         ))}
@@ -166,6 +182,19 @@ export function DetailDrawer() {
   );
   const selectedNode = getSelectedNode(snapshot, selectedNodeId);
   const feed = getNodeFeed(snapshot, selectedNodeId);
+  const moveTargets = useMemo(
+    () =>
+      selectedNode
+        ? snapshot.nodes
+            .filter((node) => !node.isDeleted && node.id !== selectedNode.id && !isDescendant(snapshot.nodes, selectedNode.id, node.id))
+            .map((node) => ({
+              id: node.id,
+              title: node.nodeTitle,
+              depth: snapshot.nodes.filter((candidate) => candidate.id === node.id || isDescendant(snapshot.nodes, candidate.id, node.id)).length,
+            }))
+        : [],
+    [selectedNode, snapshot.nodes]
+  );
 
   useEffect(() => {
     setTitleDraft(selectedNode?.nodeTitle ?? "");
@@ -213,6 +242,25 @@ export function DetailDrawer() {
       treeNodeId: excerpt.treeNodeId,
       tagIds: nextTagIds,
     });
+    await refreshWorkspace();
+  };
+
+  const deleteExcerptCard = async (excerptId: string) => {
+    if (!session?.userId) {
+      return;
+    }
+    await deleteExcerpt(session.userId, excerptId);
+    if (useWorkbenchStore.getState().selectedExcerptId === excerptId) {
+      setSelectedExcerptId(null);
+    }
+    await refreshWorkspace();
+  };
+
+  const deleteTagEntity = async (tagId: string) => {
+    if (!session?.userId) {
+      return;
+    }
+    await deleteTag(session.userId, tagId);
     await refreshWorkspace();
   };
 
@@ -280,6 +328,30 @@ export function DetailDrawer() {
               }}
             />
 
+            <label className="block space-y-1 rounded-panel border border-app-border bg-app-bg p-3 shadow-panel">
+              <span className="text-xs font-medium text-app-muted">父节点</span>
+              <select
+                className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none transition focus:border-app-accent focus:ring-2 focus:ring-app-accent/20"
+                value={selectedNode.parentId ?? ""}
+                onChange={(event) => {
+                  if (!session?.userId) {
+                    return;
+                  }
+                  void (async () => {
+                    await moveNode(session.userId, selectedNode.id, event.target.value || null);
+                    await refreshWorkspace();
+                  })();
+                }}
+              >
+                <option value="">知识体系</option>
+                {moveTargets.map((node) => (
+                  <option key={node.id} value={node.id}>
+                    {`${"·".repeat(Math.max(0, node.depth - 1))} ${node.title}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <SectionTitle title="已挂载摘录" subtitle={`${feed.length} 条摘录`} />
@@ -299,7 +371,19 @@ export function DetailDrawer() {
                     <div className="mt-2 text-xs text-app-muted">{excerpt.sourceTitle ?? excerpt.url ?? "未记录来源"}</div>
                   </div>
                   <ExcerptThoughtEditor excerpt={excerpt} onSave={saveThought} />
-                  <ExcerptTagEditor excerpt={excerpt} tags={tags} onSetTags={setExcerptTags} />
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-app-muted" />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="h-8 px-3 text-xs"
+                      onClick={() => void deleteExcerptCard(excerpt.id)}
+                    >
+                      <Trash2 size={14} />
+                      删除摘录
+                    </Button>
+                  </div>
+                  <ExcerptTagEditor excerpt={excerpt} tags={tags} onSetTags={setExcerptTags} onDeleteTag={deleteTagEntity} />
                   <label className="block space-y-1">
                     <span className="text-xs font-medium text-app-muted">挂载位置</span>
                     <select

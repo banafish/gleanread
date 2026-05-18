@@ -32,6 +32,7 @@ export interface WorkbenchState extends WorkbenchViewState {
   setInboxFilter: (value: InboxFilter) => void;
   setSearchOpen: (value: boolean) => void;
   setSearchQuery: (value: string) => void;
+  setTrashOpen: (value: boolean) => void;
   setThemeMode: (value: ThemeMode) => void;
   setLeftPanelWidth: (value: number) => void;
   setRightPanelWidth: (value: number) => void;
@@ -54,9 +55,10 @@ const initialUiState = {
   inboxFilter: "inbox" as InboxFilter,
   searchOpen: false,
   searchQuery: "",
+  trashOpen: false,
   themeMode: "system" as ThemeMode,
-  leftPanelWidth: 320,
-  rightPanelWidth: 380,
+  leftPanelWidth: 280,
+  rightPanelWidth: 400,
   expandedNodeIds: {} as Record<string, boolean>,
   hoveredNodeId: null,
   viewport: { x: 0, y: 0, zoom: 1 },
@@ -114,6 +116,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setInboxFilter: (value) => set({ inboxFilter: value }),
       setSearchOpen: (value) => set({ searchOpen: value }),
       setSearchQuery: (value) => set({ searchQuery: value }),
+      setTrashOpen: (value) => set({ trashOpen: value }),
       setThemeMode: (value) => set({ themeMode: value }),
       setLeftPanelWidth: (value) => set({ leftPanelWidth: value }),
       setRightPanelWidth: (value) => set({ rightPanelWidth: value }),
