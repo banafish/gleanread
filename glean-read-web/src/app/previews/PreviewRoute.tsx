@@ -109,8 +109,6 @@ function NodeCardPreview() {
         onMoveSibling: () => undefined,
         onRename: () => undefined,
         onDelete: () => undefined,
-        onDropExcerpt: () => undefined,
-        onHoverNode: () => undefined,
       }),
     []
   );

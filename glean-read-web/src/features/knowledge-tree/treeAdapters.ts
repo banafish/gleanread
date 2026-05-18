@@ -21,8 +21,6 @@ export interface KnowledgeGraphNodeData {
   onMoveSibling: (nodeId: string, direction: "up" | "down") => void;
   onRename: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
-  onDropExcerpt: (excerptId: string, nodeId: string) => void;
-  onHoverNode: (nodeId: string | null) => void;
 }
 
 export interface KnowledgeGraphData {
@@ -140,8 +138,6 @@ export function buildKnowledgeGraph(
         onMoveSibling: options.onMoveSibling,
         onRename: options.onRename,
         onDelete: options.onDelete,
-        onDropExcerpt: options.onDropExcerpt,
-        onHoverNode: options.onHoverNode,
       },
       draggable: false,
     };

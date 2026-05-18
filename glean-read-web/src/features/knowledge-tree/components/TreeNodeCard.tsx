@@ -1,4 +1,5 @@
-import type { DragEvent, MouseEvent } from "react";
+import type { MouseEvent } from "react";
+import { useDroppable } from "@dnd-kit/core";
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, FileText, MoreHorizontal, Pin, Plus, Trash2 } from "lucide-react";
 import { Handle, Position, type NodeProps } from "reactflow";
 import { cx } from "@/shared/utils";
@@ -11,39 +12,28 @@ function stop(event: MouseEvent<HTMLButtonElement>) {
 export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
   const { viewModel } = data;
   const isVirtualRoot = Boolean(viewModel.isVirtualRoot);
-  const canDropExcerpt = !isVirtualRoot;
+  const { setNodeRef, isOver } = useDroppable({
+    id: viewModel.id,
+    disabled: isVirtualRoot,
+    data: {
+      type: "tree-node",
+      nodeId: viewModel.id,
+    },
+  });
   const actionButtonClass =
     "inline-flex h-7 w-7 items-center justify-center rounded-lg bg-app-surface2 text-app-muted transition hover:text-app-text disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:text-app-muted";
-
-  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-    if (!canDropExcerpt) {
-      return;
-    }
-    event.preventDefault();
-    data.onHoverNode(viewModel.id);
-  };
-
-  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-    if (!canDropExcerpt) {
-      return;
-    }
-    event.preventDefault();
-    const excerptId = event.dataTransfer.getData("application/x-glean-excerpt");
-    data.onHoverNode(null);
-    if (excerptId) {
-      data.onDropExcerpt(excerptId, viewModel.id);
-    }
-  };
+  const isDropTargetActive = data.isHovered || isOver;
 
   return (
     <div
+      ref={setNodeRef}
       className={cx(
         "group relative w-[236px] rounded-panel border bg-app-surface px-3 py-3 shadow-panel transition",
         "hover:border-app-accent/60 hover:shadow-lg",
         isVirtualRoot && "w-[184px] bg-app-accent text-white",
         data.isSelected && "border-app-accent ring-2 ring-app-accent/20",
-        data.isHovered && "border-app-success ring-2 ring-app-success/25",
-        !data.isSelected && !data.isHovered && "border-app-border"
+        isDropTargetActive && "border-app-success ring-2 ring-app-success/25",
+        !data.isSelected && !isDropTargetActive && "border-app-border"
       )}
       onClick={() => data.onSelect(viewModel.id)}
       onDoubleClick={() => {
@@ -51,9 +41,6 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
           data.onToggleExpanded(viewModel.id);
         }
       }}
-      onDragOver={handleDragOver}
-      onDragLeave={() => data.onHoverNode(null)}
-      onDrop={handleDrop}
       role="button"
       tabIndex={0}
     >

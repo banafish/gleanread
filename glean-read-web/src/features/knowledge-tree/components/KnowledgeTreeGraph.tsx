@@ -13,7 +13,6 @@ import {
   createChildNode,
   createSiblingNode,
   deleteNodeSubtree,
-  moveExcerptToNode,
   renameNode,
   reorderNodeSibling,
 } from "@/db/repositories/workspaceRepository";
@@ -96,7 +95,6 @@ function KnowledgeTreeGraphInner() {
   const setSelectedNodeId = useWorkbenchStore((state) => state.setSelectedNodeId);
   const setDrawerOpen = useWorkbenchStore((state) => state.setDrawerOpen);
   const toggleNodeExpanded = useWorkbenchStore((state) => state.toggleNodeExpanded);
-  const setHoveredNodeId = useWorkbenchStore((state) => state.setHoveredNodeId);
   const setViewport = useWorkbenchStore((state) => state.setViewport);
 
   const snapshot = useMemo<WorkspaceSnapshot>(
@@ -180,19 +178,6 @@ function KnowledgeTreeGraphInner() {
     [nodes, refreshWorkspace, setSelectedNodeId, userId]
   );
 
-  const handleDropExcerpt = useCallback(
-    async (excerptId: string, nodeId: string) => {
-      if (!userId) {
-        return;
-      }
-      await moveExcerptToNode(userId, excerptId, nodeId);
-      setHoveredNodeId(null);
-      setSelectedNodeId(nodeId);
-      await refreshWorkspace();
-    },
-    [refreshWorkspace, setHoveredNodeId, setSelectedNodeId, userId]
-  );
-
   const handleMoveSibling = useCallback(
     async (nodeId: string, direction: "up" | "down") => {
       if (!userId) {
@@ -225,20 +210,16 @@ function KnowledgeTreeGraphInner() {
         onMoveSibling: handleMoveSibling,
         onRename: handleRename,
         onDelete: handleDelete,
-        onDropExcerpt: handleDropExcerpt,
-        onHoverNode: setHoveredNodeId,
       }),
     [
       expandedNodeIds,
       handleAddChild,
       handleAddSibling,
       handleDelete,
-      handleDropExcerpt,
       handleMoveSibling,
       handleRename,
       hoveredNodeId,
       selectedNodeId,
-      setHoveredNodeId,
       setSelectedNodeId,
       snapshot,
       toggleNodeExpanded,
