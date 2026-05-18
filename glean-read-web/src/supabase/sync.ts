@@ -1,0 +1,383 @@
+import { db } from "@/db/dexie";
+import { getCurrentSession } from "@/db/repositories/workspaceRepository";
+import { hasSupabaseConfig, supabase } from "@/supabase/client";
+import { advancePullCursor, isSelfEcho, shouldApplyRemoteChange } from "@/supabase/syncPolicy";
+import type {
+  Excerpt,
+  ExcerptTag,
+  KnowledgeTreeNode,
+  RemoteTableName,
+  SyncCursor,
+  Tag,
+} from "@/shared/models";
+import { createId, now } from "@/shared/utils";
+
+export interface SyncReport {
+  pushed: number;
+  pulled: number;
+  skipped: boolean;
+  message: string;
+}
+
+interface RemoteKnowledgeTreeNode {
+  id: string;
+  user_id: string;
+  parent_id: string | null;
+  node_title: string;
+  outline_markdown: string | null;
+  create_time: number;
+  update_time: number;
+  is_deleted: boolean;
+  device_id: string | null;
+  sort_order: number;
+}
+
+interface RemoteExcerpt {
+  id: string;
+  user_id: string;
+  content: string;
+  url: string | null;
+  source_title: string | null;
+  user_thought: string | null;
+  tree_node_id: string | null;
+  create_time: number;
+  update_time: number;
+  is_deleted: boolean;
+  device_id: string | null;
+}
+
+interface RemoteTag {
+  id: string;
+  user_id: string;
+  tag_name: string;
+  color_icon: string | null;
+  heat_weight: number;
+  create_time: number;
+  update_time: number;
+  is_deleted: boolean;
+  device_id: string | null;
+}
+
+interface RemoteExcerptTag {
+  id: string;
+  user_id: string;
+  excerpt_id: string;
+  tag_id: string;
+  create_time: number;
+  update_time: number;
+  is_deleted: boolean;
+  device_id: string | null;
+}
+
+interface Bridge {
+  tableName: RemoteTableName;
+  localTable: any;
+  toRemote: (item: any) => any;
+  fromRemote: (item: any) => any;
+}
+
+function getDeviceId(): string {
+  const key = "glean-read-web-device-id";
+  const existing = window.localStorage.getItem(key);
+  if (existing) {
+    return existing;
+  }
+  const next = createId("device");
+  window.localStorage.setItem(key, next);
+  return next;
+}
+
+function toSyncCursor(tableName: RemoteTableName, userId: string, lastPulledAt: number): SyncCursor {
+  return {
+    id: `${userId}:${tableName}`,
+    userId,
+    tableName,
+    lastPulledAt,
+    updateTime: now(),
+  };
+}
+
+async function loadSyncCursor(tableName: RemoteTableName, userId: string): Promise<SyncCursor> {
+  const id = `${userId}:${tableName}`;
+  const existing = await db.syncCursors.get(id);
+  if (existing) {
+    return existing;
+  }
+  const cursor = toSyncCursor(tableName, userId, 0);
+  await db.syncCursors.put(cursor);
+  return cursor;
+}
+
+async function saveSyncCursor(cursor: SyncCursor): Promise<void> {
+  await db.syncCursors.put(cursor);
+}
+
+async function pushBridge(bridge: Bridge, userId: string, deviceId: string): Promise<number> {
+  const client = supabase!;
+  const localRows = await bridge.localTable.where("userId").equals(userId).toArray();
+  const pending = (localRows as any[]).filter((item: any) => item.syncStatus !== "synced" || item.localDirtyTime !== null);
+  let pushed = 0;
+  for (const row of pending) {
+    const remoteRow = bridge.toRemote(row);
+    const { error } = await client.from(bridge.tableName).upsert(remoteRow, { onConflict: "id" });
+    if (error) {
+      await bridge.localTable.put({
+        ...row,
+        syncStatus: "failed",
+        syncError: error.message,
+        retryCount: row.retryCount + 1,
+      });
+      continue;
+    }
+    pushed += 1;
+    await bridge.localTable.put({
+      ...row,
+      deviceId,
+      syncStatus: "synced",
+      syncError: null,
+      retryCount: 0,
+      localDirtyTime: null,
+      lastSyncTime: now(),
+    });
+  }
+  return pushed;
+}
+
+async function pullBridge(
+  bridge: Bridge,
+  userId: string,
+  deviceId: string
+): Promise<number> {
+  const client = supabase!;
+  const cursor = await loadSyncCursor(bridge.tableName, userId);
+  const { data, error } = await client
+    .from(bridge.tableName)
+    .select("*")
+    .eq("user_id", userId)
+    .gte("update_time", cursor.lastPulledAt)
+    .order("update_time", { ascending: true });
+  if (error) {
+    throw new Error(error.message);
+  }
+  let pulled = 0;
+  let nextCursor = cursor.lastPulledAt;
+  for (const remoteRow of (data ?? []) as Array<{ update_time: number; device_id: string | null }>) {
+    nextCursor = advancePullCursor(nextCursor, remoteRow.update_time);
+    if (isSelfEcho(remoteRow.device_id, deviceId)) {
+      continue;
+    }
+    const localRow = bridge.fromRemote(remoteRow);
+    const existing = await bridge.localTable.get(localRow.id);
+    if (shouldApplyRemoteChange(existing, { updateTime: localRow.updateTime, deviceId: localRow.deviceId })) {
+      await bridge.localTable.put({
+        ...localRow,
+        syncStatus: "synced",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: null,
+        lastSyncTime: now(),
+      });
+      pulled += 1;
+    }
+  }
+  if (nextCursor !== cursor.lastPulledAt) {
+    await saveSyncCursor({ ...cursor, lastPulledAt: nextCursor, updateTime: now() });
+  }
+  return pulled;
+}
+
+const bridges: Bridge[] = [
+  {
+    tableName: "knowledge_tree_node",
+    localTable: db.nodes,
+    toRemote: (item: KnowledgeTreeNode): RemoteKnowledgeTreeNode => ({
+      id: item.id,
+      user_id: item.userId,
+      parent_id: item.parentId,
+      node_title: item.nodeTitle,
+      outline_markdown: item.outlineMarkdown || null,
+      create_time: item.createTime,
+      update_time: item.updateTime,
+      is_deleted: item.isDeleted,
+      device_id: item.deviceId,
+      sort_order: item.sortOrder,
+    }),
+    fromRemote: (item: RemoteKnowledgeTreeNode): KnowledgeTreeNode => ({
+      id: item.id,
+      userId: item.user_id,
+      parentId: item.parent_id,
+      nodeTitle: item.node_title,
+      outlineMarkdown: item.outline_markdown ?? "",
+      createTime: item.create_time,
+      updateTime: item.update_time,
+      isDeleted: item.is_deleted,
+      deviceId: item.device_id,
+      sortOrder: item.sort_order,
+      syncStatus: "synced",
+      syncError: null,
+      retryCount: 0,
+      localDirtyTime: null,
+      lastSyncTime: item.update_time,
+    }),
+  },
+  {
+    tableName: "excerpts",
+    localTable: db.excerpts,
+    toRemote: (item: Excerpt): RemoteExcerpt => ({
+      id: item.id,
+      user_id: item.userId,
+      content: item.content,
+      url: item.url,
+      source_title: item.sourceTitle,
+      user_thought: item.userThought,
+      tree_node_id: item.treeNodeId,
+      create_time: item.createTime,
+      update_time: item.updateTime,
+      is_deleted: item.isDeleted,
+      device_id: item.deviceId,
+    }),
+    fromRemote: (item: RemoteExcerpt): Excerpt => ({
+      id: item.id,
+      userId: item.user_id,
+      content: item.content,
+      url: item.url,
+      sourceTitle: item.source_title,
+      userThought: item.user_thought,
+      treeNodeId: item.tree_node_id,
+      createTime: item.create_time,
+      updateTime: item.update_time,
+      isDeleted: item.is_deleted,
+      deviceId: item.device_id,
+      syncStatus: "synced",
+      syncError: null,
+      retryCount: 0,
+      localDirtyTime: null,
+      lastSyncTime: item.update_time,
+    }),
+  },
+  {
+    tableName: "tags",
+    localTable: db.tags,
+    toRemote: (item: Tag): RemoteTag => ({
+      id: item.id,
+      user_id: item.userId,
+      tag_name: item.tagName,
+      color_icon: item.colorIcon,
+      heat_weight: item.heatWeight,
+      create_time: item.createTime,
+      update_time: item.updateTime,
+      is_deleted: item.isDeleted,
+      device_id: item.deviceId,
+    }),
+    fromRemote: (item: RemoteTag): Tag => ({
+      id: item.id,
+      userId: item.user_id,
+      tagName: item.tag_name,
+      colorIcon: item.color_icon,
+      heatWeight: item.heat_weight,
+      createTime: item.create_time,
+      updateTime: item.update_time,
+      isDeleted: item.is_deleted,
+      deviceId: item.device_id,
+      syncStatus: "synced",
+      syncError: null,
+      retryCount: 0,
+      localDirtyTime: null,
+      lastSyncTime: item.update_time,
+    }),
+  },
+  {
+    tableName: "excerpt_tags",
+    localTable: db.excerptTags,
+    toRemote: (item: ExcerptTag): RemoteExcerptTag => ({
+      id: item.id,
+      user_id: item.userId,
+      excerpt_id: item.excerptId,
+      tag_id: item.tagId,
+      create_time: item.createTime,
+      update_time: item.updateTime,
+      is_deleted: item.isDeleted,
+      device_id: item.deviceId,
+    }),
+    fromRemote: (item: RemoteExcerptTag): ExcerptTag => ({
+      id: item.id,
+      userId: item.user_id,
+      excerptId: item.excerpt_id,
+      tagId: item.tag_id,
+      createTime: item.create_time,
+      updateTime: item.update_time,
+      isDeleted: item.is_deleted,
+      deviceId: item.device_id,
+      syncStatus: "synced",
+      syncError: null,
+      retryCount: 0,
+      localDirtyTime: null,
+      lastSyncTime: item.update_time,
+    }),
+  },
+];
+
+export async function runSyncOnce(): Promise<SyncReport> {
+  const session = await getCurrentSession();
+  if (!session) {
+    return { pushed: 0, pulled: 0, skipped: true, message: "未登录，已跳过云同步。" };
+  }
+  if (!hasSupabaseConfig || !supabase || session.provider !== "supabase") {
+    return {
+      pushed: 0,
+      pulled: 0,
+      skipped: true,
+      message: "当前运行在本地优先模式。",
+    };
+  }
+
+  const deviceId = getDeviceId();
+  let pushed = 0;
+  let pulled = 0;
+  for (const bridge of bridges) {
+    pushed += await pushBridge(bridge, session.userId, deviceId);
+  }
+  for (const bridge of bridges) {
+    pulled += await pullBridge(bridge, session.userId, deviceId);
+  }
+  return {
+    pushed,
+    pulled,
+    skipped: false,
+    message: `同步完成：上行 ${pushed} 条，下行 ${pulled} 条。`,
+  };
+}
+
+export function subscribeToRemoteChanges(onInvalidate: () => void): () => void {
+  if (!hasSupabaseConfig || !supabase) {
+    return () => undefined;
+  }
+  const client = supabase;
+  const deviceId = getDeviceId();
+  const channels = bridges.map((bridge) =>
+    client
+      .channel(`glean-read:${bridge.tableName}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: bridge.tableName,
+        },
+        (payload) => {
+          const row = (payload.new ?? payload.old) as { device_id?: string | null } | null;
+          if (!row || row.device_id === deviceId) {
+            return;
+          }
+          onInvalidate();
+        }
+      )
+      .subscribe()
+  );
+
+  return () => {
+    for (const channel of channels) {
+      void client.removeChannel(channel);
+    }
+  };
+}

@@ -1,0 +1,172 @@
+import type { AuthSession } from "@/shared/models";
+import { createId } from "@/shared/utils";
+import { ensureSessionSeed, getCurrentSession, setCurrentSession } from "@/db/repositories/workspaceRepository";
+import { hasSupabaseConfig, supabase } from "@/supabase/client";
+
+export type OAuthProvider = "google" | "github";
+
+export interface LoginPayload {
+  email: string;
+  password: string;
+}
+
+export interface SignupPayload extends LoginPayload {
+  confirmPassword: string;
+}
+
+export async function loadSession(): Promise<AuthSession | null> {
+  if (hasSupabaseConfig && supabase) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) {
+      return {
+        userId: data.session.user.id,
+        email: data.session.user.email ?? "user@example.com",
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        provider: "supabase",
+      };
+    }
+  }
+  return getCurrentSession();
+}
+
+export async function signIn(payload: LoginPayload): Promise<AuthSession> {
+  if (hasSupabaseConfig && supabase) {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: payload.email,
+      password: payload.password,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (!data.session?.user) {
+      throw new Error("未能获取 Supabase 会话。");
+    }
+    const session: AuthSession = {
+      userId: data.session.user.id,
+      email: data.session.user.email ?? payload.email,
+      accessToken: data.session.access_token,
+      refreshToken: data.session.refresh_token,
+      provider: "supabase",
+    };
+    await ensureSessionSeed(session);
+    return session;
+  }
+
+  const session: AuthSession = {
+    userId: `local-${payload.email.toLowerCase().replace(/[^a-z0-9]+/g, "-") || createId("user")}`,
+    email: payload.email,
+    provider: "local",
+  };
+  await ensureSessionSeed(session);
+  return session;
+}
+
+export async function signUp(payload: SignupPayload): Promise<AuthSession> {
+  if (payload.password !== payload.confirmPassword) {
+    throw new Error("两次输入的密码不一致。");
+  }
+  if (hasSupabaseConfig && supabase) {
+    const { data, error } = await supabase.auth.signUp({
+      email: payload.email,
+      password: payload.password,
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (data.session?.user) {
+      const session: AuthSession = {
+        userId: data.session.user.id,
+        email: data.session.user.email ?? payload.email,
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        provider: "supabase",
+      };
+      await ensureSessionSeed(session);
+      return session;
+    }
+  }
+
+  const session: AuthSession = {
+    userId: `local-${payload.email.toLowerCase().replace(/[^a-z0-9]+/g, "-") || createId("user")}`,
+    email: payload.email,
+    provider: "local",
+  };
+  await ensureSessionSeed(session);
+  return session;
+}
+
+export async function sendMagicLink(email: string): Promise<void> {
+  if (hasSupabaseConfig && supabase) {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo },
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    return;
+  }
+  const session: AuthSession = {
+    userId: `local-${email.toLowerCase().replace(/[^a-z0-9]+/g, "-") || createId("user")}`,
+    email,
+    provider: "local",
+  };
+  await ensureSessionSeed(session);
+}
+
+export async function signInWithOAuth(provider: OAuthProvider): Promise<void> {
+  if (hasSupabaseConfig && supabase) {
+    const redirectTo = `${window.location.origin}/auth/callback`;
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo,
+      },
+    });
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (data.url) {
+      window.location.assign(data.url);
+      return;
+    }
+    throw new Error("未能获得 OAuth 跳转地址。");
+  }
+
+  const session: AuthSession = {
+    userId: `local-${provider}-${createId("user")}`,
+    email: `${provider}@gleanread.local`,
+    provider: "local",
+  };
+  await ensureSessionSeed(session);
+}
+
+export async function completeCallback(): Promise<AuthSession | null> {
+  if (hasSupabaseConfig && supabase) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (data.session?.user) {
+      const session: AuthSession = {
+        userId: data.session.user.id,
+        email: data.session.user.email ?? "user@example.com",
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        provider: "supabase",
+      };
+      await ensureSessionSeed(session);
+      return session;
+    }
+  }
+  return getCurrentSession();
+}
+
+export async function signOut(): Promise<void> {
+  if (hasSupabaseConfig && supabase) {
+    await supabase.auth.signOut();
+  }
+  await setCurrentSession(null);
+}

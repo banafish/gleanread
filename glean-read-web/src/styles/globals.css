@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --app-bg: 249 250 251;
+  --app-surface: 255 255 255;
+  --app-surface-2: 243 244 246;
+  --app-border: 226 232 240;
+  --app-text: 15 23 42;
+  --app-muted: 71 85 105;
+  --app-accent: 59 130 246;
+  --app-accent-2: 14 165 233;
+  --app-danger: 220 38 38;
+  --app-success: 16 185 129;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: 17 24 39;
+  --app-surface: 31 41 55;
+  --app-surface-2: 55 65 81;
+  --app-border: 75 85 99;
+  --app-text: 243 244 246;
+  --app-muted: 203 213 225;
+  --app-accent: 96 165 250;
+  --app-accent-2: 56 189 248;
+  --app-danger: 248 113 113;
+  --app-success: 52 211 153;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--app-bg));
+  color: rgb(var(--app-text));
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgb(var(--app-accent) / 0.28);
+}
