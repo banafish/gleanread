@@ -119,11 +119,62 @@ export async function createChildNode(userId: string, parentId: string | null, t
 }
 
 export async function createSiblingNode(userId: string, nodeId: string, title: string): Promise<KnowledgeTreeNode | null> {
-  const node = await db.nodes.get(nodeId);
-  if (!node) {
+  const snapshot = await getWorkspaceSnapshot(userId);
+  const sourceNode = snapshot.nodes.find((item) => item.id === nodeId && item.userId === userId);
+  if (!sourceNode) {
     return null;
   }
-  return createChildNode(userId, node.parentId, title);
+  const timestamp = now();
+  const node: KnowledgeTreeNode = {
+    id: createId("node"),
+    userId,
+    parentId: sourceNode.parentId,
+    nodeTitle: title.trim(),
+    outlineMarkdown: "",
+    createTime: timestamp,
+    updateTime: timestamp,
+    isDeleted: false,
+    deviceId: DEVICE_ID,
+    sortOrder: sourceNode.sortOrder + SORT_ORDER_STEP,
+    syncStatus: "pending",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: timestamp,
+    lastSyncTime: null,
+  };
+  const siblings = sortByOrderAndTime(snapshot.nodes.filter((item) => item.parentId === sourceNode.parentId));
+  const currentIndex = siblings.findIndex((item) => item.id === sourceNode.id);
+  const nextOrder = [...siblings];
+  nextOrder.splice(currentIndex + 1, 0, node);
+
+  await db.transaction("rw", db.nodes, async () => {
+    for (let index = 0; index < nextOrder.length; index += 1) {
+      const sibling = nextOrder[index];
+      const sortOrder = (index + 1) * SORT_ORDER_STEP;
+      if (sibling.id === node.id) {
+        await db.nodes.add({ ...node, sortOrder });
+        continue;
+      }
+      if (sibling.sortOrder === sortOrder) {
+        continue;
+      }
+      const row = await db.nodes.get(sibling.id);
+      if (!row) {
+        continue;
+      }
+      await db.nodes.put({
+        ...row,
+        sortOrder,
+        updateTime: timestamp,
+        deviceId: DEVICE_ID,
+        syncStatus: "pending",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: timestamp,
+      });
+    }
+  });
+  return node;
 }
 
 export async function moveNode(userId: string, nodeId: string, targetParentId: string | null): Promise<void> {
@@ -148,6 +199,52 @@ export async function moveNode(userId: string, nodeId: string, targetParentId: s
     retryCount: 0,
     localDirtyTime: now(),
   });
+}
+
+export async function moveNodeToPosition(
+  userId: string,
+  nodeId: string,
+  targetParentId: string | null,
+  targetIndex: number
+): Promise<boolean> {
+  const snapshot = await getWorkspaceSnapshot(userId);
+  const node = snapshot.nodes.find((item) => item.id === nodeId && item.userId === userId);
+  if (!node || targetParentId === node.id || (targetParentId && isDescendant(snapshot.nodes, node.id, targetParentId))) {
+    return false;
+  }
+
+  const siblings = sortByOrderAndTime(snapshot.nodes.filter((item) => item.parentId === targetParentId && item.id !== nodeId));
+  const boundedIndex = Math.max(0, Math.min(targetIndex, siblings.length));
+  const nextOrder = [...siblings];
+  nextOrder.splice(boundedIndex, 0, { ...node, parentId: targetParentId });
+  const timestamp = now();
+
+  await db.transaction("rw", db.nodes, async () => {
+    for (let index = 0; index < nextOrder.length; index += 1) {
+      const sibling = nextOrder[index];
+      const row = sibling.id === node.id ? node : await db.nodes.get(sibling.id);
+      if (!row) {
+        continue;
+      }
+      const sortOrder = (index + 1) * SORT_ORDER_STEP;
+      if (row.parentId === targetParentId && row.sortOrder === sortOrder) {
+        continue;
+      }
+      await db.nodes.put({
+        ...row,
+        parentId: targetParentId,
+        sortOrder,
+        updateTime: timestamp,
+        deviceId: DEVICE_ID,
+        syncStatus: "pending",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: timestamp,
+      });
+    }
+  });
+
+  return true;
 }
 
 export async function reorderNodeSibling(userId: string, nodeId: string, direction: "up" | "down"): Promise<void> {

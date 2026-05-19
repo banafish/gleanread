@@ -12,6 +12,12 @@ import type {
 } from "@/shared/models";
 import type { WorkspaceSnapshot } from "@/shared/models";
 import { getPreference, savePreference } from "@/db/repositories/workspaceRepository";
+import type { TreeNodeDropIntent } from "@/features/workbench/dnd";
+
+export interface NodeDropPreviewState {
+  nodeId: string;
+  intent: TreeNodeDropIntent;
+}
 
 export interface WorkbenchState extends WorkbenchViewState {
   userId: string | null;
@@ -22,6 +28,8 @@ export interface WorkbenchState extends WorkbenchViewState {
   tags: Tag[];
   excerptTags: ExcerptTag[];
   recentSearches: RecentSearch[];
+  draggedNodeId: string | null;
+  nodeDropPreview: NodeDropPreviewState | null;
   hydrateWorkspace: (userId: string, snapshot: WorkspaceSnapshot) => void;
   setUserId: (userId: string | null) => void;
   setLoading: (value: boolean) => void;
@@ -38,6 +46,9 @@ export interface WorkbenchState extends WorkbenchViewState {
   setRightPanelWidth: (value: number) => void;
   setViewport: (value: WorkbenchViewState["viewport"]) => void;
   setHoveredNodeId: (value: string | null) => void;
+  setDraggedNodeId: (value: string | null) => void;
+  setNodeDropPreview: (value: NodeDropPreviewState | null) => void;
+  setNodeExpanded: (nodeId: string, expanded: boolean) => void;
   toggleNodeExpanded: (nodeId: string) => void;
   replaceData: (snapshot: WorkspaceSnapshot) => void;
   addRecentSearch: (query: string) => void;
@@ -75,6 +86,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       excerpts: [],
       tags: [],
       excerptTags: [],
+      draggedNodeId: null,
+      nodeDropPreview: null,
       ...initialUiState,
       hydrateWorkspace: (userId, snapshot) => {
         const expandedNodeIds = Object.keys(get().expandedNodeIds).length
@@ -122,6 +135,15 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setRightPanelWidth: (value) => set({ rightPanelWidth: value }),
       setViewport: (value) => set({ viewport: value }),
       setHoveredNodeId: (value) => set({ hoveredNodeId: value }),
+      setDraggedNodeId: (value) => set({ draggedNodeId: value }),
+      setNodeDropPreview: (value) => set({ nodeDropPreview: value }),
+      setNodeExpanded: (nodeId, expanded) =>
+        set((state) => ({
+          expandedNodeIds: {
+            ...state.expandedNodeIds,
+            [nodeId]: expanded,
+          },
+        })),
       toggleNodeExpanded: (nodeId) =>
         set((state) => ({
           expandedNodeIds: {
@@ -221,6 +243,8 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           tags: [],
           excerptTags: [],
           recentSearches: [],
+          draggedNodeId: null,
+          nodeDropPreview: null,
           userId: null,
         }),
     }),

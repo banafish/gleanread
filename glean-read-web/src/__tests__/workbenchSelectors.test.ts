@@ -12,6 +12,14 @@ import {
   getTrashTags,
   searchWorkspace,
 } from "../features/workbench/workbenchSelectors.ts";
+import {
+  getFirstChildNavigationTarget,
+  getParentNavigationTarget,
+  getSiblingNavigationTarget,
+  resolveTreeNodeDropPlacement,
+} from "../features/knowledge-tree/treeInteractions.ts";
+
+const VIRTUAL_ROOT_ID = "__virtual_root__";
 
 test("挂载摘录后会离开收件箱并增加目标节点计数", () => {
   const beforeInbox = getInboxExcerpts(previewSnapshot, "inbox");
@@ -38,6 +46,10 @@ test("知识树默认展示第一层并按展开状态显示深层节点", () =>
 
   const expanded = getNodeViewModels(previewSnapshot, { "node-state": true });
   assert.ok(expanded.some((node) => node.id === "node-offline"));
+
+  const explicitlyCollapsed = getNodeViewModels(previewSnapshot, { "node-product": false });
+  assert.ok(explicitlyCollapsed.some((node) => node.id === "node-product"));
+  assert.equal(explicitlyCollapsed.some((node) => node.id === "node-build"), false);
 });
 
 test("知识树同级节点按 sort_order 排序", () => {
@@ -57,6 +69,27 @@ test("知识树同级节点按 sort_order 排序", () => {
   const viewModels = getNodeViewModels(reorderedSnapshot, { "node-product": true });
   const childIds = viewModels.filter((node) => node.parentId === "node-product").map((node) => node.id);
   assert.deepEqual(childIds, ["node-state", "node-build"]);
+});
+
+test("knowledge tree arrow navigation follows parent child and sibling relationships", () => {
+  assert.equal(getParentNavigationTarget(previewSnapshot.nodes, "node-offline"), "node-state");
+  assert.equal(getFirstChildNavigationTarget(previewSnapshot.nodes, "node-product"), "node-build");
+  assert.equal(getSiblingNavigationTarget(previewSnapshot.nodes, "node-build", "down"), "node-state");
+  assert.equal(getSiblingNavigationTarget(previewSnapshot.nodes, "node-build", "up"), null);
+});
+
+test("knowledge tree drag placement resolves parent and order and rejects cycles", () => {
+  assert.deepEqual(resolveTreeNodeDropPlacement(previewSnapshot.nodes, "node-build", "node-state", "after", VIRTUAL_ROOT_ID), {
+    parentId: "node-product",
+    index: 1,
+    expandParentId: "node-product",
+  });
+  assert.deepEqual(resolveTreeNodeDropPlacement(previewSnapshot.nodes, "node-build", "node-state", "inside", VIRTUAL_ROOT_ID), {
+    parentId: "node-state",
+    index: 1,
+    expandParentId: "node-state",
+  });
+  assert.equal(resolveTreeNodeDropPlacement(previewSnapshot.nodes, "node-product", "node-offline", "inside", VIRTUAL_ROOT_ID), null);
 });
 
 test("标签搜索能够定位到关联摘录和节点", () => {

@@ -64,7 +64,9 @@ export function getNodeViewModels(snapshot: WorkspaceSnapshot, expandedNodeIds: 
 
   const visit = (node: KnowledgeTreeNode, depth: number): void => {
     const childNodes = childrenByParent.get(node.id) ?? [];
-    const isExpanded = Boolean(expandedNodeIds[node.id]) || depth <= 1;
+    const isExpanded = Object.prototype.hasOwnProperty.call(expandedNodeIds, node.id)
+      ? Boolean(expandedNodeIds[node.id])
+      : depth <= 1;
     result.push({
       id: node.id,
       parentId: node.parentId,

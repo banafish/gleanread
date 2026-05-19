@@ -102,13 +102,14 @@ function NodeCardPreview() {
       buildKnowledgeGraph(previewSnapshot, { "node-product": true, "node-state": true }, {
         selectedNodeId: "node-offline",
         hoveredNodeId: "node-offline",
+        editingNodeId: null,
+        draggedNodeId: null,
+        nodeDropPreview: null,
         onSelect: () => undefined,
         onToggleExpanded: () => undefined,
-        onAddChild: () => undefined,
-        onAddSibling: () => undefined,
-        onMoveSibling: () => undefined,
-        onRename: () => undefined,
-        onDelete: () => undefined,
+        onStartEditing: () => undefined,
+        onCancelEditing: () => undefined,
+        onCommitTitle: () => undefined,
       }),
     []
   );

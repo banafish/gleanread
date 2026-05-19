@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -10,30 +10,20 @@ import ReactFlow, {
   type NodeTypes,
   type Viewport,
 } from "reactflow";
-import {
-  createChildNode,
-  createSiblingNode,
-  deleteNodeSubtree,
-  renameNode,
-  reorderNodeSibling,
-} from "@/db/repositories/workspaceRepository";
+import { createChildNode, createSiblingNode, deleteNodeSubtree, renameNode } from "@/db/repositories/workspaceRepository";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { buildKnowledgeGraph, VIRTUAL_ROOT_ID } from "@/features/knowledge-tree/treeAdapters";
+import {
+  getFirstChildNavigationTarget,
+  getParentNavigationTarget,
+  getSiblingNavigationTarget,
+} from "@/features/knowledge-tree/treeInteractions";
 import { KnowledgeTreeEdge } from "@/features/knowledge-tree/components/KnowledgeTreeEdge";
 import { TreeNodeCard } from "@/features/knowledge-tree/components/TreeNodeCard";
 import type { WorkspaceSnapshot } from "@/shared/models";
 
-const nodeTypes: NodeTypes = {
-  knowledgeTreeNode: TreeNodeCard,
-};
-
-const edgeTypes: EdgeTypes = {
-  knowledgeTreeEdge: KnowledgeTreeEdge,
-};
-
-const FOCUS_NODE_WIDTH = 500;
-const FOCUS_NODE_HEIGHT = 112;
+const NEW_NODE_TITLE = "新节点";
 
 function shouldSkipHotkeys(event: KeyboardEvent): boolean {
   const target = event.target as HTMLElement | null;
@@ -45,13 +35,13 @@ function shouldSkipHotkeys(event: KeyboardEvent): boolean {
 }
 
 function GraphViewportController({
-  selectedNodeId,
+  onViewportChange,
   visibleNodeIds,
 }: {
-  selectedNodeId: string | null;
+  onViewportChange: (viewport: Viewport) => void;
   visibleNodeIds: string[];
 }) {
-  const { fitView, getNode, setCenter } = useReactFlow();
+  const { fitView, getViewport } = useReactFlow();
   const didInitialFit = useRef(false);
 
   useEffect(() => {
@@ -59,30 +49,20 @@ function GraphViewportController({
       return;
     }
     didInitialFit.current = true;
+    let timeoutId: number | null = null;
     const frame = requestAnimationFrame(() => {
       void fitView({ padding: 0.2, duration: 240 });
+      timeoutId = window.setTimeout(() => {
+        onViewportChange(getViewport());
+      }, 260);
     });
-    return () => cancelAnimationFrame(frame);
-  }, [fitView, visibleNodeIds.length]);
-
-  useEffect(() => {
-    if (!selectedNodeId) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      const node = getNode(selectedNodeId);
-      if (!node) {
-        return;
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
       }
-      const width = node.width ?? FOCUS_NODE_WIDTH;
-      const height = node.height ?? FOCUS_NODE_HEIGHT;
-      setCenter(node.position.x + width / 2, node.position.y + height / 2, {
-        zoom: 0.92,
-        duration: 240,
-      });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [getNode, selectedNodeId, setCenter, visibleNodeIds]);
+    };
+  }, [fitView, getViewport, onViewportChange, visibleNodeIds.length]);
 
   return null;
 }
@@ -98,76 +78,78 @@ function KnowledgeTreeGraphInner() {
   const selectedNodeId = useWorkbenchStore((state) => state.selectedNodeId);
   const expandedNodeIds = useWorkbenchStore((state) => state.expandedNodeIds);
   const hoveredNodeId = useWorkbenchStore((state) => state.hoveredNodeId);
+  const draggedNodeId = useWorkbenchStore((state) => state.draggedNodeId);
+  const nodeDropPreview = useWorkbenchStore((state) => state.nodeDropPreview);
   const viewport = useWorkbenchStore((state) => state.viewport);
   const searchOpen = useWorkbenchStore((state) => state.searchOpen);
   const drawerOpen = useWorkbenchStore((state) => state.drawerOpen);
   const setSelectedNodeId = useWorkbenchStore((state) => state.setSelectedNodeId);
   const setDrawerOpen = useWorkbenchStore((state) => state.setDrawerOpen);
   const toggleNodeExpanded = useWorkbenchStore((state) => state.toggleNodeExpanded);
+  const setNodeExpanded = useWorkbenchStore((state) => state.setNodeExpanded);
   const setViewport = useWorkbenchStore((state) => state.setViewport);
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null);
+  const createPendingRef = useRef(false);
+  const nodeTypes = useMemo<NodeTypes>(() => ({ knowledgeTreeNode: TreeNodeCard }), []);
+  const edgeTypes = useMemo<EdgeTypes>(() => ({ knowledgeTreeEdge: KnowledgeTreeEdge }), []);
 
   const snapshot = useMemo<WorkspaceSnapshot>(
     () => ({ nodes, excerpts, tags, excerptTags, recentSearches }),
     [excerptTags, excerpts, nodes, recentSearches, tags]
   );
 
-  const promptTitle = useCallback((fallback: string): string | null => {
-    const value = window.prompt("节点标题", fallback);
-    const title = value?.trim();
-    return title ? title : null;
-  }, []);
-
   const handleAddChild = useCallback(
     async (parentId: string | null) => {
-      if (!userId) {
+      if (!userId || createPendingRef.current) {
         return;
       }
-      const title = promptTitle("新节点");
-      if (!title) {
-        return;
+      createPendingRef.current = true;
+      try {
+        const node = await createChildNode(userId, parentId, NEW_NODE_TITLE);
+        if (parentId) {
+          setNodeExpanded(parentId, true);
+        }
+        await refreshWorkspace();
+        setSelectedNodeId(node.id);
+        setEditingNodeId(node.id);
+      } finally {
+        createPendingRef.current = false;
       }
-      const node = await createChildNode(userId, parentId, title);
-      if (parentId && !useWorkbenchStore.getState().expandedNodeIds[parentId]) {
-        useWorkbenchStore.getState().toggleNodeExpanded(parentId);
-      }
-      await refreshWorkspace();
-      setSelectedNodeId(node.id);
     },
-    [promptTitle, refreshWorkspace, setSelectedNodeId, userId]
+    [refreshWorkspace, setNodeExpanded, setSelectedNodeId, userId]
   );
 
   const handleAddSibling = useCallback(
     async (nodeId: string) => {
-      if (!userId) {
+      if (!userId || createPendingRef.current) {
         return;
       }
-      const title = promptTitle("同级节点");
-      if (!title) {
-        return;
-      }
-      const node = await createSiblingNode(userId, nodeId, title);
-      await refreshWorkspace();
-      if (node) {
-        setSelectedNodeId(node.id);
+      createPendingRef.current = true;
+      try {
+        const node = await createSiblingNode(userId, nodeId, NEW_NODE_TITLE);
+        await refreshWorkspace();
+        if (node) {
+          setSelectedNodeId(node.id);
+          setEditingNodeId(node.id);
+        }
+      } finally {
+        createPendingRef.current = false;
       }
     },
-    [promptTitle, refreshWorkspace, setSelectedNodeId, userId]
+    [refreshWorkspace, setSelectedNodeId, userId]
   );
 
-  const handleRename = useCallback(
-    async (nodeId: string) => {
+  const handleCommitTitle = useCallback(
+    async (nodeId: string, title: string) => {
       if (!userId) {
-        return;
-      }
-      const node = nodes.find((item) => item.id === nodeId);
-      const title = promptTitle(node?.nodeTitle ?? "节点");
-      if (!title) {
         return;
       }
       await renameNode(userId, nodeId, title);
       await refreshWorkspace();
+      setEditingNodeId(null);
+      setSelectedNodeId(nodeId);
     },
-    [nodes, promptTitle, refreshWorkspace, userId]
+    [refreshWorkspace, setSelectedNodeId, userId]
   );
 
   const handleDelete = useCallback(
@@ -176,27 +158,12 @@ function KnowledgeTreeGraphInner() {
         return;
       }
       const node = nodes.find((item) => item.id === nodeId);
-      const confirmed = window.confirm(`确认删除「${node?.nodeTitle ?? "该节点"}」及其子节点吗？`);
-      if (!confirmed) {
-        return;
-      }
       await deleteNodeSubtree(userId, nodeId);
       await refreshWorkspace();
+      setEditingNodeId(null);
       setSelectedNodeId(node?.parentId ?? null);
     },
     [nodes, refreshWorkspace, setSelectedNodeId, userId]
-  );
-
-  const handleMoveSibling = useCallback(
-    async (nodeId: string, direction: "up" | "down") => {
-      if (!userId) {
-        return;
-      }
-      await reorderNodeSibling(userId, nodeId, direction);
-      await refreshWorkspace();
-      setSelectedNodeId(nodeId);
-    },
-    [refreshWorkspace, setSelectedNodeId, userId]
   );
 
   const graphData = useMemo(
@@ -204,6 +171,9 @@ function KnowledgeTreeGraphInner() {
       buildKnowledgeGraph(snapshot, expandedNodeIds, {
         selectedNodeId,
         hoveredNodeId,
+        editingNodeId,
+        draggedNodeId,
+        nodeDropPreview,
         onSelect: (nodeId) => {
           if (nodeId !== VIRTUAL_ROOT_ID) {
             setSelectedNodeId(nodeId);
@@ -214,26 +184,53 @@ function KnowledgeTreeGraphInner() {
             toggleNodeExpanded(nodeId);
           }
         },
-        onAddChild: handleAddChild,
-        onAddSibling: handleAddSibling,
-        onMoveSibling: handleMoveSibling,
-        onRename: handleRename,
-        onDelete: handleDelete,
+        onStartEditing: (nodeId) => setEditingNodeId(nodeId),
+        onCancelEditing: () => setEditingNodeId(null),
+        onCommitTitle: (nodeId, title) => {
+          void handleCommitTitle(nodeId, title);
+        },
       }),
     [
+      draggedNodeId,
+      editingNodeId,
       expandedNodeIds,
-      handleAddChild,
-      handleAddSibling,
-      handleDelete,
-      handleMoveSibling,
-      handleRename,
+      handleCommitTitle,
       hoveredNodeId,
+      nodeDropPreview,
       selectedNodeId,
       setSelectedNodeId,
       snapshot,
       toggleNodeExpanded,
     ]
   );
+
+  useLayoutEffect(() => {
+    if (!editingNodeId) {
+      return;
+    }
+    let attempts = 0;
+    const focusEditor = () => {
+      const input = document.querySelector<HTMLInputElement>(`[data-node-edit-input="${editingNodeId}"]`);
+      input?.focus();
+      input?.select();
+      if (input && document.activeElement === input) {
+        return true;
+      }
+      return false;
+    };
+    const frame = requestAnimationFrame(focusEditor);
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (focusEditor() || attempts >= 20) {
+        window.clearInterval(timer);
+      }
+    }, 25);
+    void focusEditor();
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearInterval(timer);
+    };
+  }, [editingNodeId, graphData.nodes]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -242,21 +239,26 @@ function KnowledgeTreeGraphInner() {
       }
 
       const selected = useWorkbenchStore.getState().selectedNodeId;
-      const currentIndex = selected ? graphData.visibleNodeIds.indexOf(selected) : -1;
-      const selectByIndex = (index: number) => {
-        const nextId = graphData.visibleNodeIds[index];
+      const selectIfPresent = (nextId: string | null) => {
         if (nextId) {
           setSelectedNodeId(nextId);
+        }
+      };
+      const blurActiveElement = () => {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
         }
       };
 
       if (event.key === "Tab") {
         event.preventDefault();
+        blurActiveElement();
         void handleAddChild(selected ?? null);
         return;
       }
       if (event.key === "Enter") {
         event.preventDefault();
+        blurActiveElement();
         if (selected) {
           void handleAddSibling(selected);
         } else {
@@ -264,9 +266,11 @@ function KnowledgeTreeGraphInner() {
         }
         return;
       }
-      if (event.shiftKey && selected && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
-        event.preventDefault();
-        void handleMoveSibling(selected, event.key === "ArrowUp" ? "up" : "down");
+      if (event.key === "Delete" || event.key === "Backspace") {
+        if (selected) {
+          event.preventDefault();
+          void handleDelete(selected);
+        }
         return;
       }
       if (event.key === " ") {
@@ -274,14 +278,26 @@ function KnowledgeTreeGraphInner() {
         setDrawerOpen(!drawerOpen);
         return;
       }
-      if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
-        event.preventDefault();
-        selectByIndex(Math.max(0, currentIndex - 1));
+      if (!selected) {
         return;
       }
-      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      if (event.key === "ArrowLeft") {
         event.preventDefault();
-        selectByIndex(Math.min(graphData.visibleNodeIds.length - 1, currentIndex + 1));
+        selectIfPresent(getParentNavigationTarget(nodes, selected));
+        return;
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        const childId = getFirstChildNavigationTarget(nodes, selected);
+        if (childId) {
+          setNodeExpanded(selected, true);
+          setSelectedNodeId(childId);
+        }
+        return;
+      }
+      if (event.key === "ArrowUp" || event.key === "ArrowDown") {
+        event.preventDefault();
+        selectIfPresent(getSiblingNavigationTarget(nodes, selected, event.key === "ArrowUp" ? "up" : "down"));
       }
     };
 
@@ -289,12 +305,13 @@ function KnowledgeTreeGraphInner() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [
     drawerOpen,
-    graphData.visibleNodeIds,
     handleAddChild,
     handleAddSibling,
-    handleMoveSibling,
+    handleDelete,
+    nodes,
     searchOpen,
     setDrawerOpen,
+    setNodeExpanded,
     setSelectedNodeId,
   ]);
 
@@ -313,7 +330,13 @@ function KnowledgeTreeGraphInner() {
         nodesDraggable={false}
         zoomOnScroll
         panOnScroll
-        panOnDrag
+        panOnDrag={!draggedNodeId}
+        onNodeDoubleClick={(_, node) => {
+          if (node.id !== VIRTUAL_ROOT_ID) {
+            setSelectedNodeId(node.id);
+            setEditingNodeId(node.id);
+          }
+        }}
         onMoveEnd={(_, nextViewport: Viewport) => setViewport(nextViewport)}
       >
         <Background color="var(--knowledge-dot-color)" gap={56} size={1.5} variant={BackgroundVariant.Dots} />
@@ -326,7 +349,7 @@ function KnowledgeTreeGraphInner() {
           maskColor="rgb(var(--app-bg) / 0.64)"
         />
         <Controls className="!rounded-panel !border !border-app-border !bg-app-surface !shadow-panel" />
-        <GraphViewportController selectedNodeId={selectedNodeId} visibleNodeIds={graphData.visibleNodeIds} />
+        <GraphViewportController onViewportChange={setViewport} visibleNodeIds={graphData.visibleNodeIds} />
       </ReactFlow>
     </div>
   );
