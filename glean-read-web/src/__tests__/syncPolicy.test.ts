@@ -8,11 +8,11 @@ test("同步策略会过滤当前设备产生的 Realtime 回音", () => {
   assert.equal(isSelfEcho(null, "device-a"), false);
 });
 
-test("远端增量只覆盖本地旧数据或已同步数据", () => {
+test("远端增量只覆盖本地旧数据", () => {
   assert.equal(shouldApplyRemoteChange(undefined, { updateTime: 20, deviceId: "device-b" }), true);
   assert.equal(shouldApplyRemoteChange({ updateTime: 10, syncStatus: "pending" }, { updateTime: 20, deviceId: "device-b" }), true);
   assert.equal(shouldApplyRemoteChange({ updateTime: 30, syncStatus: "pending" }, { updateTime: 20, deviceId: "device-b" }), false);
-  assert.equal(shouldApplyRemoteChange({ updateTime: 30, syncStatus: "synced" }, { updateTime: 20, deviceId: "device-b" }), true);
+  assert.equal(shouldApplyRemoteChange({ updateTime: 30, syncStatus: "synced" }, { updateTime: 20, deviceId: "device-b" }), false);
 });
 
 test("拉取游标始终前进到最大 update_time", () => {

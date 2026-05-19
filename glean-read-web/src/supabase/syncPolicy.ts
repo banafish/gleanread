@@ -18,7 +18,7 @@ export function shouldApplyRemoteChange(existing: LocalSyncProbe | undefined, re
   if (!existing) {
     return true;
   }
-  return existing.updateTime <= remote.updateTime || existing.syncStatus === "synced";
+  return existing.updateTime <= remote.updateTime;
 }
 
 export function advancePullCursor(currentCursor: number, remoteUpdateTime: number): number {

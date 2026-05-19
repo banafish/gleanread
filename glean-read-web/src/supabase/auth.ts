@@ -1,3 +1,4 @@
+import type { Session } from "@supabase/supabase-js";
 import type { AuthSession } from "@/shared/models";
 import { createId } from "@/shared/utils";
 import { ensureSessionSeed, getCurrentSession, setCurrentSession } from "@/db/repositories/workspaceRepository";
@@ -14,18 +15,35 @@ export interface SignupPayload extends LoginPayload {
   confirmPassword: string;
 }
 
+function toAuthSession(session: Session, fallbackEmail = "user@example.com"): AuthSession {
+  return {
+    userId: session.user.id,
+    email: session.user.email ?? fallbackEmail,
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    provider: "supabase",
+  };
+}
+
+async function persistSupabaseSession(session: Session, fallbackEmail?: string): Promise<AuthSession> {
+  const authSession = toAuthSession(session, fallbackEmail);
+  await ensureSessionSeed(authSession);
+  return authSession;
+}
+
 export async function loadSession(): Promise<AuthSession | null> {
   if (hasSupabaseConfig && supabase) {
     const { data } = await supabase.auth.getSession();
     if (data.session?.user) {
-      return {
-        userId: data.session.user.id,
-        email: data.session.user.email ?? "user@example.com",
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        provider: "supabase",
-      };
+      return persistSupabaseSession(data.session);
     }
+
+    const storedSession = await getCurrentSession();
+    if (storedSession?.provider === "supabase") {
+      await setCurrentSession(null);
+      return null;
+    }
+    return storedSession;
   }
   return getCurrentSession();
 }
@@ -42,15 +60,7 @@ export async function signIn(payload: LoginPayload): Promise<AuthSession> {
     if (!data.session?.user) {
       throw new Error("未能获取 Supabase 会话。");
     }
-    const session: AuthSession = {
-      userId: data.session.user.id,
-      email: data.session.user.email ?? payload.email,
-      accessToken: data.session.access_token,
-      refreshToken: data.session.refresh_token,
-      provider: "supabase",
-    };
-    await ensureSessionSeed(session);
-    return session;
+    return persistSupabaseSession(data.session, payload.email);
   }
 
   const session: AuthSession = {
@@ -75,15 +85,7 @@ export async function signUp(payload: SignupPayload): Promise<AuthSession> {
       throw new Error(error.message);
     }
     if (data.session?.user) {
-      const session: AuthSession = {
-        userId: data.session.user.id,
-        email: data.session.user.email ?? payload.email,
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        provider: "supabase",
-      };
-      await ensureSessionSeed(session);
-      return session;
+      return persistSupabaseSession(data.session, payload.email);
     }
   }
 
@@ -150,15 +152,7 @@ export async function completeCallback(): Promise<AuthSession | null> {
       throw new Error(error.message);
     }
     if (data.session?.user) {
-      const session: AuthSession = {
-        userId: data.session.user.id,
-        email: data.session.user.email ?? "user@example.com",
-        accessToken: data.session.access_token,
-        refreshToken: data.session.refresh_token,
-        provider: "supabase",
-      };
-      await ensureSessionSeed(session);
-      return session;
+      return persistSupabaseSession(data.session);
     }
   }
   return getCurrentSession();

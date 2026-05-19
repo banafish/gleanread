@@ -22,6 +22,10 @@ export function useSyncEngine(): SyncEngineState {
 
     let alive = true;
 
+    let running = false;
+    let rerunRequested = false;
+    let runTimer: number | null = null;
+
     const run = async () => {
       if (!navigator.onLine) {
         if (alive) {
@@ -29,11 +33,17 @@ export function useSyncEngine(): SyncEngineState {
         }
         return;
       }
+      if (running) {
+        rerunRequested = true;
+        return;
+      }
+      running = true;
+      rerunRequested = false;
       if (alive) {
         setState({ status: "syncing", message: "同步中" });
       }
       try {
-        const report = await runSyncOnce();
+        const report = await runSyncOnce(session);
         if (!alive) {
           return;
         }
@@ -43,19 +53,38 @@ export function useSyncEngine(): SyncEngineState {
         if (alive) {
           setState({ status: "error", message: error instanceof Error ? error.message : "同步失败" });
         }
+      } finally {
+        running = false;
+        if (alive && rerunRequested) {
+          rerunRequested = false;
+          scheduleRun(1_000);
+        }
       }
     };
 
-    void run();
-    const interval = window.setInterval(() => void run(), 60_000);
-    const handleOnline = () => void run();
+    const scheduleRun = (delay = 0) => {
+      if (runTimer !== null) {
+        window.clearTimeout(runTimer);
+      }
+      runTimer = window.setTimeout(() => {
+        runTimer = null;
+        void run();
+      }, delay);
+    };
+
+    scheduleRun();
+    const interval = window.setInterval(() => scheduleRun(), 60_000);
+    const handleOnline = () => scheduleRun();
     const handleOffline = () => setState({ status: "offline", message: "离线可用" });
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
-    const unsubscribeRealtime = subscribeToRemoteChanges(() => void run());
+    const unsubscribeRealtime = subscribeToRemoteChanges(session.userId, () => scheduleRun(1_500));
 
     return () => {
       alive = false;
+      if (runTimer !== null) {
+        window.clearTimeout(runTimer);
+      }
       window.clearInterval(interval);
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);

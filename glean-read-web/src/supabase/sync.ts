@@ -3,6 +3,7 @@ import { getCurrentSession } from "@/db/repositories/workspaceRepository";
 import { hasSupabaseConfig, supabase } from "@/supabase/client";
 import { advancePullCursor, isSelfEcho, shouldApplyRemoteChange } from "@/supabase/syncPolicy";
 import type {
+  AuthSession,
   Excerpt,
   ExcerptTag,
   KnowledgeTreeNode,
@@ -112,13 +113,53 @@ async function saveSyncCursor(cursor: SyncCursor): Promise<void> {
   await db.syncCursors.put(cursor);
 }
 
+async function resolveSyncSession(sessionOverride?: AuthSession | null): Promise<AuthSession | SyncReport> {
+  const session = sessionOverride === undefined ? await getCurrentSession() : sessionOverride;
+  if (!session) {
+    return { pushed: 0, pulled: 0, skipped: true, message: "未登录，已跳过云同步。" };
+  }
+  if (!hasSupabaseConfig || !supabase || session.provider !== "supabase") {
+    return {
+      pushed: 0,
+      pulled: 0,
+      skipped: true,
+      message: "当前运行在本地优先模式。",
+    };
+  }
+
+  const { data, error } = await supabase.auth.getSession();
+  if (error) {
+    throw new Error(`读取 Supabase 会话失败：${error.message}`);
+  }
+  if (!data.session?.user) {
+    return {
+      pushed: 0,
+      pulled: 0,
+      skipped: true,
+      message: "Supabase 会话已过期，请重新登录。",
+    };
+  }
+  if (data.session.user.id !== session.userId) {
+    return {
+      pushed: 0,
+      pulled: 0,
+      skipped: true,
+      message: "Supabase 会话已切换，已跳过本次同步。",
+    };
+  }
+  return session;
+}
+
 async function pushBridge(bridge: Bridge, userId: string, deviceId: string): Promise<number> {
   const client = supabase!;
   const localRows = await bridge.localTable.where("userId").equals(userId).toArray();
   const pending = (localRows as any[]).filter((item: any) => item.syncStatus !== "synced" || item.localDirtyTime !== null);
   let pushed = 0;
   for (const row of pending) {
-    const remoteRow = bridge.toRemote(row);
+    const remoteRow = {
+      ...bridge.toRemote(row),
+      device_id: deviceId,
+    };
     const { error } = await client.from(bridge.tableName).upsert(remoteRow, { onConflict: "id" });
     if (error) {
       await bridge.localTable.put({
@@ -154,7 +195,7 @@ async function pullBridge(
     .from(bridge.tableName)
     .select("*")
     .eq("user_id", userId)
-    .gte("update_time", cursor.lastPulledAt)
+    .gt("update_time", cursor.lastPulledAt)
     .order("update_time", { ascending: true });
   if (error) {
     throw new Error(error.message);
@@ -317,18 +358,10 @@ const bridges: Bridge[] = [
   },
 ];
 
-export async function runSyncOnce(): Promise<SyncReport> {
-  const session = await getCurrentSession();
-  if (!session) {
-    return { pushed: 0, pulled: 0, skipped: true, message: "未登录，已跳过云同步。" };
-  }
-  if (!hasSupabaseConfig || !supabase || session.provider !== "supabase") {
-    return {
-      pushed: 0,
-      pulled: 0,
-      skipped: true,
-      message: "当前运行在本地优先模式。",
-    };
+export async function runSyncOnce(sessionOverride?: AuthSession | null): Promise<SyncReport> {
+  const session = await resolveSyncSession(sessionOverride);
+  if ("skipped" in session) {
+    return session;
   }
 
   const deviceId = getDeviceId();
@@ -348,7 +381,7 @@ export async function runSyncOnce(): Promise<SyncReport> {
   };
 }
 
-export function subscribeToRemoteChanges(onInvalidate: () => void): () => void {
+export function subscribeToRemoteChanges(userId: string, onInvalidate: () => void): () => void {
   if (!hasSupabaseConfig || !supabase) {
     return () => undefined;
   }
@@ -356,17 +389,18 @@ export function subscribeToRemoteChanges(onInvalidate: () => void): () => void {
   const deviceId = getDeviceId();
   const channels = bridges.map((bridge) =>
     client
-      .channel(`glean-read:${bridge.tableName}`)
+      .channel(`glean-read:${bridge.tableName}:${userId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: bridge.tableName,
+          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const row = (payload.new ?? payload.old) as { device_id?: string | null } | null;
-          if (!row || row.device_id === deviceId) {
+          const row = (payload.new ?? payload.old) as { device_id?: string | null; user_id?: string } | null;
+          if (!row || row.user_id !== userId || row.device_id === deviceId) {
             return;
           }
           onInvalidate();
