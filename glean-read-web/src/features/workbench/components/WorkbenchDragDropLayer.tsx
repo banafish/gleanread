@@ -188,10 +188,10 @@ export function WorkbenchDragDropLayer({ children }: { children: ReactNode }) {
         if (userId && placement) {
           const didMove = await moveNodeToPosition(userId, activeData.nodeId, placement.parentId, placement.index);
           if (didMove) {
+            await refreshWorkspace();
             if (placement.expandParentId) {
               setNodeExpanded(placement.expandParentId, true);
             }
-            await refreshWorkspace();
             setSelectedNodeId(activeData.nodeId);
           }
         }

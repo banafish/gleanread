@@ -46,11 +46,11 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
 
   if (collapsed) {
     return (
-      <aside className="flex h-full flex-col items-center border-r border-app-border bg-app-surface py-4">
+      <aside className="flex h-full flex-col items-center border-r border-app-border bg-app-surface py-4" data-testid="inbox-sidebar">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-app-surface2 text-app-muted">
           <Inbox size={18} />
         </div>
-        <div className="mt-3 text-xs font-semibold text-app-muted">{items.length}</div>
+        <div className="mt-3 text-xs font-semibold text-app-muted" data-testid="inbox-count">{items.length}</div>
         <button
           type="button"
           className="mt-auto inline-flex h-10 w-10 items-center justify-center rounded-xl border border-app-border bg-app-surface2 text-app-muted transition hover:text-app-text"
@@ -65,15 +65,16 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
   }
 
   return (
-    <aside className="flex h-full min-h-0 flex-col border-r border-app-border bg-app-surface">
+    <aside className="flex h-full min-h-0 flex-col border-r border-app-border bg-app-surface" data-testid="inbox-sidebar">
       <div className="border-b border-app-border px-4 py-4">
         <div className="flex items-start justify-between gap-3">
           <SectionTitle title="摘录收件箱" subtitle="未分类摘录会在这里等待整理" />
-          <Badge>{items.length}</Badge>
+          <Badge data-testid="inbox-count">{items.length}</Badge>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <Button
             type="button"
+            data-testid="inbox-filter-inbox"
             variant={inboxFilter === "inbox" ? "primary" : "secondary"}
             className="px-3"
             onClick={() => setInboxFilter("inbox")}
@@ -83,6 +84,7 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
           </Button>
           <Button
             type="button"
+            data-testid="inbox-filter-all"
             variant={inboxFilter === "all" ? "primary" : "secondary"}
             className="px-3"
             onClick={() => setInboxFilter("all")}
@@ -95,7 +97,7 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
 
       <div className="min-h-0 flex-1 space-y-3 overflow-auto p-3">
         {items.length === 0 ? (
-          <div className="rounded-panel border border-dashed border-app-border bg-app-surface2 p-4 text-sm text-app-muted">
+          <div className="rounded-panel border border-dashed border-app-border bg-app-surface2 p-4 text-sm text-app-muted" data-testid="inbox-empty">
             当前没有待整理摘录。
           </div>
         ) : null}
@@ -117,7 +119,7 @@ export function InboxSidebar({ collapsed = false }: { collapsed?: boolean }) {
         ))}
       </div>
       <div className="border-t border-app-border p-3">
-        <Button type="button" variant="secondary" className="h-10 w-full" onClick={() => setTrashOpen(true)}>
+      <Button type="button" variant="secondary" className="h-10 w-full" onClick={() => setTrashOpen(true)}>
           <Trash2 size={16} />
           垃圾篓
         </Button>
@@ -157,6 +159,7 @@ function ExcerptCard({
     <article
       ref={setNodeRef}
       style={style}
+      data-testid="excerpt-card"
       className={cx(
         "rounded-panel border border-app-border bg-app-bg p-3 shadow-panel transition",
         "hover:border-app-accent/60 hover:bg-app-surface",
@@ -168,6 +171,7 @@ function ExcerptCard({
         <button
           ref={setActivatorNodeRef}
           type="button"
+          data-testid="excerpt-drag-handle"
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-app-muted transition hover:bg-app-surface2 hover:text-app-text active:cursor-grabbing"
           title="拖拽摘录"
           aria-label="拖拽摘录"
@@ -180,6 +184,7 @@ function ExcerptCard({
         </button>
         <button
           type="button"
+          data-testid="excerpt-delete"
           className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-app-muted hover:bg-app-surface2 hover:text-app-danger"
           title="删除摘录"
           aria-label="删除摘录"
@@ -200,6 +205,7 @@ function ExcerptCard({
         {onMoveToInbox ? (
           <button
             type="button"
+            data-testid="excerpt-move-to-inbox"
             className="inline-flex items-center gap-1.5 text-xs font-medium text-app-muted hover:text-app-text"
             onClick={(event) => {
               event.stopPropagation();
@@ -212,9 +218,9 @@ function ExcerptCard({
         ) : null}
       </div>
 
-      {excerpt.userThought ? (
-        <div className="mt-2 rounded-lg bg-app-surface2 px-3 py-2 text-xs leading-5 text-app-muted">{excerpt.userThought}</div>
-      ) : null}
+      <div className="mt-2 rounded-lg bg-app-surface2 px-3 py-2 text-xs leading-5 text-app-muted">
+        {excerpt.userThought || "暂无思考"}
+      </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {excerpt.tags.map((tag) => (

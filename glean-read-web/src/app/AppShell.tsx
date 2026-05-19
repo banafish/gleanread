@@ -65,7 +65,7 @@ export function AppShell() {
   const leftCollapsed = leftPanelWidth <= 96;
 
   return (
-    <div className="flex h-screen min-h-0 flex-col bg-app-bg text-app-text">
+    <div className="flex h-screen min-h-0 flex-col bg-app-bg text-app-text" data-testid="app-shell">
       <WorkbenchTopBar syncMessage={sync.message} />
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="min-h-0 shrink-0" style={{ width: leftPanelWidth }}>

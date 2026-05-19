@@ -76,7 +76,7 @@ export function SearchDialog() {
   };
 
   return (
-    <Dialog open={open} title="全局搜索" onClose={close}>
+    <Dialog open={open} title="全局搜索" testId="search-dialog" onClose={close}>
       <div className="space-y-4">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-app-muted" size={18} />

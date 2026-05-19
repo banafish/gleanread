@@ -170,10 +170,23 @@ export function LoginRoute() {
             ) : null}
           </div>
 
-          {error ? <div className="mt-4 rounded-xl border border-app-danger/30 bg-app-danger/10 p-3 text-sm text-app-danger">{error}</div> : null}
+          {error ? (
+            <div
+              className="mt-4 rounded-xl border border-app-danger/30 bg-app-danger/10 p-3 text-sm text-app-danger"
+              data-testid="auth-error"
+            >
+              {error}
+            </div>
+          ) : null}
           {status ? <div className="mt-4 rounded-xl border border-app-success/30 bg-app-success/10 p-3 text-sm text-app-success">{status}</div> : null}
 
-          <Button type="button" className="mt-5 h-11 w-full" disabled={submitting} onClick={() => void submit()}>
+          <Button
+            type="button"
+            className="mt-5 h-11 w-full"
+            data-testid="login-submit"
+            disabled={submitting}
+            onClick={() => void submit()}
+          >
             {panel === "magic" ? <Mail size={16} /> : <KeyRound size={16} />}
             {panel === "signup" ? "注册并进入" : panel === "magic" ? "发送 Magic Link" : "登录"}
           </Button>

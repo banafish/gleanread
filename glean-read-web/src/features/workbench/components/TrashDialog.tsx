@@ -48,7 +48,7 @@ export function TrashDialog() {
   };
 
   return (
-    <Dialog open={open} title="垃圾篓" onClose={() => setTrashOpen(false)}>
+    <Dialog open={open} title="垃圾篓" testId="trash-dialog" onClose={() => setTrashOpen(false)}>
       <div className="space-y-5">
         <SectionTitle title="已删除内容" subtitle="恢复节点会一并恢复其子树；摘录与标签可单独恢复。" />
 

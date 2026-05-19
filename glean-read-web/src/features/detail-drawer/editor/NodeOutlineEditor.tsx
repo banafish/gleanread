@@ -34,6 +34,7 @@ function EditorButton({
       )}
       title={title}
       aria-label={title}
+      onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
     >
       {children}
@@ -107,7 +108,11 @@ export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorPr
   }, [draft, onSave, value]);
 
   return (
-    <div className="relative overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-panel" data-skip-hotkeys="true">
+    <div
+      className="relative overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-panel"
+      data-skip-hotkeys="true"
+      data-testid="node-outline-editor"
+    >
       <div className="flex items-center justify-between border-b border-app-border px-3 py-2">
         <div className="flex items-center gap-1">
           <EditorButton
@@ -153,7 +158,7 @@ export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorPr
             <Code size={15} />
           </EditorButton>
         </div>
-        <span className="text-xs text-app-muted">{saving ? "保存中" : "已就绪"}</span>
+        <span className="text-xs text-app-muted" data-testid="outline-save-status">{saving ? "保存中" : "已就绪"}</span>
       </div>
       {slashOpen ? (
         <div className="absolute right-3 top-12 z-10 w-44 rounded-xl border border-app-border bg-app-surface p-2 shadow-2xl">

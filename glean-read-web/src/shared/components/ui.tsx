@@ -1,4 +1,11 @@
-import { forwardRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  type ButtonHTMLAttributes,
+  type HTMLAttributes,
+  type InputHTMLAttributes,
+  type TextareaHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { cx } from "@/shared/utils";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
@@ -85,13 +92,14 @@ export function Card({ className, children }: { className?: string; children: Re
   return <div className={cx("rounded-panel border border-app-border bg-app-surface shadow-panel", className)}>{children}</div>;
 }
 
-export function Badge({ className, children }: { className?: string; children: ReactNode }) {
+export function Badge({ className, children, ...props }: HTMLAttributes<HTMLSpanElement> & { children: ReactNode }) {
   return (
     <span
       className={cx(
         "inline-flex items-center rounded-full border border-app-border bg-app-surface2 px-2 py-0.5 text-[11px] font-medium text-app-muted",
         className
       )}
+      {...props}
     >
       {children}
     </span>
@@ -103,17 +111,19 @@ export function Dialog({
   title,
   onClose,
   children,
+  testId,
 }: {
   open: boolean;
   title?: string;
   onClose: () => void;
   children: ReactNode;
+  testId?: string;
 }) {
   if (!open) {
     return null;
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm" data-testid={testId}>
       <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-app-border bg-app-bg shadow-2xl">
         <div className="flex items-center justify-between border-b border-app-border px-5 py-4">
           <div className="text-base font-semibold">{title}</div>

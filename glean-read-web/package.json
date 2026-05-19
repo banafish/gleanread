@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "test": "node --test --experimental-strip-types src/__tests__/workbenchSelectors.test.ts src/__tests__/markdown.test.ts src/__tests__/syncPolicy.test.ts src/__tests__/routePolicy.test.ts",
+    "test": "node --test --experimental-strip-types src/__tests__/*.test.ts",
+    "test:e2e": "playwright test",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -28,11 +29,13 @@
     "zustand": "^5.0.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@types/node": "^24.1.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "autoprefixer": "^10.4.21",
+    "fake-indexeddb": "^6.2.5",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.2",

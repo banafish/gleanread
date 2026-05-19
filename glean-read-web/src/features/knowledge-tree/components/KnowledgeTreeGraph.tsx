@@ -27,7 +27,7 @@ const NEW_NODE_TITLE = "新节点";
 
 function shouldSkipHotkeys(event: KeyboardEvent): boolean {
   const target = event.target as HTMLElement | null;
-  if (!target) {
+  if (!target || !(target instanceof HTMLElement)) {
     return false;
   }
   const tagName = target.tagName.toLowerCase();
@@ -106,10 +106,10 @@ function KnowledgeTreeGraphInner() {
       createPendingRef.current = true;
       try {
         const node = await createChildNode(userId, parentId, NEW_NODE_TITLE);
+        await refreshWorkspace();
         if (parentId) {
           setNodeExpanded(parentId, true);
         }
-        await refreshWorkspace();
         setSelectedNodeId(node.id);
         setEditingNodeId(node.id);
       } finally {
@@ -316,7 +316,7 @@ function KnowledgeTreeGraphInner() {
   ]);
 
   return (
-    <div className="knowledge-tree-canvas h-full min-h-0 overflow-hidden">
+    <div className="knowledge-tree-canvas h-full min-h-0 overflow-hidden" data-testid="knowledge-tree-canvas">
       <ReactFlow
         className="knowledge-tree-flow"
         nodes={graphData.nodes}

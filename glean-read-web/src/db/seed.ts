@@ -1,5 +1,5 @@
 import type { Excerpt, ExcerptTag, KnowledgeTreeNode, Tag } from "@/shared/models";
-import { createId, now } from "@/shared/utils";
+import { createId, now } from "../shared/utils.ts";
 
 export function createSeedData(userId: string): {
   nodes: KnowledgeTreeNode[];

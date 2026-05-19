@@ -1,5 +1,5 @@
-import { db } from "@/db/dexie";
-import { createSeedData } from "@/db/seed";
+import { db } from "../dexie.ts";
+import { createSeedData } from "../seed.ts";
 import type {
   AuthSession,
   Excerpt,
@@ -9,8 +9,8 @@ import type {
   Tag,
   WorkspacePreference,
   WorkspaceSnapshot,
-} from "@/shared/models";
-import { createId, getSubtreeIds, isDescendant, now, sortByOrderAndTime, trimOrNull } from "@/shared/utils";
+} from "../../shared/models.ts";
+import { createId, getSubtreeIds, isDescendant, now, sortByOrderAndTime, trimOrNull } from "../../shared/utils.ts";
 
 const DEVICE_ID = "local-device";
 const SORT_ORDER_STEP = 65_536;
@@ -38,13 +38,18 @@ export async function ensureWorkspaceSeed(userId: string): Promise<void> {
   await ensureSeeded(userId);
 }
 
-export async function getWorkspaceSnapshot(userId: string): Promise<WorkspaceSnapshot> {
-  await ensureSeeded(userId);
+export async function getWorkspaceSnapshot(
+  userId: string,
+  options: { seedIfEmpty?: boolean } = {}
+): Promise<WorkspaceSnapshot> {
+  if (options.seedIfEmpty) {
+    await ensureSeeded(userId);
+  }
   const [nodes, excerpts, tags, excerptTags] = await Promise.all([
-    db.nodes.where("userId").equals(userId).and((node) => !node.isDeleted).toArray(),
-    db.excerpts.where("userId").equals(userId).and((excerpt) => !excerpt.isDeleted).toArray(),
-    db.tags.where("userId").equals(userId).and((tag) => !tag.isDeleted).toArray(),
-    db.excerptTags.where("userId").equals(userId).and((relation) => !relation.isDeleted).toArray(),
+    db.nodes.where("userId").equals(userId).toArray(),
+    db.excerpts.where("userId").equals(userId).toArray(),
+    db.tags.where("userId").equals(userId).toArray(),
+    db.excerptTags.where("userId").equals(userId).toArray(),
   ]);
   const recentSearches = (await db.recentSearches.where("userId").equals(userId).sortBy("createTime")).reverse();
 
@@ -457,7 +462,7 @@ export async function updateExcerpt(
   if (!cleanContent) {
     return;
   }
-  await db.transaction("rw", db.excerpts, db.excerptTags, async () => {
+  await db.transaction("rw", db.excerpts, db.excerptTags, db.tags, async () => {
     await db.excerpts.put({
       ...excerpt,
       content: cleanContent,
@@ -660,5 +665,7 @@ export async function loadAllUserData(userId: string): Promise<WorkspaceSnapshot
 
 export async function ensureSessionSeed(session: AuthSession): Promise<void> {
   await setCurrentSession(session);
-  await ensureSeeded(session.userId);
+  if (session.provider === "local") {
+    await ensureSeeded(session.userId);
+  }
 }

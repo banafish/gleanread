@@ -122,7 +122,7 @@ export function buildKnowledgeGraph(
   const viewModels = getNodeViewModels(snapshot, expandedNodeIds);
   const visibleIds = new Set(viewModels.map((node) => node.id));
   const childCountMap = new Map<string, number>();
-  for (const node of snapshot.nodes) {
+  for (const node of snapshot.nodes.filter((item) => !item.isDeleted)) {
     if (!node.parentId) {
       childCountMap.set(VIRTUAL_ROOT_ID, (childCountMap.get(VIRTUAL_ROOT_ID) ?? 0) + 1);
       continue;

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AuthSession } from "@/shared/models";
 import { completeCallback, loadSession, sendMagicLink, signIn, signInWithOAuth, signOut, signUp, type OAuthProvider } from "@/supabase/auth";
-import { ensureWorkspaceSeed, getWorkspaceSnapshot } from "@/db/repositories/workspaceRepository";
+import { getWorkspaceSnapshot } from "@/db/repositories/workspaceRepository";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 
 export interface AuthContextValue {
@@ -24,9 +24,8 @@ async function hydrateWorkspace(session: AuthSession | null): Promise<void> {
     workbench.resetUiForUser();
     return;
   }
-  await ensureWorkspaceSeed(session.userId);
   await workbench.loadPreferences(session.userId);
-  const snapshot = await getWorkspaceSnapshot(session.userId);
+  const snapshot = await getWorkspaceSnapshot(session.userId, { seedIfEmpty: session.provider === "local" });
   workbench.setUserId(session.userId);
   workbench.hydrateWorkspace(session.userId, snapshot);
 }
@@ -61,10 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!session) {
-      document.documentElement.dataset.theme = "light";
-      return;
-    }
     void hydrateWorkspace(session);
   }, [session]);
 

@@ -72,6 +72,7 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
       <div className="flex min-w-0 flex-1 justify-center px-4">
         <button
           type="button"
+          data-testid="global-search-trigger"
           className="flex h-10 w-full max-w-lg items-center justify-between rounded-xl border border-app-border bg-app-bg px-3 text-left text-sm text-app-muted transition hover:border-app-accent"
           onClick={() => setSearchOpen(true)}
         >
@@ -85,6 +86,7 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
       <div className="relative flex items-center gap-2" ref={menuRef}>
         <IconButton
           type="button"
+          data-testid="theme-toggle"
           title={themeMode === "dark" ? "切换浅色模式" : "切换深色模式"}
           aria-label={themeMode === "dark" ? "切换浅色模式" : "切换深色模式"}
           onClick={() => setThemeMode(themeMode === "dark" ? "light" : "dark")}
@@ -93,6 +95,7 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
         </IconButton>
         <IconButton
           type="button"
+          data-testid="drawer-toggle"
           title="打开沉淀抽屉"
           aria-label="打开沉淀抽屉"
           onClick={() => setDrawerOpen(!drawerOpen)}
@@ -101,6 +104,7 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
         </IconButton>
         <button
           type="button"
+          data-testid="account-menu-trigger"
           className="inline-flex h-10 items-center gap-2 rounded-xl border border-app-border bg-app-surface2 px-3 text-sm text-app-text transition hover:border-app-accent"
           aria-label="用户设置"
           onClick={() => setMenuOpen((value) => !value)}

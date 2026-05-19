@@ -33,6 +33,7 @@ function ExcerptThoughtEditor({
 
   return (
     <Textarea
+      data-testid="excerpt-thought-input"
       value={value}
       rows={3}
       placeholder="我的思考"
@@ -110,6 +111,7 @@ function ExcerptTagEditor({
         ))}
         <button
           type="button"
+          data-testid="tag-add-toggle"
           className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-app-border text-app-muted hover:bg-app-surface2 hover:text-app-text"
           title="添加标签"
           aria-label="添加标签"
@@ -122,6 +124,7 @@ function ExcerptTagEditor({
         <div className="rounded-xl border border-app-border bg-app-surface p-2 shadow-panel">
           <Input
             value={query}
+            data-testid="tag-query-input"
             placeholder="搜索或创建标签"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -274,12 +277,13 @@ export function DetailDrawer() {
   };
 
   const content = (
-    <aside className="flex h-full min-h-0 flex-col border-l border-app-border bg-app-surface">
+    <aside className="flex h-full min-h-0 flex-col border-l border-app-border bg-app-surface" data-testid="detail-drawer">
       <div className="flex items-center justify-between border-b border-app-border px-4 py-3">
         <div className="min-w-0 flex-1">
           {selectedNode ? (
             <Input
               value={titleDraft}
+              data-testid="detail-node-title-input"
               className="border-transparent bg-transparent px-0 text-base font-semibold focus:border-transparent focus:ring-0"
               onChange={(event) => setTitleDraft(event.target.value)}
               onBlur={() => void saveTitle()}
@@ -296,13 +300,14 @@ export function DetailDrawer() {
         <div className="flex items-center gap-1">
           <IconButton
             type="button"
+            data-testid="drawer-fullscreen-toggle"
             title={drawerFullscreen ? "退出专注写作" : "专注写作"}
             aria-label={drawerFullscreen ? "退出专注写作" : "专注写作"}
             onClick={() => setDrawerFullscreen(!drawerFullscreen)}
           >
             {drawerFullscreen ? <Minimize2 size={17} /> : <Maximize2 size={17} />}
           </IconButton>
-          <IconButton type="button" title="关闭抽屉" aria-label="关闭抽屉" onClick={() => setDrawerOpen(false)}>
+          <IconButton type="button" data-testid="drawer-close" title="关闭抽屉" aria-label="关闭抽屉" onClick={() => setDrawerOpen(false)}>
             <PanelRightClose size={17} />
           </IconButton>
         </div>
@@ -331,6 +336,7 @@ export function DetailDrawer() {
             <label className="block space-y-1 rounded-panel border border-app-border bg-app-bg p-3 shadow-panel">
               <span className="text-xs font-medium text-app-muted">父节点</span>
               <select
+                data-testid="node-parent-select"
                 className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none transition focus:border-app-accent focus:ring-2 focus:ring-app-accent/20"
                 value={selectedNode.parentId ?? ""}
                 onChange={(event) => {
@@ -359,13 +365,13 @@ export function DetailDrawer() {
               </div>
 
               {feed.length === 0 ? (
-                <div className="rounded-panel border border-dashed border-app-border bg-app-surface2 p-4 text-sm text-app-muted">
+                <div className="rounded-panel border border-dashed border-app-border bg-app-surface2 p-4 text-sm text-app-muted" data-testid="detail-feed-empty">
                   当前节点还没有挂载摘录。
                 </div>
               ) : null}
 
               {feed.map((excerpt) => (
-                <article key={excerpt.id} className="space-y-3 rounded-panel border border-app-border bg-app-bg p-3 shadow-panel">
+                <article key={excerpt.id} className="space-y-3 rounded-panel border border-app-border bg-app-bg p-3 shadow-panel" data-testid="detail-excerpt-card">
                   <div>
                     <p className="text-sm leading-6 text-app-text">{excerpt.content}</p>
                     <div className="mt-2 text-xs text-app-muted">{excerpt.sourceTitle ?? excerpt.url ?? "未记录来源"}</div>
@@ -387,6 +393,7 @@ export function DetailDrawer() {
                   <label className="block space-y-1">
                     <span className="text-xs font-medium text-app-muted">挂载位置</span>
                     <select
+                      data-testid="excerpt-mount-select"
                       className="w-full rounded-xl border border-app-border bg-app-surface px-3 py-2 text-sm text-app-text outline-none transition focus:border-app-accent focus:ring-2 focus:ring-app-accent/20"
                       value={excerpt.treeNodeId ?? ""}
                       onChange={(event) => {

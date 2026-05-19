@@ -34,10 +34,11 @@ export function buildNodeExcerptCountMap(excerpts: Excerpt[]): Map<string, numbe
 }
 
 export function getNodeViewModels(snapshot: WorkspaceSnapshot, expandedNodeIds: Record<string, boolean>): TreeNodeViewModel[] {
-  const nodeMap = buildNodeMap(snapshot.nodes);
+  const activeNodes = snapshot.nodes.filter((node) => !node.isDeleted);
+  const nodeMap = buildNodeMap(activeNodes);
   const excerptCountMap = buildNodeExcerptCountMap(snapshot.excerpts);
   const childrenByParent = new Map<string | null, KnowledgeTreeNode[]>();
-  for (const node of snapshot.nodes) {
+  for (const node of activeNodes) {
     const list = childrenByParent.get(node.parentId) ?? [];
     list.push(node);
     childrenByParent.set(node.parentId, list);

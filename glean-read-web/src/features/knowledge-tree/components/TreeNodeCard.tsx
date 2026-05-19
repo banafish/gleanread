@@ -76,6 +76,8 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
     },
   });
   const canDrop = !data.isDraggingSource && !data.isEditing;
+  const draggableAttributes = !isVirtualRoot && !data.isEditing ? attributes : {};
+  const draggableListeners = !isVirtualRoot && !data.isEditing ? listeners : {};
   const handleClass = "!h-4 !w-4 !border-0 !bg-app-accent !shadow-none";
   const isDropTargetActive = data.isHovered || data.dropIntent === "inside";
   const isDragSource = data.isDraggingSource || isDragging;
@@ -136,10 +138,12 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
         !data.isSelected && !isDropTargetActive && "border-app-border"
       )}
       data-testid={`tree-node-${viewModel.id}`}
-      {...listeners}
-      {...attributes}
+      {...draggableListeners}
+      {...draggableAttributes}
       onPointerDown={(event) => {
-        listeners?.onPointerDown?.(event);
+        if (!isVirtualRoot && !data.isEditing) {
+          listeners?.onPointerDown?.(event);
+        }
         event.stopPropagation();
         if (!isVirtualRoot && event.detail >= 2) {
           data.onSelect(viewModel.id);
