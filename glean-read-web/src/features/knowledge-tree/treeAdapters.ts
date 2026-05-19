@@ -1,6 +1,5 @@
 import dagre from "dagre";
 import type { Edge, Node } from "reactflow";
-import { MarkerType } from "reactflow";
 import type { TreeNodeViewModel, WorkspaceSnapshot } from "@/shared/models";
 import { getNodeViewModels } from "@/features/workbench/workbenchSelectors";
 import { sortByOrderAndTime } from "@/shared/utils";
@@ -29,10 +28,10 @@ export interface KnowledgeGraphData {
   visibleNodeIds: string[];
 }
 
-const NODE_WIDTH = 236;
-const NODE_HEIGHT = 92;
-const ROOT_WIDTH = 184;
-const ROOT_HEIGHT = 72;
+const NODE_WIDTH = 500;
+const NODE_HEIGHT = 112;
+const ROOT_WIDTH = NODE_WIDTH;
+const ROOT_HEIGHT = NODE_HEIGHT;
 
 export function buildKnowledgeGraph(
   snapshot: WorkspaceSnapshot,
@@ -71,10 +70,10 @@ export function buildKnowledgeGraph(
   graph.setDefaultEdgeLabel(() => ({}));
   graph.setGraph({
     rankdir: "LR",
-    nodesep: 42,
-    ranksep: 92,
-    marginx: 32,
-    marginy: 32,
+    nodesep: 156,
+    ranksep: 196,
+    marginx: 64,
+    marginy: 64,
   });
 
   for (const viewModel of viewModels) {
@@ -97,16 +96,13 @@ export function buildKnowledgeGraph(
       id: `${source}->${viewModel.id}`,
       source,
       target: viewModel.id,
-      type: "smoothstep",
+      type: "knowledgeTreeEdge",
       animated: false,
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 16,
-        height: 16,
-      },
+      focusable: false,
+      interactionWidth: 24,
       style: {
         stroke: "rgb(var(--app-accent) / 0.38)",
-        strokeWidth: 2,
+        strokeWidth: 5,
       },
     });
   }

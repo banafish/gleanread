@@ -6,6 +6,7 @@ import ReactFlow, {
   MiniMap,
   ReactFlowProvider,
   useReactFlow,
+  type EdgeTypes,
   type NodeTypes,
   type Viewport,
 } from "reactflow";
@@ -19,12 +20,20 @@ import {
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { buildKnowledgeGraph, VIRTUAL_ROOT_ID } from "@/features/knowledge-tree/treeAdapters";
+import { KnowledgeTreeEdge } from "@/features/knowledge-tree/components/KnowledgeTreeEdge";
 import { TreeNodeCard } from "@/features/knowledge-tree/components/TreeNodeCard";
 import type { WorkspaceSnapshot } from "@/shared/models";
 
 const nodeTypes: NodeTypes = {
   knowledgeTreeNode: TreeNodeCard,
 };
+
+const edgeTypes: EdgeTypes = {
+  knowledgeTreeEdge: KnowledgeTreeEdge,
+};
+
+const FOCUS_NODE_WIDTH = 500;
+const FOCUS_NODE_HEIGHT = 112;
 
 function shouldSkipHotkeys(event: KeyboardEvent): boolean {
   const target = event.target as HTMLElement | null;
@@ -65,10 +74,10 @@ function GraphViewportController({
       if (!node) {
         return;
       }
-      const width = node.width ?? 236;
-      const height = node.height ?? 92;
+      const width = node.width ?? FOCUS_NODE_WIDTH;
+      const height = node.height ?? FOCUS_NODE_HEIGHT;
       setCenter(node.position.x + width / 2, node.position.y + height / 2, {
-        zoom: 1.06,
+        zoom: 0.92,
         duration: 240,
       });
     });
@@ -290,10 +299,12 @@ function KnowledgeTreeGraphInner() {
   ]);
 
   return (
-    <div className="h-full min-h-0 overflow-hidden bg-app-bg">
+    <div className="knowledge-tree-canvas h-full min-h-0 overflow-hidden">
       <ReactFlow
+        className="knowledge-tree-flow"
         nodes={graphData.nodes}
         edges={graphData.edges}
+        edgeTypes={edgeTypes}
         nodeTypes={nodeTypes}
         defaultViewport={viewport}
         minZoom={0.35}
@@ -305,7 +316,7 @@ function KnowledgeTreeGraphInner() {
         panOnDrag
         onMoveEnd={(_, nextViewport: Viewport) => setViewport(nextViewport)}
       >
-        <Background color="rgb(var(--app-border))" gap={24} variant={BackgroundVariant.Dots} />
+        <Background color="var(--knowledge-dot-color)" gap={56} size={1.5} variant={BackgroundVariant.Dots} />
         <MiniMap
           pannable
           zoomable

@@ -68,3 +68,17 @@ textarea {
 ::selection {
   background: rgb(var(--app-accent) / 0.28);
 }
+
+.knowledge-tree-canvas {
+  --knowledge-dot-color: rgb(var(--app-border));
+  background: rgb(var(--app-bg));
+}
+
+.knowledge-tree-flow .react-flow__edge-path {
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.knowledge-tree-flow .react-flow__handle {
+  pointer-events: none;
+}
