@@ -79,6 +79,8 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
   const handleClass = "!h-4 !w-4 !border-0 !bg-app-accent !shadow-none";
   const isDropTargetActive = data.isHovered || data.dropIntent === "inside";
   const isDragSource = data.isDraggingSource || isDragging;
+  const showNodeMeta = !isVirtualRoot;
+  const showExcerptCount = showNodeMeta && viewModel.excerptCount > 0;
 
   useEffect(() => {
     if (!data.isEditing) {
@@ -178,7 +180,7 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
         </div>
       ) : null}
 
-      <div className="relative z-20 min-w-0 flex-1 pr-8">
+      <div className="relative z-20 min-w-0 flex-1 pr-6">
         {data.isEditing ? (
           <input
             ref={setEditingInputRef}
@@ -215,6 +217,37 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
           <div className="line-clamp-2 text-[32px] font-semibold leading-[1.18] text-current">{viewModel.title}</div>
         )}
       </div>
+
+      {showNodeMeta ? (
+        <div className="relative z-20 flex shrink-0 items-center gap-2 text-[22px]" aria-hidden={false}>
+          <span
+            data-testid={`tree-node-outline-${viewModel.id}`}
+            className={cx(
+              "inline-flex h-9 w-9 items-center justify-center rounded-full border transition",
+              viewModel.hasOutline
+                ? "border-app-accent/35 bg-app-accent/15 opacity-100 shadow-[0_0_0_5px_rgb(var(--app-accent)_/_0.10)]"
+                : "border-app-border bg-app-surface2 opacity-35 grayscale"
+            )}
+            title={viewModel.hasOutline ? "Has note outline" : "No note outline"}
+            aria-label={viewModel.hasOutline ? "Has note outline" : "No note outline"}
+          >
+            📝
+          </span>
+          {showExcerptCount ? (
+            <span
+              data-testid={`tree-node-excerpt-count-${viewModel.id}`}
+              className="inline-flex h-9 items-center gap-1 rounded-full border border-app-accent/30 bg-app-accent/10 px-3 text-[17px] font-semibold leading-none text-app-text shadow-[0_0_0_4px_rgb(var(--app-accent)_/_0.08)]"
+              title={`Mounted excerpts: ${viewModel.excerptCount}`}
+              aria-label={`Mounted excerpts: ${viewModel.excerptCount}`}
+            >
+              <span className="text-[18px]" aria-hidden="true">
+                📌
+              </span>
+              <span>{viewModel.excerptCount}</span>
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {canToggleChildren ? (
         <button

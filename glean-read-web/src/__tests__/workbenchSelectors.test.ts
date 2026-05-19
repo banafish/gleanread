@@ -38,6 +38,17 @@ test("挂载摘录后会离开收件箱并增加目标节点计数", () => {
   assert.equal(counts.get("node-build"), 2);
 });
 
+test("knowledge tree node metadata reflects outline and excerpt table state", () => {
+  const viewModels = getNodeViewModels(previewSnapshot, { "node-product": true, "node-state": true });
+  const byId = new Map(viewModels.map((node) => [node.id, node]));
+
+  assert.equal(byId.get("node-product")?.hasOutline, true);
+  assert.equal(byId.get("node-build")?.hasOutline, true);
+  assert.equal(byId.get("node-state")?.hasOutline, false);
+  assert.equal(byId.get("node-build")?.excerptCount, 1);
+  assert.equal(byId.get("node-offline")?.excerptCount, 1);
+});
+
 test("知识树默认展示第一层并按展开状态显示深层节点", () => {
   const collapsed = getNodeViewModels(previewSnapshot, {});
   assert.ok(collapsed.some((node) => node.id === "node-product"));
