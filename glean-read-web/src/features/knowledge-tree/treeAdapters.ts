@@ -1,7 +1,7 @@
 import type { Edge, Node } from "reactflow";
-import type { TreeNodeDropIntent } from "@/features/workbench/dnd";
-import type { TreeNodeViewModel, WorkspaceSnapshot } from "@/shared/models";
-import { getNodeViewModels } from "@/features/workbench/workbenchSelectors";
+import type { TreeNodeDropIntent } from "../workbench/dnd.ts";
+import type { TreeNodeViewModel, WorkspaceSnapshot } from "../../shared/models.ts";
+import { getNodeViewModels } from "../workbench/workbenchSelectors.ts";
 
 export const VIRTUAL_ROOT_ID = "__virtual_root__";
 
@@ -23,7 +23,18 @@ export interface KnowledgeGraphNodeData {
 export interface KnowledgeGraphData {
   nodes: Node<KnowledgeGraphNodeData>[];
   edges: Edge[];
+  dropPreviewPath: KnowledgeGraphDropPreviewPath | null;
   visibleNodeIds: string[];
+}
+
+export interface KnowledgeGraphDropPreviewPath {
+  path: string;
+  slot: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
 }
 
 const NODE_WIDTH = 500;
@@ -34,6 +45,9 @@ const HORIZONTAL_STEP = NODE_WIDTH + 196;
 const ROW_STEP = NODE_HEIGHT + 132;
 const MARGIN_X = 64;
 const MARGIN_Y = 64;
+const DROP_PREVIEW_NODE_WIDTH = 260;
+const DROP_PREVIEW_NODE_HEIGHT = 76;
+const DROP_PREVIEW_NODE_GAP = 40;
 
 interface LayoutCenter {
   x: number;
@@ -102,6 +116,68 @@ function buildAutoLayoutCenters(viewModels: TreeNodeViewModel[]): Map<string, La
   return centers;
 }
 
+function buildNodeDropPreviewPath(
+  nodes: Node<KnowledgeGraphNodeData>[],
+  preview: {
+    nodeId: string;
+    intent: TreeNodeDropIntent;
+    placement: {
+      parentId: string | null;
+    };
+  } | null
+): KnowledgeGraphDropPreviewPath | null {
+  if (!preview) {
+    return null;
+  }
+
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const targetNode = nodeById.get(preview.nodeId);
+  const sourceNode = nodeById.get(preview.intent === "inside" ? preview.nodeId : preview.placement.parentId ?? VIRTUAL_ROOT_ID);
+  if (!targetNode || !sourceNode) {
+    return null;
+  }
+
+  const sourceWidth = sourceNode.data.viewModel.isVirtualRoot ? ROOT_WIDTH : NODE_WIDTH;
+  const sourceHeight = sourceNode.data.viewModel.isVirtualRoot ? ROOT_HEIGHT : NODE_HEIGHT;
+  const sourceRight = sourceNode.position.x + sourceWidth;
+  const sourceCenterY = sourceNode.position.y + sourceHeight / 2;
+  const targetLeft = targetNode.position.x;
+  const targetTop = targetNode.position.y;
+  const targetRight = targetNode.position.x + NODE_WIDTH;
+  const targetCenterY = targetNode.position.y + NODE_HEIGHT / 2;
+  if (preview.intent === "inside") {
+    const elbowX = targetRight + 72;
+    const slotX = elbowX;
+    const slotY = targetCenterY - DROP_PREVIEW_NODE_HEIGHT / 2;
+    return {
+      path: `M ${targetRight} ${targetCenterY} H ${slotX}`,
+      slot: {
+        x: slotX,
+        y: slotY,
+        width: DROP_PREVIEW_NODE_WIDTH,
+        height: DROP_PREVIEW_NODE_HEIGHT,
+      },
+    };
+  }
+
+  const slotCenterY =
+    preview.intent === "before"
+      ? targetTop - DROP_PREVIEW_NODE_HEIGHT / 2 - 12
+      : targetTop + NODE_HEIGHT + DROP_PREVIEW_NODE_HEIGHT / 2 + 12;
+  const elbowX = Math.max(sourceRight + 56, targetLeft - 76);
+  const slotX = Math.max(targetLeft, elbowX + DROP_PREVIEW_NODE_GAP);
+
+  return {
+    path: `M ${sourceRight} ${sourceCenterY} H ${elbowX} V ${slotCenterY} H ${slotX}`,
+    slot: {
+      x: slotX,
+      y: slotCenterY - DROP_PREVIEW_NODE_HEIGHT / 2,
+      width: DROP_PREVIEW_NODE_WIDTH,
+      height: DROP_PREVIEW_NODE_HEIGHT,
+    },
+  };
+}
+
 export function buildKnowledgeGraph(
   snapshot: WorkspaceSnapshot,
   expandedNodeIds: Record<string, boolean>,
@@ -116,6 +192,9 @@ export function buildKnowledgeGraph(
     nodeDropPreview: {
       nodeId: string;
       intent: TreeNodeDropIntent;
+      placement: {
+        parentId: string | null;
+      };
     } | null;
   }
 ): KnowledgeGraphData {
@@ -191,6 +270,7 @@ export function buildKnowledgeGraph(
   return {
     nodes,
     edges,
+    dropPreviewPath: buildNodeDropPreviewPath(nodes, options.draggedNodeId ? options.nodeDropPreview : null),
     visibleNodeIds: viewModels.filter((node) => !node.isVirtualRoot).map((node) => node.id),
   };
 }

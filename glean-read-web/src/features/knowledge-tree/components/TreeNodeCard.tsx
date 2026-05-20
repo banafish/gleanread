@@ -79,7 +79,7 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
   const draggableAttributes = !isVirtualRoot && !data.isEditing ? attributes : {};
   const draggableListeners = !isVirtualRoot && !data.isEditing ? listeners : {};
   const handleClass = "!h-4 !w-4 !border-0 !bg-app-accent !shadow-none";
-  const isDropTargetActive = data.isHovered || data.dropIntent === "inside";
+  const isDropTargetActive = data.isHovered;
   const isDragSource = data.isDraggingSource || isDragging;
   const showNodeMeta = !isVirtualRoot;
   const showExcerptCount = showNodeMeta && viewModel.excerptCount > 0;
@@ -172,17 +172,6 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
       <DropZone disabled={isVirtualRoot || !canDrop} intent="after" nodeId={viewModel.id} />
 
       <Handle type="target" position={Position.Left} className={handleClass} style={{ left: -8 }} />
-      {data.dropIntent === "before" ? (
-        <div className="pointer-events-none absolute -top-3 left-8 right-8 z-30 h-1.5 rounded-full bg-app-success shadow-[0_0_0_6px_rgb(var(--app-success)_/_0.16)]" />
-      ) : null}
-      {data.dropIntent === "after" ? (
-        <div className="pointer-events-none absolute -bottom-3 left-8 right-8 z-30 h-1.5 rounded-full bg-app-success shadow-[0_0_0_6px_rgb(var(--app-success)_/_0.16)]" />
-      ) : null}
-      {data.dropIntent === "inside" ? (
-        <div className="pointer-events-none absolute -right-16 top-1/2 z-30 h-1.5 w-16 -translate-y-1/2 rounded-full bg-app-success shadow-[0_0_0_6px_rgb(var(--app-success)_/_0.16)]">
-          <span className="absolute -right-1.5 top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-[3px] border-app-success bg-app-surface" />
-        </div>
-      ) : null}
 
       <div className="relative z-20 min-w-0 flex-1 pr-6">
         {data.isEditing ? (

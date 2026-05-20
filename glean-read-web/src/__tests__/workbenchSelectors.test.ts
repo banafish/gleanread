@@ -12,6 +12,7 @@ import {
   getTrashTags,
   searchWorkspace,
 } from "../features/workbench/workbenchSelectors.ts";
+import { buildKnowledgeGraph } from "../features/knowledge-tree/treeAdapters.ts";
 import {
   getFirstChildNavigationTarget,
   getParentNavigationTarget,
@@ -101,6 +102,39 @@ test("knowledge tree drag placement resolves parent and order and rejects cycles
     expandParentId: "node-state",
   });
   assert.equal(resolveTreeNodeDropPlacement(previewSnapshot.nodes, "node-product", "node-offline", "inside", VIRTUAL_ROOT_ID), null);
+});
+
+test("knowledge tree drag preview draws an insertion path without relayout", () => {
+  const placement = resolveTreeNodeDropPlacement(previewSnapshot.nodes, "node-build", "node-state", "inside", VIRTUAL_ROOT_ID);
+  const options = {
+    selectedNodeId: null,
+    hoveredNodeId: null,
+    editingNodeId: null,
+    draggedNodeId: null,
+    nodeDropPreview: null,
+    onSelect: () => undefined,
+    onToggleExpanded: () => undefined,
+    onStartEditing: () => undefined,
+    onCancelEditing: () => undefined,
+    onCommitTitle: () => undefined,
+  };
+  const expanded = { "node-product": true, "node-state": true };
+  const baseGraph = buildKnowledgeGraph(previewSnapshot, expanded, options);
+  const previewGraph = buildKnowledgeGraph(previewSnapshot, expanded, {
+    ...options,
+    draggedNodeId: "node-build",
+    nodeDropPreview: placement ? { nodeId: "node-state", intent: "inside", placement } : null,
+  });
+
+  assert.deepEqual(
+    previewGraph.nodes.map((node) => [node.id, node.position]),
+    baseGraph.nodes.map((node) => [node.id, node.position])
+  );
+  assert.ok(previewGraph.dropPreviewPath?.path.includes("H"));
+  assert.equal(previewGraph.dropPreviewPath?.slot.width, 260);
+  assert.equal(previewGraph.dropPreviewPath?.slot.height, 76);
+  assert.equal(previewGraph.nodes.find((node) => node.id === "node-build")?.data.isDraggingSource, true);
+  assert.equal(previewGraph.edges.some((edge) => edge.animated), false);
 });
 
 test("标签搜索能够定位到关联摘录和节点", () => {

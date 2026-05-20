@@ -11,12 +11,19 @@ import type {
   WorkbenchViewState,
 } from "@/shared/models";
 import type { WorkspaceSnapshot } from "@/shared/models";
+import type { NodeDropPlacement } from "@/features/knowledge-tree/treeInteractions";
 import { getPreference, savePreference } from "@/db/repositories/workspaceRepository";
 import type { TreeNodeDropIntent } from "@/features/workbench/dnd";
 
 export interface NodeDropPreviewState {
   nodeId: string;
   intent: TreeNodeDropIntent;
+  placement: NodeDropPlacement;
+}
+
+export interface DragPointerPosition {
+  x: number;
+  y: number;
 }
 
 export interface WorkbenchState extends WorkbenchViewState {
@@ -29,6 +36,7 @@ export interface WorkbenchState extends WorkbenchViewState {
   excerptTags: ExcerptTag[];
   recentSearches: RecentSearch[];
   draggedNodeId: string | null;
+  dragPointer: DragPointerPosition | null;
   nodeDropPreview: NodeDropPreviewState | null;
   hydrateWorkspace: (userId: string, snapshot: WorkspaceSnapshot) => void;
   setUserId: (userId: string | null) => void;
@@ -47,6 +55,7 @@ export interface WorkbenchState extends WorkbenchViewState {
   setViewport: (value: WorkbenchViewState["viewport"]) => void;
   setHoveredNodeId: (value: string | null) => void;
   setDraggedNodeId: (value: string | null) => void;
+  setDragPointer: (value: DragPointerPosition | null) => void;
   setNodeDropPreview: (value: NodeDropPreviewState | null) => void;
   setNodeExpanded: (nodeId: string, expanded: boolean) => void;
   toggleNodeExpanded: (nodeId: string) => void;
@@ -87,6 +96,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       tags: [],
       excerptTags: [],
       draggedNodeId: null,
+      dragPointer: null,
       nodeDropPreview: null,
       ...initialUiState,
       hydrateWorkspace: (userId, snapshot) => {
@@ -136,6 +146,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
       setViewport: (value) => set({ viewport: value }),
       setHoveredNodeId: (value) => set({ hoveredNodeId: value }),
       setDraggedNodeId: (value) => set({ draggedNodeId: value }),
+      setDragPointer: (value) => set({ dragPointer: value }),
       setNodeDropPreview: (value) => set({ nodeDropPreview: value }),
       setNodeExpanded: (nodeId, expanded) =>
         set((state) => ({
@@ -244,6 +255,7 @@ export const useWorkbenchStore = create<WorkbenchState>()(
           excerptTags: [],
           recentSearches: [],
           draggedNodeId: null,
+          dragPointer: null,
           nodeDropPreview: null,
           userId: null,
         }),

@@ -1,8 +1,9 @@
-import { type ReactNode, useCallback, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 import {
   closestCenter,
   DndContext,
   DragOverlay,
+  MeasuringStrategy,
   pointerWithin,
   PointerSensor,
   TouchSensor,
@@ -11,6 +12,7 @@ import {
   type CollisionDetection,
   type DragCancelEvent,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragOverEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
@@ -23,6 +25,22 @@ import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { isExcerptDragData, isTreeNodeDragData, isTreeNodeDropData } from "@/features/workbench/dnd";
 import { Badge } from "@/shared/components";
 import type { ExcerptViewModel, WorkspaceSnapshot } from "@/shared/models";
+
+interface PointerPosition {
+  x: number;
+  y: number;
+}
+
+function getPointerPosition(event: Event): PointerPosition | null {
+  if (event instanceof MouseEvent) {
+    return { x: event.clientX, y: event.clientY };
+  }
+  if (typeof TouchEvent !== "undefined" && event instanceof TouchEvent) {
+    const touch = event.touches[0] ?? event.changedTouches[0];
+    return touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }
+  return null;
+}
 
 function ExcerptDragPreview({ excerpt }: { excerpt: ExcerptViewModel }) {
   return (
@@ -71,11 +89,13 @@ export function WorkbenchDragDropLayer({ children }: { children: ReactNode }) {
   const setHoveredNodeId = useWorkbenchStore((state) => state.setHoveredNodeId);
   const setSelectedNodeId = useWorkbenchStore((state) => state.setSelectedNodeId);
   const setDraggedNodeId = useWorkbenchStore((state) => state.setDraggedNodeId);
+  const setDragPointer = useWorkbenchStore((state) => state.setDragPointer);
   const setNodeDropPreview = useWorkbenchStore((state) => state.setNodeDropPreview);
   const setNodeExpanded = useWorkbenchStore((state) => state.setNodeExpanded);
   const viewportZoom = useWorkbenchStore((state) => state.viewport.zoom);
   const [activeExcerptId, setActiveExcerptId] = useState<string | null>(null);
   const [activeTreeNodeId, setActiveTreeNodeId] = useState<string | null>(null);
+  const dragStartPointerRef = useRef<PointerPosition | null>(null);
 
   const snapshot = useMemo<WorkspaceSnapshot>(
     () => ({ nodes, excerpts, tags, excerptTags, recentSearches }),
@@ -99,10 +119,12 @@ export function WorkbenchDragDropLayer({ children }: { children: ReactNode }) {
   const clearDragState = useCallback(() => {
     setActiveExcerptId(null);
     setActiveTreeNodeId(null);
+    dragStartPointerRef.current = null;
     setDraggedNodeId(null);
+    setDragPointer(null);
     setHoveredNodeId(null);
     setNodeDropPreview(null);
-  }, [setDraggedNodeId, setHoveredNodeId, setNodeDropPreview]);
+  }, [setDragPointer, setDraggedNodeId, setHoveredNodeId, setNodeDropPreview]);
 
   const handleDragStart = useCallback(
     (event: DragStartEvent) => {
@@ -110,21 +132,40 @@ export function WorkbenchDragDropLayer({ children }: { children: ReactNode }) {
       if (isExcerptDragData(activeData)) {
         setActiveExcerptId(activeData.excerptId);
         setActiveTreeNodeId(null);
+        dragStartPointerRef.current = null;
+        setDragPointer(null);
         setDraggedNodeId(null);
         setHoveredNodeId(null);
         setNodeDropPreview(null);
         return;
       }
       if (isTreeNodeDragData(activeData)) {
+        const pointer = getPointerPosition(event.activatorEvent);
         setActiveExcerptId(null);
         setActiveTreeNodeId(activeData.nodeId);
+        dragStartPointerRef.current = pointer;
+        setDragPointer(pointer);
         setDraggedNodeId(activeData.nodeId);
         setHoveredNodeId(null);
         setNodeDropPreview(null);
         setSelectedNodeId(activeData.nodeId);
       }
     },
-    [setDraggedNodeId, setHoveredNodeId, setNodeDropPreview, setSelectedNodeId]
+    [setDragPointer, setDraggedNodeId, setHoveredNodeId, setNodeDropPreview, setSelectedNodeId]
+  );
+
+  const handleDragMove = useCallback(
+    (event: DragMoveEvent) => {
+      const activeData = event.active.data.current;
+      if (!isTreeNodeDragData(activeData)) {
+        setDragPointer(null);
+        return;
+      }
+      const startPointer = dragStartPointerRef.current ?? getPointerPosition(event.activatorEvent);
+      dragStartPointerRef.current = startPointer;
+      setDragPointer(startPointer ? { x: startPointer.x + event.delta.x, y: startPointer.y + event.delta.y } : null);
+    },
+    [setDragPointer]
   );
 
   const handleDragOver = useCallback(
@@ -145,7 +186,7 @@ export function WorkbenchDragDropLayer({ children }: { children: ReactNode }) {
           overData.intent,
           VIRTUAL_ROOT_ID
         );
-        setNodeDropPreview(placement ? { nodeId: overData.nodeId, intent: overData.intent } : null);
+        setNodeDropPreview(placement ? { nodeId: overData.nodeId, intent: overData.intent, placement } : null);
         setHoveredNodeId(null);
         return;
       }
@@ -206,12 +247,22 @@ export function WorkbenchDragDropLayer({ children }: { children: ReactNode }) {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } })
   );
+  const measuring = useMemo(
+    () => ({
+      droppable: {
+        strategy: MeasuringStrategy.Always,
+      },
+    }),
+    []
+  );
 
   return (
     <DndContext
       collisionDetection={collisionDetection}
+      measuring={measuring}
       sensors={sensors}
       onDragStart={handleDragStart}
+      onDragMove={handleDragMove}
       onDragOver={handleDragOver}
       onDragCancel={handleDragCancel}
       onDragEnd={handleDragEnd}
