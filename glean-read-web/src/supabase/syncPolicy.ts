@@ -10,6 +10,10 @@ export interface RemoteSyncProbe {
   deviceId: string | null;
 }
 
+export function toNonSelfDeviceFilter(currentDeviceId: string): string {
+  return `device_id.is.null,device_id.neq.${currentDeviceId}`;
+}
+
 export function isSelfEcho(remoteDeviceId: string | null, currentDeviceId: string): boolean {
   return remoteDeviceId === currentDeviceId;
 }

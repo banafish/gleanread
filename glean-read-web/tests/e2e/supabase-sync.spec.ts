@@ -1,13 +1,35 @@
 import { expect, test, type Page } from "@playwright/test";
-import { cleanupWorkspace, loginWithPassword, seededUser, testPrefix, waitForWorkbench } from "./fixtures";
+import {
+  cleanupWorkspace,
+  emptyUser,
+  expectNoSeedExampleContent,
+  loginWithPassword,
+  seededUser,
+  testPrefix,
+  waitForWorkbench,
+} from "./fixtures";
 import {
   buildRemoteNode,
+  buildRemoteWorkspace,
+  cleanupRemoteWorkspace,
   createAuthenticatedSupabaseClient,
+  fetchRemoteExcerpt,
+  fetchRemoteExcerptTag,
   fetchRemoteNode,
+  fetchRemoteTag,
+  fetchRemoteWorkspaceCounts,
   softDeleteRemoteNode,
+  softDeleteRemoteRow,
+  sumRemoteWorkspaceCounts,
+  updateRemoteNode,
   upsertRemoteNode,
+  upsertRemoteWorkspace,
+  type RemoteExcerpt,
+  type RemoteExcerptTag,
   type RemoteClientSession,
   type RemoteKnowledgeTreeNode,
+  type RemoteWorkspaceRows,
+  type RemoteTag,
 } from "./supabaseRemote";
 
 interface LocalKnowledgeTreeNode {
@@ -23,7 +45,61 @@ interface LocalKnowledgeTreeNode {
   sortOrder: number;
   syncStatus: string;
   syncError: string | null;
+  retryCount: number;
   localDirtyTime: number | null;
+  lastSyncTime: number | null;
+}
+
+interface LocalExcerpt {
+  id: string;
+  userId: string;
+  content: string;
+  url: string | null;
+  sourceTitle: string | null;
+  userThought: string | null;
+  treeNodeId: string | null;
+  createTime: number;
+  updateTime: number;
+  isDeleted: boolean;
+  deviceId: string | null;
+  syncStatus: string;
+  syncError: string | null;
+  retryCount: number;
+  localDirtyTime: number | null;
+  lastSyncTime: number | null;
+}
+
+interface LocalTag {
+  id: string;
+  userId: string;
+  tagName: string;
+  colorIcon: string | null;
+  heatWeight: number;
+  createTime: number;
+  updateTime: number;
+  isDeleted: boolean;
+  deviceId: string | null;
+  syncStatus: string;
+  syncError: string | null;
+  retryCount: number;
+  localDirtyTime: number | null;
+  lastSyncTime: number | null;
+}
+
+interface LocalExcerptTag {
+  id: string;
+  userId: string;
+  excerptId: string;
+  tagId: string;
+  createTime: number;
+  updateTime: number;
+  isDeleted: boolean;
+  deviceId: string | null;
+  syncStatus: string;
+  syncError: string | null;
+  retryCount: number;
+  localDirtyTime: number | null;
+  lastSyncTime: number | null;
 }
 
 interface LocalSession {
@@ -32,6 +108,23 @@ interface LocalSession {
   email: string;
   provider: "supabase";
 }
+
+interface LocalWorkspaceCounts {
+  nodes: number;
+  excerpts: number;
+  tags: number;
+  excerptTags: number;
+  total: number;
+}
+
+interface LocalPendingWorkspace {
+  node: LocalKnowledgeTreeNode;
+  excerpt: LocalExcerpt;
+  tag: LocalTag;
+  excerptTag: LocalExcerptTag;
+}
+
+type LocalStoreName = "nodes" | "excerpts" | "tags" | "excerptTags";
 
 test.describe.configure({ mode: "serial" });
 
@@ -56,23 +149,86 @@ async function getCurrentLocalSession(page: Page): Promise<LocalSession | null> 
 }
 
 async function getLocalNode(page: Page, id: string): Promise<LocalKnowledgeTreeNode | null> {
-  return page.evaluate(async (nodeId) => {
+  return getLocalRow<LocalKnowledgeTreeNode>(page, "nodes", id);
+}
+
+async function getLocalRow<T>(page: Page, storeName: LocalStoreName, id: string): Promise<T | null> {
+  return page.evaluate(async ({ rowId, storeName }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open("glean-read-web");
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
     });
     try {
-      return await new Promise<LocalKnowledgeTreeNode | null>((resolve, reject) => {
-        const transaction = db.transaction(["nodes"], "readonly");
-        const request = transaction.objectStore("nodes").get(nodeId);
+      return await new Promise<T | null>((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readonly");
+        const request = transaction.objectStore(storeName).get(rowId);
         request.onerror = () => reject(request.error);
-        request.onsuccess = () => resolve((request.result as LocalKnowledgeTreeNode | undefined) ?? null);
+        request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
       });
     } finally {
       db.close();
     }
-  }, id);
+  }, { rowId: id, storeName });
+}
+
+async function getLocalWorkspaceCounts(page: Page): Promise<LocalWorkspaceCounts> {
+  return page.evaluate(async () => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("glean-read-web");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    try {
+      const countActive = (storeName: LocalStoreName) =>
+        new Promise<number>((resolve, reject) => {
+          let count = 0;
+          const transaction = db.transaction([storeName], "readonly");
+          const request = transaction.objectStore(storeName).openCursor();
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            const cursor = request.result;
+            if (!cursor) {
+              resolve(count);
+              return;
+            }
+            if (!(cursor.value as { isDeleted?: boolean }).isDeleted) {
+              count += 1;
+            }
+            cursor.continue();
+          };
+        });
+      const [nodes, excerpts, tags, excerptTags] = await Promise.all([
+        countActive("nodes"),
+        countActive("excerpts"),
+        countActive("tags"),
+        countActive("excerptTags"),
+      ]);
+      return { nodes, excerpts, tags, excerptTags, total: nodes + excerpts + tags + excerptTags };
+    } finally {
+      db.close();
+    }
+  });
+}
+
+async function putLocalNode(page: Page, node: LocalKnowledgeTreeNode): Promise<void> {
+  await page.evaluate(async (localNode) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("glean-read-web");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(["nodes"], "readwrite");
+        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete = () => resolve();
+        transaction.objectStore("nodes").put(localNode);
+      });
+    } finally {
+      db.close();
+    }
+  }, node);
 }
 
 async function insertStaleSupabaseSessionAndPendingNode(page: Page, prefix: string, staleUserId: string): Promise<string> {
@@ -163,7 +319,9 @@ async function insertPendingLocalNode(page: Page, prefix: string): Promise<Local
         sortOrder: 1_114_112,
         syncStatus: "pending",
         syncError: null,
+        retryCount: 0,
         localDirtyTime: timestamp,
+        lastSyncTime: null,
       };
       await new Promise<void>((resolve, reject) => {
         const transaction = db.transaction(["nodes"], "readwrite");
@@ -178,6 +336,143 @@ async function insertPendingLocalNode(page: Page, prefix: string): Promise<Local
   }, prefix);
 }
 
+async function insertPendingLocalWorkspace(page: Page, prefix: string): Promise<LocalPendingWorkspace> {
+  return page.evaluate(async (seedPrefix) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("glean-read-web");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    try {
+      const session = await new Promise<{ userId: string }>((resolve, reject) => {
+        const transaction = db.transaction(["sessions"], "readonly");
+        const request = transaction.objectStore("sessions").get("current");
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          if (!request.result) {
+            reject(new Error("Missing current session"));
+            return;
+          }
+          resolve(request.result as { userId: string });
+        };
+      });
+      const deviceKey = "glean-read-web-device-id";
+      let deviceId = window.localStorage.getItem(deviceKey);
+      if (!deviceId) {
+        deviceId = `e2e-device-${Date.now()}`;
+        window.localStorage.setItem(deviceKey, deviceId);
+      }
+      const timestamp = Date.now();
+      const syncFields = {
+        userId: session.userId,
+        isDeleted: false,
+        deviceId,
+        syncStatus: "pending",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: timestamp,
+        lastSyncTime: null,
+      };
+      const node: LocalKnowledgeTreeNode = {
+        ...syncFields,
+        id: `${seedPrefix}-full-node`,
+        parentId: null,
+        nodeTitle: `${seedPrefix} full sync node`,
+        outlineMarkdown: `${seedPrefix} full sync outline`,
+        createTime: timestamp,
+        updateTime: timestamp,
+        sortOrder: 1_310_720,
+      };
+      const tag: LocalTag = {
+        ...syncFields,
+        id: `${seedPrefix}-full-tag`,
+        tagName: `${seedPrefix}-tag`,
+        colorIcon: "T",
+        heatWeight: 7,
+        createTime: timestamp + 1,
+        updateTime: timestamp + 1,
+      };
+      const excerpt: LocalExcerpt = {
+        ...syncFields,
+        id: `${seedPrefix}-full-excerpt`,
+        content: `${seedPrefix} full sync excerpt`,
+        url: "https://example.com/full-sync",
+        sourceTitle: `${seedPrefix} full source`,
+        userThought: `${seedPrefix} full thought`,
+        treeNodeId: node.id,
+        createTime: timestamp + 2,
+        updateTime: timestamp + 2,
+      };
+      const excerptTag: LocalExcerptTag = {
+        ...syncFields,
+        id: `${seedPrefix}-full-excerpt-tag`,
+        excerptId: excerpt.id,
+        tagId: tag.id,
+        createTime: timestamp + 3,
+        updateTime: timestamp + 3,
+      };
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction(["nodes", "excerpts", "tags", "excerptTags"], "readwrite");
+        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete = () => resolve();
+        transaction.objectStore("nodes").put(node);
+        transaction.objectStore("tags").put(tag);
+        transaction.objectStore("excerpts").put(excerpt);
+        transaction.objectStore("excerptTags").put(excerptTag);
+      });
+      return { node, excerpt, tag, excerptTag };
+    } finally {
+      db.close();
+    }
+  }, prefix);
+}
+
+async function buildCleanLocalNodeForCurrentUser(page: Page, id: string, prefix: string, updateTime: number): Promise<LocalKnowledgeTreeNode> {
+  return page.evaluate(
+    async ({ id, prefix, updateTime }) => {
+      const db = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open("glean-read-web");
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+      try {
+        const session = await new Promise<{ userId: string }>((resolve, reject) => {
+          const transaction = db.transaction(["sessions"], "readonly");
+          const request = transaction.objectStore("sessions").get("current");
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => {
+            if (!request.result) {
+              reject(new Error("Missing current session"));
+              return;
+            }
+            resolve(request.result as { userId: string });
+          };
+        });
+        return {
+          id,
+          userId: session.userId,
+          parentId: null,
+          nodeTitle: `${prefix} local newer node`,
+          outlineMarkdown: `${prefix} local newer outline`,
+          createTime: updateTime,
+          updateTime,
+          isDeleted: false,
+          deviceId: "e2e-local-newer",
+          sortOrder: 2_097_152,
+          syncStatus: "synced",
+          syncError: null,
+          retryCount: 0,
+          localDirtyTime: null,
+          lastSyncTime: updateTime,
+        } satisfies LocalKnowledgeTreeNode;
+      } finally {
+        db.close();
+      }
+    },
+    { id, prefix, updateTime }
+  );
+}
+
 function expectLocalNodeMatchesRemote(local: LocalKnowledgeTreeNode, remote: RemoteKnowledgeTreeNode) {
   expect(remote.id).toBe(local.id);
   expect(remote.user_id).toBe(local.userId);
@@ -189,6 +484,78 @@ function expectLocalNodeMatchesRemote(local: LocalKnowledgeTreeNode, remote: Rem
   expect(remote.is_deleted).toBe(local.isDeleted);
   expect(remote.device_id).toBe(local.deviceId);
   expect(remote.sort_order).toBe(local.sortOrder);
+}
+
+function expectLocalExcerptMatchesRemote(local: LocalExcerpt, remote: RemoteExcerpt) {
+  expect(remote.id).toBe(local.id);
+  expect(remote.user_id).toBe(local.userId);
+  expect(remote.content).toBe(local.content);
+  expect(remote.url).toBe(local.url);
+  expect(remote.source_title).toBe(local.sourceTitle);
+  expect(remote.user_thought).toBe(local.userThought);
+  expect(remote.tree_node_id).toBe(local.treeNodeId);
+  expect(remote.create_time).toBe(local.createTime);
+  expect(remote.update_time).toBe(local.updateTime);
+  expect(remote.is_deleted).toBe(local.isDeleted);
+  expect(remote.device_id).toBe(local.deviceId);
+}
+
+function expectLocalTagMatchesRemote(local: LocalTag, remote: RemoteTag) {
+  expect(remote.id).toBe(local.id);
+  expect(remote.user_id).toBe(local.userId);
+  expect(remote.tag_name).toBe(local.tagName);
+  expect(remote.color_icon).toBe(local.colorIcon);
+  expect(remote.heat_weight).toBe(local.heatWeight);
+  expect(remote.create_time).toBe(local.createTime);
+  expect(remote.update_time).toBe(local.updateTime);
+  expect(remote.is_deleted).toBe(local.isDeleted);
+  expect(remote.device_id).toBe(local.deviceId);
+}
+
+function expectLocalExcerptTagMatchesRemote(local: LocalExcerptTag, remote: RemoteExcerptTag) {
+  expect(remote.id).toBe(local.id);
+  expect(remote.user_id).toBe(local.userId);
+  expect(remote.excerpt_id).toBe(local.excerptId);
+  expect(remote.tag_id).toBe(local.tagId);
+  expect(remote.create_time).toBe(local.createTime);
+  expect(remote.update_time).toBe(local.updateTime);
+  expect(remote.is_deleted).toBe(local.isDeleted);
+  expect(remote.device_id).toBe(local.deviceId);
+}
+
+async function expectLocalWorkspaceMatchesRemote(page: Page, rows: RemoteWorkspaceRows) {
+  const [localNode, localExcerpt, localTag, localExcerptTag] = await Promise.all([
+    getLocalRow<LocalKnowledgeTreeNode>(page, "nodes", rows.node.id),
+    getLocalRow<LocalExcerpt>(page, "excerpts", rows.excerpt.id),
+    getLocalRow<LocalTag>(page, "tags", rows.tag.id),
+    getLocalRow<LocalExcerptTag>(page, "excerptTags", rows.excerptTag.id),
+  ]);
+  expect(localNode).not.toBeNull();
+  expect(localExcerpt).not.toBeNull();
+  expect(localTag).not.toBeNull();
+  expect(localExcerptTag).not.toBeNull();
+  expectLocalNodeMatchesRemote(localNode!, rows.node);
+  expectLocalExcerptMatchesRemote(localExcerpt!, rows.excerpt);
+  expectLocalTagMatchesRemote(localTag!, rows.tag);
+  expectLocalExcerptTagMatchesRemote(localExcerptTag!, rows.excerptTag);
+  expectSyncedClean(localNode!);
+  expectSyncedClean(localExcerpt!);
+  expectSyncedClean(localTag!);
+  expectSyncedClean(localExcerptTag!);
+}
+
+function expectSyncedClean(row: { syncStatus: string; syncError: string | null; localDirtyTime: number | null }) {
+  expect(row.syncStatus).toBe("synced");
+  expect(row.syncError).toBeNull();
+  expect(row.localDirtyTime).toBeNull();
+}
+
+function expectLocalCountsMatchRemote(local: LocalWorkspaceCounts, remote: Awaited<ReturnType<typeof fetchRemoteWorkspaceCounts>>) {
+  expect(local.nodes).toBe(remote.knowledge_tree_node);
+  expect(local.excerpts).toBe(remote.excerpts);
+  expect(local.tags).toBe(remote.tags);
+  expect(local.excerptTags).toBe(remote.excerpt_tags);
+  expect(local.total).toBe(sumRemoteWorkspaceCounts(remote));
 }
 
 test("E2E-36 Supabase 会话恢复会覆盖 IndexedDB 中的旧 current 用户", async ({ page }) => {
@@ -331,6 +698,358 @@ test("E2E-38 Supabase Realtime 远端节点变更会拉到本地且字段一致"
     expectLocalNodeMatchesRemote(localNode!, remoteNode);
   } finally {
     if (remote) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-40 test@qq.com 云端已有数据会下行到空 IndexedDB", async ({ page }) => {
+  test.setTimeout(75_000);
+  let remote: RemoteClientSession | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    const remoteCounts = await fetchRemoteWorkspaceCounts(remote.client, remote.userId);
+    expect(sumRemoteWorkspaceCounts(remoteCounts)).toBeGreaterThan(0);
+
+    await loginWithPassword(page, seededUser);
+
+    await expect
+      .poll(async () => (await getLocalWorkspaceCounts(page)).total, { timeout: 45_000 })
+      .toBe(sumRemoteWorkspaceCounts(remoteCounts));
+    const localCounts = await getLocalWorkspaceCounts(page);
+    expectLocalCountsMatchRemote(localCounts, remoteCounts);
+    expect((await getCurrentLocalSession(page))?.email).toBe(seededUser.email);
+  } finally {
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-41 test2@qq.com 空云端登录后不会产生本地种子数据", async ({ page }) => {
+  test.setTimeout(75_000);
+  let remote: RemoteClientSession | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(emptyUser);
+    const remoteCounts = await fetchRemoteWorkspaceCounts(remote.client, remote.userId);
+    expect(sumRemoteWorkspaceCounts(remoteCounts)).toBe(0);
+
+    await loginWithPassword(page, emptyUser);
+    await expect.poll(async () => (await getLocalWorkspaceCounts(page)).total, { timeout: 15_000 }).toBe(0);
+    await expectNoSeedExampleContent(page);
+    await expect(page.getByTestId("inbox-empty")).toBeVisible();
+    expect((await getCurrentLocalSession(page))?.email).toBe(emptyUser.email);
+  } finally {
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-42 test2@qq.com 不会读取 test@qq.com 的云端节点", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-account-isolation");
+  const nodeId = `${prefix}-seeded-only-node`;
+  let seededRemote: RemoteClientSession | null = null;
+  let emptyRemote: RemoteClientSession | null = null;
+
+  try {
+    seededRemote = await createAuthenticatedSupabaseClient(seededUser);
+    emptyRemote = await createAuthenticatedSupabaseClient(emptyUser);
+    const remoteNode = buildRemoteNode(seededRemote.userId, nodeId, prefix, "e2e-account-isolation");
+    await upsertRemoteNode(seededRemote.client, remoteNode);
+
+    expect(await fetchRemoteNode(seededRemote.client, nodeId)).not.toBeNull();
+    expect(await fetchRemoteNode(emptyRemote.client, nodeId)).toBeNull();
+
+    await loginWithPassword(page, emptyUser);
+    await page.waitForTimeout(2_000);
+    expect(await getLocalNode(page, nodeId)).toBeNull();
+  } finally {
+    if (seededRemote) {
+      await softDeleteRemoteNode(seededRemote.client, nodeId).catch(() => undefined);
+    }
+    await seededRemote?.client.auth.signOut().catch(() => undefined);
+    await emptyRemote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-43 本地节点、摘录、标签和关系会一起同步到 Supabase", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-full-push");
+  let remote: RemoteClientSession | null = null;
+  let localBefore: LocalPendingWorkspace | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    localBefore = await insertPendingLocalWorkspace(page, prefix);
+
+    await page.reload();
+    await waitForWorkbench(page);
+    await expect
+      .poll(async () => {
+        const [node, excerpt, tag, excerptTag] = await Promise.all([
+          fetchRemoteNode(remote!.client, localBefore!.node.id),
+          fetchRemoteExcerpt(remote!.client, localBefore!.excerpt.id),
+          fetchRemoteTag(remote!.client, localBefore!.tag.id),
+          fetchRemoteExcerptTag(remote!.client, localBefore!.excerptTag.id),
+        ]);
+        return Boolean(node && excerpt && tag && excerptTag);
+      }, { timeout: 45_000 })
+      .toBe(true);
+
+    const [remoteNode, remoteExcerpt, remoteTag, remoteExcerptTag] = await Promise.all([
+      fetchRemoteNode(remote.client, localBefore.node.id),
+      fetchRemoteExcerpt(remote.client, localBefore.excerpt.id),
+      fetchRemoteTag(remote.client, localBefore.tag.id),
+      fetchRemoteExcerptTag(remote.client, localBefore.excerptTag.id),
+    ]);
+    const [localNode, localExcerpt, localTag, localExcerptTag] = await Promise.all([
+      getLocalRow<LocalKnowledgeTreeNode>(page, "nodes", localBefore.node.id),
+      getLocalRow<LocalExcerpt>(page, "excerpts", localBefore.excerpt.id),
+      getLocalRow<LocalTag>(page, "tags", localBefore.tag.id),
+      getLocalRow<LocalExcerptTag>(page, "excerptTags", localBefore.excerptTag.id),
+    ]);
+
+    expect(remoteNode).not.toBeNull();
+    expect(remoteExcerpt).not.toBeNull();
+    expect(remoteTag).not.toBeNull();
+    expect(remoteExcerptTag).not.toBeNull();
+    expect(localNode).not.toBeNull();
+    expect(localExcerpt).not.toBeNull();
+    expect(localTag).not.toBeNull();
+    expect(localExcerptTag).not.toBeNull();
+    expectSyncedClean(localNode!);
+    expectSyncedClean(localExcerpt!);
+    expectSyncedClean(localTag!);
+    expectSyncedClean(localExcerptTag!);
+    expectLocalNodeMatchesRemote(localNode!, remoteNode!);
+    expectLocalExcerptMatchesRemote(localExcerpt!, remoteExcerpt!);
+    expectLocalTagMatchesRemote(localTag!, remoteTag!);
+    expectLocalExcerptTagMatchesRemote(localExcerptTag!, remoteExcerptTag!);
+  } finally {
+    if (remote && localBefore) {
+      await Promise.all([
+        softDeleteRemoteRow(remote.client, "excerpt_tags", localBefore.excerptTag.id).catch(() => undefined),
+        softDeleteRemoteRow(remote.client, "excerpts", localBefore.excerpt.id).catch(() => undefined),
+        softDeleteRemoteRow(remote.client, "tags", localBefore.tag.id).catch(() => undefined),
+        softDeleteRemoteRow(remote.client, "knowledge_tree_node", localBefore.node.id).catch(() => undefined),
+      ]);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-44 远端节点、摘录、标签和关系会一起下行到本地", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-full-pull");
+  let remote: RemoteClientSession | null = null;
+  let rows: RemoteWorkspaceRows | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    rows = buildRemoteWorkspace(remote.userId, prefix, "e2e-remote-full-pull");
+    await upsertRemoteWorkspace(remote.client, rows);
+
+    await loginWithPassword(page, seededUser);
+    await expect
+      .poll(async () => Boolean(await getLocalRow<LocalExcerptTag>(page, "excerptTags", rows!.excerptTag.id)), { timeout: 45_000 })
+      .toBe(true);
+    await expectLocalWorkspaceMatchesRemote(page, rows);
+  } finally {
+    if (remote && rows) {
+      await cleanupRemoteWorkspace(remote.client, rows);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-45 远端软删除和恢复会下行到本地节点", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-remote-delete-restore");
+  const nodeId = `${prefix}-node`;
+  let remote: RemoteClientSession | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    const remoteNode = buildRemoteNode(remote.userId, nodeId, prefix, "e2e-remote-delete-restore");
+    await upsertRemoteNode(remote.client, remoteNode);
+
+    await loginWithPassword(page, seededUser);
+    await expect.poll(async () => (await getLocalNode(page, nodeId))?.isDeleted ?? null, { timeout: 30_000 }).toBe(false);
+
+    const deletedTime = Date.now();
+    await updateRemoteNode(remote.client, nodeId, {
+      is_deleted: true,
+      update_time: deletedTime,
+      device_id: "e2e-remote-delete",
+    });
+    await expect.poll(async () => (await getLocalNode(page, nodeId))?.isDeleted ?? null, { timeout: 30_000 }).toBe(true);
+
+    const restoredTime = Date.now() + 1;
+    await updateRemoteNode(remote.client, nodeId, {
+      is_deleted: false,
+      update_time: restoredTime,
+      device_id: "e2e-remote-restore",
+    });
+    await expect.poll(async () => (await getLocalNode(page, nodeId))?.isDeleted ?? null, { timeout: 30_000 }).toBe(false);
+    expect((await getLocalNode(page, nodeId))?.updateTime).toBe(restoredTime);
+  } finally {
+    if (remote) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-46 远端旧版本不会覆盖本地较新的 clean 节点", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-remote-stale");
+  const nodeId = `${prefix}-node`;
+  let remote: RemoteClientSession | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    const localUpdateTime = Date.now() + 120_000;
+    const localNode = await buildCleanLocalNodeForCurrentUser(page, nodeId, prefix, localUpdateTime);
+    await putLocalNode(page, localNode);
+
+    const staleRemoteNode = {
+      ...buildRemoteNode(remote.userId, nodeId, prefix, "e2e-remote-stale"),
+      node_title: `${prefix} stale remote node`,
+      outline_markdown: `${prefix} stale remote outline`,
+      create_time: localUpdateTime - 60_000,
+      update_time: localUpdateTime - 60_000,
+    };
+    await upsertRemoteNode(remote.client, staleRemoteNode);
+
+    await page.reload();
+    await waitForWorkbench(page);
+    await page.waitForTimeout(2_000);
+
+    const localAfter = await getLocalNode(page, nodeId);
+    expect(localAfter).not.toBeNull();
+    expect(localAfter!.nodeTitle).toBe(localNode.nodeTitle);
+    expect(localAfter!.outlineMarkdown).toBe(localNode.outlineMarkdown);
+    expect(localAfter!.updateTime).toBe(localUpdateTime);
+    expectSyncedClean(localAfter!);
+  } finally {
+    if (remote) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-47 本设备上行回音会在拉取查询中被服务端过滤", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-self-echo-cursor");
+  let remote: RemoteClientSession | null = null;
+  let nodeId = "";
+  const pullRequests: string[] = [];
+
+  page.on("request", (request) => {
+    const url = decodeURIComponent(request.url());
+    if (url.includes("/rest/v1/knowledge_tree_node") && url.includes("select=*") && url.includes("device_id.neq.")) {
+      pullRequests.push(url);
+    }
+  });
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    const localBefore = await insertPendingLocalNode(page, prefix);
+    nodeId = localBefore.id;
+
+    await page.reload();
+    await waitForWorkbench(page);
+    await expect.poll(async () => Boolean(await fetchRemoteNode(remote!.client, nodeId)), { timeout: 30_000 }).toBe(true);
+    const localAfter = await getLocalNode(page, nodeId);
+
+    expect(pullRequests.some((url) => url.includes("device_id.is.null") && url.includes("device_id.neq."))).toBe(true);
+    expect(localAfter).not.toBeNull();
+    expectSyncedClean(localAfter!);
+    expect(localAfter!.nodeTitle).toBe(localBefore.nodeTitle);
+  } finally {
+    if (remote && nodeId) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-48 RLS 会阻止 test2@qq.com 写入或更新 test@qq.com 的节点", async () => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-rls-write");
+  const nodeId = `${prefix}-node`;
+  let seededRemote: RemoteClientSession | null = null;
+  let emptyRemote: RemoteClientSession | null = null;
+
+  try {
+    seededRemote = await createAuthenticatedSupabaseClient(seededUser);
+    emptyRemote = await createAuthenticatedSupabaseClient(emptyUser);
+    const remoteNode = buildRemoteNode(seededRemote.userId, nodeId, prefix, "e2e-rls-write-owner");
+    await upsertRemoteNode(seededRemote.client, remoteNode);
+
+    const forbiddenNode = buildRemoteNode(seededRemote.userId, `${prefix}-forbidden-insert`, prefix, "e2e-rls-forbidden");
+    await expect(upsertRemoteNode(emptyRemote.client, forbiddenNode)).rejects.toThrow();
+
+    const { data, error } = await emptyRemote.client
+      .from("knowledge_tree_node")
+      .update({
+        node_title: `${prefix} forbidden update`,
+        update_time: Date.now(),
+        device_id: "e2e-rls-forbidden-update",
+      })
+      .eq("id", nodeId)
+      .select("*");
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+    expect((await fetchRemoteNode(seededRemote.client, nodeId))?.node_title).toBe(remoteNode.node_title);
+  } finally {
+    if (seededRemote) {
+      await softDeleteRemoteNode(seededRemote.client, nodeId).catch(() => undefined);
+      await softDeleteRemoteNode(seededRemote.client, `${prefix}-forbidden-insert`).catch(() => undefined);
+    }
+    await seededRemote?.client.auth.signOut().catch(() => undefined);
+    await emptyRemote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-49 离线期间保留本地 pending，恢复在线后再上行", async ({ page }) => {
+  test.setTimeout(90_000);
+  const prefix = testPrefix("supabase-offline-online");
+  let remote: RemoteClientSession | null = null;
+  let nodeId = "";
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    await page.context().setOffline(true);
+    await page.evaluate(() => window.dispatchEvent(new Event("offline")));
+    await expect(page.getByText("离线可用")).toBeVisible();
+
+    const localBefore = await insertPendingLocalNode(page, prefix);
+    nodeId = localBefore.id;
+    await page.waitForTimeout(1_500);
+    expect(await fetchRemoteNode(remote.client, nodeId)).toBeNull();
+
+    await page.context().setOffline(false);
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await expect.poll(async () => Boolean(await fetchRemoteNode(remote!.client, nodeId)), { timeout: 45_000 }).toBe(true);
+    const localAfter = await getLocalNode(page, nodeId);
+    expect(localAfter).not.toBeNull();
+    expectSyncedClean(localAfter!);
+  } finally {
+    await page.context().setOffline(false).catch(() => undefined);
+    if (remote && nodeId) {
       await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
     }
     await cleanupWorkspace(page, prefix).catch(() => undefined);

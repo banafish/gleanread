@@ -1,7 +1,7 @@
 import { db } from "@/db/dexie";
 import { getCurrentSession } from "@/db/repositories/workspaceRepository";
 import { hasSupabaseConfig, supabase } from "@/supabase/client";
-import { advancePullCursor, isSelfEcho, shouldApplyRemoteChange } from "@/supabase/syncPolicy";
+import { advancePullCursor, isSelfEcho, shouldApplyRemoteChange, toNonSelfDeviceFilter } from "@/supabase/syncPolicy";
 import type {
   AuthSession,
   Excerpt,
@@ -77,10 +77,12 @@ interface Bridge {
   fromRemote: (item: any) => any;
 }
 
+const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
 function getDeviceId(): string {
   const key = "glean-read-web-device-id";
   const existing = window.localStorage.getItem(key);
-  if (existing) {
+  if (existing && DEVICE_ID_PATTERN.test(existing)) {
     return existing;
   }
   const next = createId("device");
@@ -196,6 +198,7 @@ async function pullBridge(
     .select("*")
     .eq("user_id", userId)
     .gt("update_time", cursor.lastPulledAt)
+    .or(toNonSelfDeviceFilter(deviceId))
     .order("update_time", { ascending: true });
   if (error) {
     throw new Error(error.message);

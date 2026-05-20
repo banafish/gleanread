@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { advancePullCursor, isSelfEcho, shouldApplyRemoteChange } from "../supabase/syncPolicy.ts";
+import { advancePullCursor, isSelfEcho, shouldApplyRemoteChange, toNonSelfDeviceFilter } from "../supabase/syncPolicy.ts";
 
 test("同步策略会过滤当前设备产生的 Realtime 回音", () => {
   assert.equal(isSelfEcho("device-a", "device-a"), true);
@@ -15,7 +15,22 @@ test("远端增量只覆盖本地旧数据", () => {
   assert.equal(shouldApplyRemoteChange({ updateTime: 30, syncStatus: "synced" }, { updateTime: 20, deviceId: "device-b" }), false);
 });
 
+test("远端同时间戳按当前策略可覆盖本地数据", () => {
+  assert.equal(shouldApplyRemoteChange({ updateTime: 20, syncStatus: "synced" }, { updateTime: 20, deviceId: "device-b" }), true);
+  assert.equal(shouldApplyRemoteChange({ updateTime: 20, syncStatus: "pending" }, { updateTime: 20, deviceId: "device-b" }), true);
+});
+
+test("远端空 deviceId 不会被误判为当前设备回音", () => {
+  assert.equal(isSelfEcho(null, "device-a"), false);
+  assert.equal(isSelfEcho("", "device-a"), false);
+});
+
+test("远端拉取过滤器会排除当前设备但保留空 deviceId 行", () => {
+  assert.equal(toNonSelfDeviceFilter("device-a"), "device_id.is.null,device_id.neq.device-a");
+});
+
 test("拉取游标始终前进到最大 update_time", () => {
   assert.equal(advancePullCursor(100, 90), 100);
   assert.equal(advancePullCursor(100, 120), 120);
+  assert.equal(advancePullCursor(100, 100), 100);
 });
