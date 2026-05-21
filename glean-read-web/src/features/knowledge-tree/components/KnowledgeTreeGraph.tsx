@@ -10,6 +10,7 @@ import ReactFlow, {
   type NodeTypes,
   type Viewport,
 } from "reactflow";
+import { useDndContext } from "@dnd-kit/core";
 import { createChildNode, createSiblingNode, deleteNodeSubtree, renameNode } from "@/db/repositories/workspaceRepository";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
@@ -107,6 +108,7 @@ function GraphDragAutoPan({
   onViewportChange: (viewport: Viewport) => void;
 }) {
   const { getViewport, setViewport } = useReactFlow();
+  const { measureDroppableContainers } = useDndContext();
   const dragPointerRef = useRef<DragPointerPosition | null>(dragPointer);
 
   useEffect(() => {
@@ -135,6 +137,8 @@ function GraphDragAutoPan({
           };
           setViewport(nextViewport, { duration: 0 });
           onViewportChange(nextViewport);
+          // ReactFlow pans with transforms, so dnd-kit needs fresh screen-space drop rects while auto-panning.
+          measureDroppableContainers([]);
         }
       }
       frameId = requestAnimationFrame(tick);
@@ -142,7 +146,7 @@ function GraphDragAutoPan({
 
     frameId = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(frameId);
-  }, [canvasRef, draggedNodeId, getViewport, onViewportChange, setViewport]);
+  }, [canvasRef, draggedNodeId, getViewport, measureDroppableContainers, onViewportChange, setViewport]);
 
   return null;
 }
