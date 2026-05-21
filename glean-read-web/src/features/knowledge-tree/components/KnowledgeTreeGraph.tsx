@@ -177,8 +177,7 @@ function NodeDropPreviewPath({
         stroke="#f97316"
         strokeLinecap="round"
         strokeLinejoin="round"
-        strokeWidth={8}
-        vectorEffect="non-scaling-stroke"
+        strokeWidth={5}
       />
       <foreignObject
         data-testid="tree-node-drop-preview-slot"

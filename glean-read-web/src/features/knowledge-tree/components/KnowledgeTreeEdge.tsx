@@ -1,4 +1,5 @@
-import { BaseEdge, getBezierPath, type EdgeProps } from "reactflow";
+import { BaseEdge, type EdgeProps } from "reactflow";
+import { buildKnowledgeTreeBezierPath, type GraphEdgePosition } from "@/features/knowledge-tree/graphPaths";
 
 export function KnowledgeTreeEdge({
   id,
@@ -11,14 +12,13 @@ export function KnowledgeTreeEdge({
   style,
   interactionWidth,
 }: EdgeProps) {
-  const [edgePath] = getBezierPath({
+  const edgePath = buildKnowledgeTreeBezierPath({
     sourceX,
     sourceY,
-    sourcePosition,
+    sourcePosition: sourcePosition as GraphEdgePosition,
     targetX,
     targetY,
-    targetPosition,
-    curvature: 0.42,
+    targetPosition: targetPosition as GraphEdgePosition,
   });
 
   return <BaseEdge id={id} path={edgePath} style={style} interactionWidth={interactionWidth} />;

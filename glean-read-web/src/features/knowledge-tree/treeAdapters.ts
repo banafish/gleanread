@@ -1,6 +1,7 @@
 import type { Edge, Node } from "reactflow";
 import type { TreeNodeDropIntent } from "../workbench/dnd.ts";
 import type { TreeNodeViewModel, WorkspaceSnapshot } from "../../shared/models.ts";
+import { buildKnowledgeTreeBezierPath } from "./graphPaths.ts";
 import { getNodeViewModels } from "../workbench/workbenchSelectors.ts";
 
 export const VIRTUAL_ROOT_ID = "__virtual_root__";
@@ -146,11 +147,17 @@ function buildNodeDropPreviewPath(
   const targetRight = targetNode.position.x + NODE_WIDTH;
   const targetCenterY = targetNode.position.y + NODE_HEIGHT / 2;
   if (preview.intent === "inside") {
-    const elbowX = targetRight + 72;
-    const slotX = elbowX;
+    const slotX = targetRight + 72;
     const slotY = targetCenterY - DROP_PREVIEW_NODE_HEIGHT / 2;
     return {
-      path: `M ${targetRight} ${targetCenterY} H ${slotX}`,
+      path: buildKnowledgeTreeBezierPath({
+        sourceX: targetRight,
+        sourceY: targetCenterY,
+        sourcePosition: "right",
+        targetX: slotX,
+        targetY: targetCenterY,
+        targetPosition: "left",
+      }),
       slot: {
         x: slotX,
         y: slotY,
@@ -168,7 +175,14 @@ function buildNodeDropPreviewPath(
   const slotX = Math.max(targetLeft, elbowX + DROP_PREVIEW_NODE_GAP);
 
   return {
-    path: `M ${sourceRight} ${sourceCenterY} H ${elbowX} V ${slotCenterY} H ${slotX}`,
+    path: buildKnowledgeTreeBezierPath({
+      sourceX: sourceRight,
+      sourceY: sourceCenterY,
+      sourcePosition: "right",
+      targetX: slotX,
+      targetY: slotCenterY,
+      targetPosition: "left",
+    }),
     slot: {
       x: slotX,
       y: slotCenterY - DROP_PREVIEW_NODE_HEIGHT / 2,

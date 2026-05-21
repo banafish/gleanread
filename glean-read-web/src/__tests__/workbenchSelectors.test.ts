@@ -130,7 +130,8 @@ test("knowledge tree drag preview draws an insertion path without relayout", () 
     previewGraph.nodes.map((node) => [node.id, node.position]),
     baseGraph.nodes.map((node) => [node.id, node.position])
   );
-  assert.ok(previewGraph.dropPreviewPath?.path.includes("H"));
+  assert.ok(previewGraph.dropPreviewPath?.path.includes(" C"));
+  assert.equal(previewGraph.dropPreviewPath?.path.includes(" H "), false);
   assert.equal(previewGraph.dropPreviewPath?.slot.width, 260);
   assert.equal(previewGraph.dropPreviewPath?.slot.height, 76);
   assert.equal(previewGraph.nodes.find((node) => node.id === "node-build")?.data.isDraggingSource, true);
