@@ -83,6 +83,8 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
   const isDragSource = data.isDraggingSource || isDragging;
   const showNodeMeta = !isVirtualRoot;
   const showExcerptCount = showNodeMeta && viewModel.excerptCount > 0;
+  const showParentHandle = !isVirtualRoot;
+  const showChildHandle = data.hasChildren;
 
   useEffect(() => {
     if (!data.isEditing) {
@@ -171,7 +173,9 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
       <DropZone disabled={!canDrop} intent="inside" nodeId={viewModel.id} />
       <DropZone disabled={isVirtualRoot || !canDrop} intent="after" nodeId={viewModel.id} />
 
-      <Handle type="target" position={Position.Left} className={handleClass} style={{ left: -8 }} />
+      {showParentHandle ? (
+        <Handle type="target" position={Position.Left} className={handleClass} style={{ left: -8 }} />
+      ) : null}
 
       <div className="relative z-20 min-w-0 flex-1 pr-6">
         {data.isEditing ? (
@@ -260,7 +264,9 @@ export function TreeNodeCard({ data }: NodeProps<KnowledgeGraphNodeData>) {
           {viewModel.isExpanded ? <ChevronDown size={24} strokeWidth={2.5} /> : <ChevronRight size={24} strokeWidth={2.5} />}
         </button>
       ) : null}
-      <Handle type="source" position={Position.Right} className={handleClass} style={{ right: -8 }} />
+      {showChildHandle ? (
+        <Handle type="source" position={Position.Right} className={handleClass} style={{ right: -8 }} />
+      ) : null}
     </div>
   );
 }
