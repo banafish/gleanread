@@ -16,3 +16,12 @@ test("Markdown 转换会转义原始 HTML", () => {
   assert.equal(html.includes("<script>"), false);
   assert.match(html, /&lt;script&gt;alert/);
 });
+
+test("Markdown 预览支持扩展快捷语法", () => {
+  const html = markdownToHtml("~~删除~~\n\n- [x] 已完成\n- [ ] 待处理\n\n---");
+
+  assert.match(html, /<del>删除<\/del>/);
+  assert.match(html, /<input type="checkbox" disabled checked> 已完成/);
+  assert.match(html, /<input type="checkbox" disabled> 待处理/);
+  assert.match(html, /<hr>/);
+});

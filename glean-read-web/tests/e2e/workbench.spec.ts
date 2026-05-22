@@ -259,41 +259,48 @@ test.describe("登录后的工作台功能", () => {
     prefix = await loginAndSeed(page, "outline-save");
     const outline = `${prefix} saved outline`;
     await nodeByTitle(page, `${prefix} Child`).click();
-    const editor = page.locator('[data-testid="node-outline-editor"] .ProseMirror');
-    await editor.click();
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
-    await page.keyboard.type(outline);
-    await expect(editor).toContainText(outline);
+    await expect(page.getByTestId("node-outline-preview")).toBeVisible();
+    await page.getByTestId("outline-edit-toggle").click();
+    const editor = page.getByTestId("node-outline-source");
+    await editor.fill(outline);
+    await expect(editor).toHaveValue(outline);
     await page.waitForTimeout(1_200);
     await expect(page.getByTestId("outline-save-status")).toHaveText("已就绪", { timeout: 5_000 });
     await page.reload();
     await waitForSeededWorkspace(page);
     await nodeByTitle(page, `${prefix} Child`).click();
-    await expect(page.locator('[data-testid="node-outline-editor"] .ProseMirror')).toContainText(outline);
+    await expect(page.getByTestId("node-outline-preview")).toContainText(outline);
   });
 
   test("E2E-20 大纲格式按钮可以生成格式化内容", async ({ page }) => {
     prefix = await loginAndSeed(page, "outline-format");
     await nodeByTitle(page, `${prefix} Child`).click();
-    const editor = page.locator('[data-testid="node-outline-editor"] .ProseMirror');
-    await editor.click();
+    await page.getByTestId("outline-edit-toggle").click();
+    const editor = page.getByTestId("node-outline-source");
+    await editor.fill("bold text");
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     await page.getByLabel("加粗").click();
-    await page.keyboard.type("bold text");
-    await expect(editor.locator("strong")).toContainText("bold text");
+    await expect(editor).toHaveValue("**bold text**");
+    await editor.fill("list item");
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
     await page.getByLabel("无序列表").click();
-    await page.keyboard.type("list item");
-    await expect(editor.locator("ul")).toContainText("list item");
+    await expect(editor).toHaveValue("- list item");
+    await page.getByTestId("outline-preview-toggle").click();
+    await expect(page.getByTestId("node-outline-preview").locator("ul")).toContainText("list item");
   });
 
   test("E2E-21 Slash 菜单可以插入常见块", async ({ page }) => {
     prefix = await loginAndSeed(page, "slash-menu");
     await nodeByTitle(page, `${prefix} Child`).click();
-    const editor = page.locator('[data-testid="node-outline-editor"] .ProseMirror');
+    await page.getByTestId("outline-edit-toggle").click();
+    const editor = page.getByTestId("node-outline-source");
     await editor.click();
     await page.keyboard.type("/");
-    await expect(page.getByText("Slash 菜单")).toBeVisible();
-    await page.getByRole("button", { name: "标题" }).click();
+    const slashMenu = page.getByTestId("outline-slash-menu");
+    await expect(slashMenu).toBeVisible();
+    await slashMenu.getByRole("button", { name: "标题" }).click();
     await expect(page.getByText("Slash 菜单")).toHaveCount(0);
+    await expect(editor).toHaveValue("## ");
   });
 
   test("E2E-22 我的思考编辑后刷新保留", async ({ page }) => {

@@ -10,6 +10,7 @@ function escapeHtml(value: string): string {
 function applyInlineMarkdown(text: string): string {
   const escaped = escapeHtml(text);
   return escaped
+    .replace(/~~(.+?)~~/g, "<del>$1</del>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*(?!\s)(.+?)(?!\s)\*(?!\*)/g, "$1<em>$2</em>")
     .replace(/`(.+?)`/g, "<code>$1</code>")
@@ -34,7 +35,16 @@ export function markdownToHtml(markdown: string): string {
 
   const flushList = () => {
     if (listType && listItems.length > 0) {
-      const items = listItems.map((item) => `<li>${applyInlineMarkdown(item.trim())}</li>`).join("");
+      const items = listItems
+        .map((item) => {
+          const taskMatch = item.trim().match(/^\[( |x|X)\]\s+(.+)$/);
+          if (taskMatch) {
+            const checked = taskMatch[1].toLowerCase() === "x" ? " checked" : "";
+            return `<li><input type="checkbox" disabled${checked}> ${applyInlineMarkdown(taskMatch[2].trim())}</li>`;
+          }
+          return `<li>${applyInlineMarkdown(item.trim())}</li>`;
+        })
+        .join("");
       chunks.push(`<${listType}>${items}</${listType}>`);
     }
     listType = null;
@@ -72,6 +82,13 @@ export function markdownToHtml(markdown: string): string {
     if (!trimmed) {
       flushParagraph();
       flushList();
+      continue;
+    }
+
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+      flushParagraph();
+      flushList();
+      chunks.push("<hr>");
       continue;
     }
 
