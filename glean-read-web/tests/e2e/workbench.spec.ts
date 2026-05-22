@@ -195,23 +195,17 @@ test.describe("登录后的工作台功能", () => {
     const siblingTitle = `${prefix} keyboard sibling`;
 
     await nodeByTitle(page, `${prefix} Child`).click();
-    await page.evaluate(() => {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-    });
+    await expect(page.getByTestId("knowledge-tree-canvas")).toBeFocused();
+    const popupPromise = page.context().waitForEvent("page", { timeout: 500 }).then(() => true).catch(() => false);
     await page.keyboard.press("Tab");
+    expect(await popupPromise).toBe(false);
     await expect(page.locator("[data-node-edit-input]")).toBeVisible();
     await page.locator("[data-node-edit-input]").fill(childTitle);
     await page.keyboard.press("Enter");
     await expect(nodeByTitle(page, childTitle)).toBeVisible();
 
     await nodeByTitle(page, childTitle).click();
-    await page.evaluate(() => {
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
-    });
+    await expect(page.getByTestId("knowledge-tree-canvas")).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.locator("[data-node-edit-input]")).toBeVisible();
     await page.locator("[data-node-edit-input]").fill(siblingTitle);

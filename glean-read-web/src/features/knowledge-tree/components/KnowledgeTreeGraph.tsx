@@ -223,6 +223,10 @@ function KnowledgeTreeGraphInner() {
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const createPendingRef = useRef(false);
 
+  const focusCanvas = useCallback(() => {
+    canvasRef.current?.focus({ preventScroll: true });
+  }, []);
+
   const snapshot = useMemo<WorkspaceSnapshot>(
     () => ({ nodes, excerpts, tags, excerptTags, recentSearches }),
     [excerptTags, excerpts, nodes, recentSearches, tags]
@@ -306,6 +310,7 @@ function KnowledgeTreeGraphInner() {
         nodeDropPreview,
         onSelect: (nodeId) => {
           if (nodeId !== VIRTUAL_ROOT_ID) {
+            focusCanvas();
             setSelectedNodeId(nodeId);
           }
         },
@@ -324,6 +329,7 @@ function KnowledgeTreeGraphInner() {
       draggedNodeId,
       editingNodeId,
       expandedNodeIds,
+      focusCanvas,
       handleCommitTitle,
       hoveredNodeId,
       nodeDropPreview,
@@ -446,7 +452,7 @@ function KnowledgeTreeGraphInner() {
   ]);
 
   return (
-    <div ref={canvasRef} className="knowledge-tree-canvas h-full min-h-0 overflow-hidden" data-testid="knowledge-tree-canvas">
+    <div ref={canvasRef} className="knowledge-tree-canvas h-full min-h-0 overflow-hidden outline-none" data-testid="knowledge-tree-canvas" tabIndex={-1}>
       <ReactFlow
         className="knowledge-tree-flow"
         nodes={graphData.nodes}
@@ -458,6 +464,8 @@ function KnowledgeTreeGraphInner() {
         maxZoom={1.7}
         fitView={false}
         nodesDraggable={false}
+        nodesFocusable={false}
+        edgesFocusable={false}
         zoomOnScroll
         panOnScroll={false}
         panOnDrag={!draggedNodeId}
