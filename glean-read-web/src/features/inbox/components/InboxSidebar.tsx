@@ -224,12 +224,16 @@ function ExcerptCard({
 
       <div className="mt-3 flex flex-wrap items-center gap-1.5">
         {excerpt.tags.map((tag) => (
-          <Badge key={tag.id} className="gap-1">
-            <span>{tag.colorIcon ?? <Tag size={11} />}</span>
-            {tag.tagName}
+          <Badge key={tag.id} className="max-w-full min-w-0 gap-1" title={tag.tagName}>
+            <span className="shrink-0">{tag.colorIcon ?? <Tag size={11} />}</span>
+            <span className="min-w-0 truncate">{tag.tagName}</span>
           </Badge>
         ))}
-        {mountedNodeTitle ? <Badge>{mountedNodeTitle}</Badge> : null}
+        {mountedNodeTitle ? (
+          <Badge className="max-w-full min-w-0" title={mountedNodeTitle}>
+            <span className="min-w-0 truncate">{mountedNodeTitle}</span>
+          </Badge>
+        ) : null}
       </div>
     </article>
   );
