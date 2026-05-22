@@ -7,6 +7,7 @@ export type InboxFilter = "inbox" | "all";
 export interface AuthSession {
   userId: string;
   email: string;
+  avatarUrl?: string | null;
   accessToken?: string;
   refreshToken?: string;
   provider: "local" | "supabase";

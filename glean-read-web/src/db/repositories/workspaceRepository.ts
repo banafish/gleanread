@@ -647,7 +647,16 @@ export async function setCurrentSession(session: AuthSession | null): Promise<vo
 
 export async function getCurrentSession(): Promise<AuthSession | null> {
   const session = await db.sessions.get("current");
-  return session ? { userId: session.userId, email: session.email, accessToken: session.accessToken, refreshToken: session.refreshToken, provider: session.provider } : null;
+  return session
+    ? {
+        userId: session.userId,
+        email: session.email,
+        avatarUrl: session.avatarUrl ?? null,
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+        provider: session.provider,
+      }
+    : null;
 }
 
 export async function upsertPreference(userId: string, key: string, value: string): Promise<void> {

@@ -3,6 +3,7 @@ import type { AuthSession } from "@/shared/models";
 import { createId } from "@/shared/utils";
 import { ensureSessionSeed, getCurrentSession, setCurrentSession } from "@/db/repositories/workspaceRepository";
 import { hasSupabaseConfig, supabase } from "@/supabase/client";
+import { resolveAvatarUrlFromMetadata } from "@/supabase/authProfile";
 
 export type OAuthProvider = "google" | "github";
 
@@ -15,10 +16,25 @@ export interface SignupPayload extends LoginPayload {
   confirmPassword: string;
 }
 
-function toAuthSession(session: Session, fallbackEmail = "user@example.com"): AuthSession {
+async function resolveSupabaseAvatarUrl(session: Session): Promise<string | null> {
+  const cachedAvatarUrl = resolveAvatarUrlFromMetadata(session.user.user_metadata);
+  if (!supabase) {
+    return cachedAvatarUrl;
+  }
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error || data.user?.id !== session.user.id) {
+    return cachedAvatarUrl;
+  }
+
+  return resolveAvatarUrlFromMetadata(data.user.user_metadata);
+}
+
+async function toAuthSession(session: Session, fallbackEmail = "user@example.com"): Promise<AuthSession> {
   return {
     userId: session.user.id,
     email: session.user.email ?? fallbackEmail,
+    avatarUrl: await resolveSupabaseAvatarUrl(session),
     accessToken: session.access_token,
     refreshToken: session.refresh_token,
     provider: "supabase",
@@ -26,7 +42,7 @@ function toAuthSession(session: Session, fallbackEmail = "user@example.com"): Au
 }
 
 async function persistSupabaseSession(session: Session, fallbackEmail?: string): Promise<AuthSession> {
-  const authSession = toAuthSession(session, fallbackEmail);
+  const authSession = await toAuthSession(session, fallbackEmail);
   await ensureSessionSeed(authSession);
   return authSession;
 }

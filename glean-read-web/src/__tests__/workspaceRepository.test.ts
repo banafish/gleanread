@@ -7,6 +7,7 @@ import {
   deleteExcerpt,
   deleteNodeSubtree,
   ensureSessionSeed,
+  getCurrentSession,
   ensureTag,
   getPreference,
   getWorkspaceSnapshot,
@@ -39,6 +40,7 @@ test("Supabase 会话不会为空账号自动写入示例数据", async () => {
   await ensureSessionSeed({
     userId: "remote-empty-user",
     email: "test1@qq.com",
+    avatarUrl: "https://example.com/avatar.jpg",
     provider: "supabase",
   });
 
@@ -46,6 +48,7 @@ test("Supabase 会话不会为空账号自动写入示例数据", async () => {
   assert.equal(snapshot.nodes.length, 0);
   assert.equal(snapshot.excerpts.length, 0);
   assert.equal(snapshot.tags.length, 0);
+  assert.equal((await getCurrentSession())?.avatarUrl, "https://example.com/avatar.jpg");
 });
 
 test("本地 fallback 会话仍可显式初始化示例数据", async () => {

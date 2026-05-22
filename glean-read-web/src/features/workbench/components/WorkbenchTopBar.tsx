@@ -12,7 +12,52 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
-import { Button, IconButton } from "@/shared/components";
+import { IconButton } from "@/shared/components";
+import { cx } from "@/shared/utils";
+
+type AvatarSize = "compact" | "expanded";
+
+const avatarSizeClassName: Record<AvatarSize, string> = {
+  compact: "h-6 w-6 text-xs",
+  expanded: "h-10 w-10 text-sm",
+};
+
+function AccountAvatar({
+  avatarUrl,
+  fallback,
+  size = "compact",
+}: {
+  avatarUrl: string | null;
+  fallback: string;
+  size?: AvatarSize;
+}) {
+  const [isImageBroken, setIsImageBroken] = useState(false);
+
+  useEffect(() => {
+    setIsImageBroken(false);
+  }, [avatarUrl]);
+
+  return (
+    <span
+      className={cx(
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-app-accent font-semibold text-white",
+        avatarSizeClassName[size]
+      )}
+    >
+      {avatarUrl && !isImageBroken ? (
+        <img
+          src={avatarUrl}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+          referrerPolicy="no-referrer"
+          onError={() => setIsImageBroken(true)}
+        />
+      ) : (
+        fallback
+      )}
+    </span>
+  );
+}
 
 export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
   const { session, signOut } = useAuth();
@@ -47,7 +92,8 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
   }, []);
 
   const leftCollapsed = leftPanelWidth <= 96;
-  const avatar = (session?.email ?? "U").trim().charAt(0).toUpperCase() || "U";
+  const avatarFallback = (session?.email ?? "U").trim().charAt(0).toUpperCase() || "U";
+  const avatarUrl = session?.avatarUrl?.trim() || null;
 
   return (
     <header className="relative flex h-14 shrink-0 items-center justify-between border-b border-app-border bg-app-surface px-3">
@@ -109,18 +155,14 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
           aria-label="用户设置"
           onClick={() => setMenuOpen((value) => !value)}
         >
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-app-accent text-xs font-semibold text-white">
-            {avatar}
-          </span>
+          <AccountAvatar avatarUrl={avatarUrl} fallback={avatarFallback} />
           <span className="hidden max-w-[160px] truncate md:block">{session?.email ?? "本地用户"}</span>
           <ChevronDown size={14} className="text-app-muted" />
         </button>
         {menuOpen ? (
           <div className="absolute right-0 top-12 z-30 w-64 rounded-2xl border border-app-border bg-app-surface p-3 shadow-2xl">
             <div className="flex items-center gap-3 border-b border-app-border pb-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-app-accent text-sm font-semibold text-white">
-                {avatar}
-              </div>
+              <AccountAvatar avatarUrl={avatarUrl} fallback={avatarFallback} size="expanded" />
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-app-text">{session?.email ?? "本地用户"}</div>
                 <div className="text-xs text-app-muted">用户设置</div>
