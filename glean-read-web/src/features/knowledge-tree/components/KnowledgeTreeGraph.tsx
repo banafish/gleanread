@@ -459,7 +459,7 @@ function KnowledgeTreeGraphInner() {
         fitView={false}
         nodesDraggable={false}
         zoomOnScroll
-        panOnScroll
+        panOnScroll={false}
         panOnDrag={!draggedNodeId}
         onNodeDoubleClick={(_, node) => {
           if (node.id !== VIRTUAL_ROOT_ID) {
