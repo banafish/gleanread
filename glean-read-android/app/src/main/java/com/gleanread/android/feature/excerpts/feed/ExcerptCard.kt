@@ -295,8 +295,9 @@ private fun ExcerptCardSurface(
                 verticalAlignment = Alignment.Top,
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                 ) {
                     if (excerpt.archivedNodeTitle == null) {
                         StatusBadge(
@@ -306,9 +307,12 @@ private fun ExcerptCardSurface(
                         )
                     } else {
                         StatusBadge(
+                            modifier = Modifier.weight(1f, fill = false),
                             text = excerpt.archivedNodeTitle,
                             bg = MaterialTheme.colorScheme.secondaryContainer,
                             fg = MaterialTheme.colorScheme.onSecondaryContainer,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                     excerpt.tags.take(3).forEach { tag ->
@@ -316,6 +320,8 @@ private fun ExcerptCardSurface(
                             text = "#$tag",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.labelMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -587,9 +593,12 @@ private fun StatusBadge(
     text: String,
     bg: Color,
     fg: Color,
+    modifier: Modifier = Modifier,
+    maxLines: Int = 1,
+    overflow: TextOverflow = TextOverflow.Clip,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(10.dp))
             .background(bg)
             .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -598,6 +607,8 @@ private fun StatusBadge(
             text = text,
             color = fg,
             style = MaterialTheme.typography.labelMedium,
+            maxLines = maxLines,
+            overflow = overflow,
         )
     }
 }
