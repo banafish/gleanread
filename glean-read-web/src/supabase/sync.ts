@@ -1,3 +1,4 @@
+import { liveQuery } from "dexie";
 import { db } from "@/db/dexie";
 import { getCurrentSession } from "@/db/repositories/workspaceRepository";
 import { hasSupabaseConfig, supabase } from "@/supabase/client";
@@ -16,6 +17,8 @@ import { createId, now } from "@/shared/utils";
 export interface SyncReport {
   pushed: number;
   pulled: number;
+  conflicted: number;
+  failed: number;
   skipped: boolean;
   message: string;
 }
@@ -72,6 +75,7 @@ interface RemoteExcerptTag {
 
 interface Bridge {
   tableName: RemoteTableName;
+  rpcName: string;
   localTable: any;
   toRemote: (item: any) => any;
   fromRemote: (item: any) => any;
@@ -89,7 +93,22 @@ interface RealtimeWorkspaceRow {
   [key: string]: unknown;
 }
 
+interface PushBridgeReport {
+  pushed: number;
+  conflicted: number;
+  failed: number;
+}
+
+interface ConditionalPushResult {
+  id: string;
+  status: "applied" | "conflict" | "forbidden" | "error";
+  remote_update_time?: number | null;
+  error?: string | null;
+}
+
+const PUSH_BATCH_SIZE = 50;
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const rpcFallbackTables = new Set<RemoteTableName>();
 
 function getDeviceId(): string {
   const key = "glean-read-web-device-id";
@@ -130,12 +149,14 @@ async function saveSyncCursor(cursor: SyncCursor): Promise<void> {
 async function resolveSyncSession(sessionOverride?: AuthSession | null): Promise<AuthSession | SyncReport> {
   const session = sessionOverride === undefined ? await getCurrentSession() : sessionOverride;
   if (!session) {
-    return { pushed: 0, pulled: 0, skipped: true, message: "未登录，已跳过云同步。" };
+    return { pushed: 0, pulled: 0, conflicted: 0, failed: 0, skipped: true, message: "未登录，已跳过云同步。" };
   }
   if (!hasSupabaseConfig || !supabase || session.provider !== "supabase") {
     return {
       pushed: 0,
       pulled: 0,
+      conflicted: 0,
+      failed: 0,
       skipped: true,
       message: "当前运行在本地优先模式。",
     };
@@ -149,6 +170,8 @@ async function resolveSyncSession(sessionOverride?: AuthSession | null): Promise
     return {
       pushed: 0,
       pulled: 0,
+      conflicted: 0,
+      failed: 0,
       skipped: true,
       message: "Supabase 会话已过期，请重新登录。",
     };
@@ -157,6 +180,8 @@ async function resolveSyncSession(sessionOverride?: AuthSession | null): Promise
     return {
       pushed: 0,
       pulled: 0,
+      conflicted: 0,
+      failed: 0,
       skipped: true,
       message: "Supabase 会话已切换，已跳过本次同步。",
     };
@@ -164,38 +189,214 @@ async function resolveSyncSession(sessionOverride?: AuthSession | null): Promise
   return session;
 }
 
-async function pushBridge(bridge: Bridge, userId: string, deviceId: string): Promise<number> {
-  const client = supabase!;
-  const localRows = await bridge.localTable.where("userId").equals(userId).toArray();
-  const pending = (localRows as any[]).filter((item: any) => item.syncStatus !== "synced" || item.localDirtyTime !== null);
-  let pushed = 0;
-  for (const row of pending) {
-    const remoteRow = {
-      ...bridge.toRemote(row),
-      device_id: deviceId,
-    };
-    const { error } = await client.from(bridge.tableName).upsert(remoteRow, { onConflict: "id" });
-    if (error) {
-      await bridge.localTable.put({
-        ...row,
-        syncStatus: "failed",
-        syncError: error.message,
-        retryCount: row.retryCount + 1,
-      });
-      continue;
-    }
-    pushed += 1;
-    await bridge.localTable.put({
-      ...row,
-      deviceId,
-      syncStatus: "synced",
-      syncError: null,
-      retryCount: 0,
-      localDirtyTime: null,
-      lastSyncTime: now(),
-    });
+function isPendingLocalRow(item: any): boolean {
+  return item.syncStatus !== "synced" || item.localDirtyTime !== null;
+}
+
+function chunkRows<T>(rows: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < rows.length; index += size) {
+    chunks.push(rows.slice(index, index + size));
   }
-  return pushed;
+  return chunks;
+}
+
+function isMissingRpcError(error: { code?: string; message?: string }): boolean {
+  return error.code === "PGRST202" || /could not find.*function|function .* not found/i.test(error.message ?? "");
+}
+
+function isDuplicateIdError(error: { code?: string; message?: string }): boolean {
+  const message = error.message ?? "";
+  return (error.code === "23505" || /duplicate key/i.test(message)) && /\(id\)/i.test(message);
+}
+
+async function fetchRemoteBridgeRow(bridge: Bridge, userId: string, id: string): Promise<RealtimeWorkspaceRow | null> {
+  const { data, error } = await supabase!
+    .from(bridge.tableName)
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    throw new Error(error.message);
+  }
+  return (data as RealtimeWorkspaceRow | null) ?? null;
+}
+
+async function markRowSynced(bridge: Bridge, row: any, deviceId: string): Promise<void> {
+  await bridge.localTable.put({
+    ...row,
+    deviceId,
+    syncStatus: "synced",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: null,
+    lastSyncTime: now(),
+  });
+}
+
+async function markRowFailed(bridge: Bridge, row: any, message: string): Promise<void> {
+  await bridge.localTable.put({
+    ...row,
+    syncStatus: "failed",
+    syncError: message,
+    retryCount: (row.retryCount ?? 0) + 1,
+  });
+}
+
+async function applyRemoteConflict(bridge: Bridge, row: any, userId: string): Promise<void> {
+  const remoteRow = await fetchRemoteBridgeRow(bridge, userId, row.id);
+  if (remoteRow) {
+    const localRow = bridge.fromRemote(remoteRow);
+    if (shouldApplyRemoteChange(row, { updateTime: localRow.updateTime, deviceId: localRow.deviceId })) {
+      await bridge.localTable.put({
+        ...localRow,
+        syncStatus: "synced",
+        syncError: null,
+        retryCount: 0,
+        localDirtyTime: null,
+        lastSyncTime: now(),
+      });
+      return;
+    }
+  }
+  await bridge.localTable.put({
+    ...row,
+    syncStatus: "conflict",
+    syncError: "远端版本更新，已停止覆盖上行。",
+    retryCount: (row.retryCount ?? 0) + 1,
+  });
+}
+
+async function pushBatchViaRpc(bridge: Bridge, rows: any[], deviceId: string): Promise<ConditionalPushResult[]> {
+  const client = supabase!;
+  const remoteRows = rows.map((row) => ({
+    ...bridge.toRemote(row),
+    device_id: deviceId,
+  }));
+  const { data, error } = await client.rpc(bridge.rpcName, { p_rows: remoteRows });
+  if (error) {
+    if (isMissingRpcError(error)) {
+      rpcFallbackTables.add(bridge.tableName);
+      return pushBatchViaRest(bridge, rows, deviceId);
+    }
+    throw new Error(error.message);
+  }
+  return Array.isArray(data) ? (data as ConditionalPushResult[]) : [];
+}
+
+async function pushRowViaRest(bridge: Bridge, row: any, deviceId: string, retryDuplicate = true): Promise<ConditionalPushResult> {
+  const client = supabase!;
+  const remoteRow = {
+    ...bridge.toRemote(row),
+    device_id: deviceId,
+  };
+  const { data: updatedRows, error: updateError } = await client
+    .from(bridge.tableName)
+    .update(remoteRow)
+    .eq("id", row.id)
+    .eq("user_id", row.userId)
+    .lte("update_time", row.updateTime)
+    .select("id");
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+  if ((updatedRows as Array<{ id: string }> | null)?.length) {
+    return { id: row.id, status: "applied" };
+  }
+
+  const { data: existing, error: selectError } = await client
+    .from(bridge.tableName)
+    .select("id, update_time")
+    .eq("id", row.id)
+    .eq("user_id", row.userId)
+    .maybeSingle();
+  if (selectError) {
+    throw new Error(selectError.message);
+  }
+  if (existing) {
+    return {
+      id: row.id,
+      status: "conflict",
+      remote_update_time: (existing as { update_time: number }).update_time,
+    };
+  }
+
+  const { error: insertError } = await client.from(bridge.tableName).insert(remoteRow).select("id").single();
+  if (!insertError) {
+    return { id: row.id, status: "applied" };
+  }
+  if (isDuplicateIdError(insertError) && retryDuplicate) {
+    return pushRowViaRest(bridge, row, deviceId, false);
+  }
+  if (isDuplicateIdError(insertError)) {
+    return { id: row.id, status: "conflict" };
+  }
+  throw new Error(insertError.message);
+}
+
+async function pushBatchViaRest(bridge: Bridge, rows: any[], deviceId: string): Promise<ConditionalPushResult[]> {
+  const results: ConditionalPushResult[] = [];
+  for (const row of rows) {
+    try {
+      results.push(await pushRowViaRest(bridge, row, deviceId));
+    } catch (error) {
+      results.push({
+        id: row.id,
+        status: "error",
+        error: error instanceof Error ? error.message : "同步失败",
+      });
+    }
+  }
+  return results;
+}
+
+async function pushBatchConditionally(bridge: Bridge, rows: any[], deviceId: string): Promise<ConditionalPushResult[]> {
+  if (rpcFallbackTables.has(bridge.tableName)) {
+    return pushBatchViaRest(bridge, rows, deviceId);
+  }
+  return pushBatchViaRpc(bridge, rows, deviceId);
+}
+
+async function pushBridge(bridge: Bridge, userId: string, deviceId: string): Promise<PushBridgeReport> {
+  const localRows = await bridge.localTable.where("userId").equals(userId).toArray();
+  const pending = (localRows as any[]).filter(isPendingLocalRow);
+  let pushed = 0;
+  let conflicted = 0;
+  let failed = 0;
+  for (const batch of chunkRows(pending, PUSH_BATCH_SIZE)) {
+    let results: ConditionalPushResult[];
+    try {
+      results = await pushBatchConditionally(bridge, batch, deviceId);
+    } catch (error) {
+      results = batch.map((row) => ({
+        id: row.id,
+        status: "error",
+        error: error instanceof Error ? error.message : "同步失败",
+      }));
+    }
+    const resultsById = new Map(results.map((result) => [result.id, result]));
+    for (const row of batch) {
+      const result = resultsById.get(row.id) ?? {
+        id: row.id,
+        status: "error" as const,
+        error: "同步结果缺失",
+      };
+      if (result.status === "applied") {
+        pushed += 1;
+        await markRowSynced(bridge, row, deviceId);
+        continue;
+      }
+      if (result.status === "conflict") {
+        conflicted += 1;
+        await applyRemoteConflict(bridge, row, userId);
+        continue;
+      }
+      failed += 1;
+      await markRowFailed(bridge, row, result.error ?? "同步失败");
+    }
+  }
+  return { pushed, conflicted, failed };
 }
 
 async function pullBridge(
@@ -277,6 +478,7 @@ async function applyRemoteBridgeRow(
 const bridges: Bridge[] = [
   {
     tableName: "knowledge_tree_node",
+    rpcName: "sync_knowledge_tree_node_conditional",
     localTable: db.nodes,
     toRemote: (item: KnowledgeTreeNode): RemoteKnowledgeTreeNode => ({
       id: item.id,
@@ -310,6 +512,7 @@ const bridges: Bridge[] = [
   },
   {
     tableName: "excerpts",
+    rpcName: "sync_excerpts_conditional",
     localTable: db.excerpts,
     toRemote: (item: Excerpt): RemoteExcerpt => ({
       id: item.id,
@@ -345,6 +548,7 @@ const bridges: Bridge[] = [
   },
   {
     tableName: "tags",
+    rpcName: "sync_tags_conditional",
     localTable: db.tags,
     toRemote: (item: Tag): RemoteTag => ({
       id: item.id,
@@ -376,6 +580,7 @@ const bridges: Bridge[] = [
   },
   {
     tableName: "excerpt_tags",
+    rpcName: "sync_excerpt_tags_conditional",
     localTable: db.excerptTags,
     toRemote: (item: ExcerptTag): RemoteExcerptTag => ({
       id: item.id,
@@ -415,20 +620,62 @@ export async function runSyncOnce(sessionOverride?: AuthSession | null, options:
   const deviceId = getDeviceId();
   let pushed = 0;
   let pulled = 0;
+  let conflicted = 0;
+  let failed = 0;
   for (const bridge of bridges) {
-    pushed += await pushBridge(bridge, session.userId, deviceId);
+    const report = await pushBridge(bridge, session.userId, deviceId);
+    pushed += report.pushed;
+    conflicted += report.conflicted;
+    failed += report.failed;
   }
   if (pullRemote) {
     for (const bridge of bridges) {
       pulled += await pullBridge(bridge, session.userId, deviceId);
     }
   }
+  const conflictText = conflicted > 0 ? `，冲突 ${conflicted} 条` : "";
+  const failedText = failed > 0 ? `，失败 ${failed} 条` : "";
   return {
     pushed,
     pulled,
+    conflicted,
+    failed,
     skipped: false,
-    message: pullRemote ? `同步完成：上行 ${pushed} 条，下行 ${pulled} 条。` : `同步完成：上行 ${pushed} 条。`,
+    message: pullRemote
+      ? `同步完成：上行 ${pushed} 条，下行 ${pulled} 条${conflictText}${failedText}。`
+      : `同步完成：上行 ${pushed} 条${conflictText}${failedText}。`,
   };
+}
+
+async function getPendingLocalChangeSignature(userId: string): Promise<string> {
+  const tableSignatures = await Promise.all(
+    bridges.map(async (bridge) => {
+      const rows = ((await bridge.localTable.where("userId").equals(userId).toArray()) as any[]).filter(isPendingLocalRow);
+      return rows
+        .map((row) => `${bridge.tableName}:${row.id}:${row.localDirtyTime ?? row.updateTime}`)
+        .sort()
+        .join(",");
+    })
+  );
+  return tableSignatures.filter(Boolean).join("|");
+}
+
+export async function hasPendingLocalChanges(userId: string): Promise<boolean> {
+  return (await getPendingLocalChangeSignature(userId)).length > 0;
+}
+
+export function subscribeToPendingLocalChanges(userId: string, onPendingChange: () => void): () => void {
+  let lastSignature = "";
+  const subscription = liveQuery(() => getPendingLocalChangeSignature(userId)).subscribe({
+    next: (signature) => {
+      if (signature && signature !== lastSignature) {
+        onPendingChange();
+      }
+      lastSignature = signature;
+    },
+    error: () => undefined,
+  });
+  return () => subscription.unsubscribe();
 }
 
 export function subscribeToRemoteChanges(userId: string, onRemoteChange: () => void): () => void {

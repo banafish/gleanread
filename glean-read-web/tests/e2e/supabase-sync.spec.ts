@@ -3,6 +3,7 @@ import {
   cleanupWorkspace,
   emptyUser,
   expectNoSeedExampleContent,
+  firstRealNode,
   loginWithPassword,
   seededUser,
   testPrefix,
@@ -125,13 +126,33 @@ interface LocalPendingWorkspace {
 }
 
 type LocalStoreName = "nodes" | "excerpts" | "tags" | "excerptTags";
+type WorkspaceSyncRpcName =
+  | "sync_knowledge_tree_node_conditional"
+  | "sync_excerpts_conditional"
+  | "sync_tags_conditional"
+  | "sync_excerpt_tags_conditional";
+
+interface WorkspaceRpcRequest {
+  name: WorkspaceSyncRpcName;
+  rowIds: string[];
+  rowCount: number;
+}
 
 const workspaceRestPath = /\/rest\/v1\/(knowledge_tree_node|excerpts|tags|excerpt_tags)/;
+const workspaceRpcPath = /\/rest\/v1\/rpc\/(sync_(knowledge_tree_node|excerpts|tags|excerpt_tags)_conditional)/;
 
 test.describe.configure({ mode: "serial" });
 
 function isWorkspaceRestUrl(url: string): boolean {
   return workspaceRestPath.test(url);
+}
+
+function isWorkspaceSyncWriteUrl(url: string): boolean {
+  return isWorkspaceRestUrl(url) || workspaceRpcPath.test(url);
+}
+
+function getWorkspaceRpcName(url: string): WorkspaceSyncRpcName | null {
+  return (workspaceRpcPath.exec(url)?.[1] as WorkspaceSyncRpcName | undefined) ?? null;
 }
 
 function isWorkspacePullUrl(url: string): boolean {
@@ -143,7 +164,7 @@ async function compressSyncInterval(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const originalSetInterval = window.setInterval.bind(window);
     window.setInterval = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
-      originalSetInterval(handler, timeout === 60_000 ? 1_000 : timeout, ...args)) as typeof window.setInterval;
+      originalSetInterval(handler, timeout === 60_000 || timeout === 300_000 ? 1_000 : timeout, ...args)) as typeof window.setInterval;
   });
 }
 
@@ -175,6 +196,38 @@ async function getLocalNode(page: Page, id: string): Promise<LocalKnowledgeTreeN
   return getLocalRow<LocalKnowledgeTreeNode>(page, "nodes", id);
 }
 
+async function getLocalNodeByTitle(page: Page, title: string): Promise<LocalKnowledgeTreeNode | null> {
+  return page.evaluate(async (nodeTitle) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("glean-read-web");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    try {
+      return await new Promise<LocalKnowledgeTreeNode | null>((resolve, reject) => {
+        const transaction = db.transaction(["nodes"], "readonly");
+        const request = transaction.objectStore("nodes").openCursor();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (!cursor) {
+            resolve(null);
+            return;
+          }
+          const node = cursor.value as LocalKnowledgeTreeNode;
+          if (node.nodeTitle === nodeTitle && !node.isDeleted) {
+            resolve(node);
+            return;
+          }
+          cursor.continue();
+        };
+      });
+    } finally {
+      db.close();
+    }
+  }, title);
+}
+
 async function getLocalRow<T>(page: Page, storeName: LocalStoreName, id: string): Promise<T | null> {
   return page.evaluate(async ({ rowId, storeName }) => {
     const db = await new Promise<IDBDatabase>((resolve, reject) => {
@@ -188,6 +241,26 @@ async function getLocalRow<T>(page: Page, storeName: LocalStoreName, id: string)
         const request = transaction.objectStore(storeName).get(rowId);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
+      });
+    } finally {
+      db.close();
+    }
+  }, { rowId: id, storeName });
+}
+
+async function deleteLocalRow(page: Page, storeName: LocalStoreName, id: string): Promise<void> {
+  await page.evaluate(async ({ rowId, storeName }) => {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open("glean-read-web");
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const transaction = db.transaction([storeName], "readwrite");
+        transaction.onerror = () => reject(transaction.error);
+        transaction.oncomplete = () => resolve();
+        transaction.objectStore(storeName).delete(rowId);
       });
     } finally {
       db.close();
@@ -581,6 +654,16 @@ function expectLocalCountsMatchRemote(local: LocalWorkspaceCounts, remote: Await
   expect(local.total).toBe(sumRemoteWorkspaceCounts(remote));
 }
 
+function expectRpcBatch(
+  rpcRequests: WorkspaceRpcRequest[],
+  rpcName: WorkspaceSyncRpcName,
+  expectedIds: string[]
+) {
+  const request = rpcRequests.find((item) => item.name === rpcName && expectedIds.every((id) => item.rowIds.includes(id)));
+  expect(request, `${rpcName} should batch ${expectedIds.join(", ")}`).toBeTruthy();
+  expect(request!.rowCount).toBe(expectedIds.length);
+}
+
 test("E2E-36 Supabase 会话恢复会覆盖 IndexedDB 中的旧 current 用户", async ({ page }) => {
   test.setTimeout(75_000);
   const prefix = testPrefix("supabase-stale-session");
@@ -656,7 +739,7 @@ test("E2E-39 本地同步不会在短时间内重复刷 Supabase 请求", async 
   const failedWorkspaceRequests: string[] = [];
 
   page.on("request", (request) => {
-    if (isWorkspaceRestUrl(request.url())) {
+    if (isWorkspaceSyncWriteUrl(request.url())) {
       workspaceRequests.push(request.url());
     }
   });
@@ -800,64 +883,102 @@ test("E2E-43 本地节点、摘录、标签和关系会一起同步到 Supabase"
   test.setTimeout(75_000);
   const prefix = testPrefix("supabase-full-push");
   let remote: RemoteClientSession | null = null;
-  let localBefore: LocalPendingWorkspace | null = null;
+  const localWorkspaces: LocalPendingWorkspace[] = [];
+  const rpcRequests: WorkspaceRpcRequest[] = [];
+  const tableWriteRequests: string[] = [];
+
+  page.on("request", (request) => {
+    const url = request.url();
+    const rpcName = getWorkspaceRpcName(url);
+    if (rpcName) {
+      const body = request.postDataJSON() as { p_rows?: Array<{ id?: string }> } | null;
+      const rows = Array.isArray(body?.p_rows) ? body.p_rows : [];
+      rpcRequests.push({
+        name: rpcName,
+        rowIds: rows.map((row) => row.id).filter((id): id is string => Boolean(id)),
+        rowCount: rows.length,
+      });
+      return;
+    }
+    if (isWorkspaceRestUrl(url) && ["POST", "PATCH", "PUT"].includes(request.method())) {
+      tableWriteRequests.push(`${request.method()} ${url}`);
+    }
+  });
 
   try {
     remote = await createAuthenticatedSupabaseClient(seededUser);
     await loginWithPassword(page, seededUser);
-    localBefore = await insertPendingLocalWorkspace(page, prefix);
+    localWorkspaces.push(await insertPendingLocalWorkspace(page, `${prefix}-a`));
+    localWorkspaces.push(await insertPendingLocalWorkspace(page, `${prefix}-b`));
 
     await page.reload();
     await waitForWorkbench(page);
     await expect
       .poll(async () => {
-        const [node, excerpt, tag, excerptTag] = await Promise.all([
-          fetchRemoteNode(remote!.client, localBefore!.node.id),
-          fetchRemoteExcerpt(remote!.client, localBefore!.excerpt.id),
-          fetchRemoteTag(remote!.client, localBefore!.tag.id),
-          fetchRemoteExcerptTag(remote!.client, localBefore!.excerptTag.id),
-        ]);
-        return Boolean(node && excerpt && tag && excerptTag);
+        const rows = await Promise.all(
+          localWorkspaces.flatMap((workspace) => [
+            fetchRemoteNode(remote!.client, workspace.node.id),
+            fetchRemoteExcerpt(remote!.client, workspace.excerpt.id),
+            fetchRemoteTag(remote!.client, workspace.tag.id),
+            fetchRemoteExcerptTag(remote!.client, workspace.excerptTag.id),
+          ])
+        );
+        return rows.every(Boolean);
       }, { timeout: 45_000 })
       .toBe(true);
 
-    const [remoteNode, remoteExcerpt, remoteTag, remoteExcerptTag] = await Promise.all([
-      fetchRemoteNode(remote.client, localBefore.node.id),
-      fetchRemoteExcerpt(remote.client, localBefore.excerpt.id),
-      fetchRemoteTag(remote.client, localBefore.tag.id),
-      fetchRemoteExcerptTag(remote.client, localBefore.excerptTag.id),
-    ]);
-    const [localNode, localExcerpt, localTag, localExcerptTag] = await Promise.all([
-      getLocalRow<LocalKnowledgeTreeNode>(page, "nodes", localBefore.node.id),
-      getLocalRow<LocalExcerpt>(page, "excerpts", localBefore.excerpt.id),
-      getLocalRow<LocalTag>(page, "tags", localBefore.tag.id),
-      getLocalRow<LocalExcerptTag>(page, "excerptTags", localBefore.excerptTag.id),
-    ]);
+    expect(tableWriteRequests).toEqual([]);
+    expectRpcBatch(rpcRequests, "sync_knowledge_tree_node_conditional", localWorkspaces.map((workspace) => workspace.node.id));
+    expectRpcBatch(rpcRequests, "sync_excerpts_conditional", localWorkspaces.map((workspace) => workspace.excerpt.id));
+    expectRpcBatch(rpcRequests, "sync_tags_conditional", localWorkspaces.map((workspace) => workspace.tag.id));
+    expectRpcBatch(rpcRequests, "sync_excerpt_tags_conditional", localWorkspaces.map((workspace) => workspace.excerptTag.id));
 
-    expect(remoteNode).not.toBeNull();
-    expect(remoteExcerpt).not.toBeNull();
-    expect(remoteTag).not.toBeNull();
-    expect(remoteExcerptTag).not.toBeNull();
-    expect(localNode).not.toBeNull();
-    expect(localExcerpt).not.toBeNull();
-    expect(localTag).not.toBeNull();
-    expect(localExcerptTag).not.toBeNull();
-    expectSyncedClean(localNode!);
-    expectSyncedClean(localExcerpt!);
-    expectSyncedClean(localTag!);
-    expectSyncedClean(localExcerptTag!);
-    expectLocalNodeMatchesRemote(localNode!, remoteNode!);
-    expectLocalExcerptMatchesRemote(localExcerpt!, remoteExcerpt!);
-    expectLocalTagMatchesRemote(localTag!, remoteTag!);
-    expectLocalExcerptTagMatchesRemote(localExcerptTag!, remoteExcerptTag!);
-  } finally {
-    if (remote && localBefore) {
-      await Promise.all([
-        softDeleteRemoteRow(remote.client, "excerpt_tags", localBefore.excerptTag.id).catch(() => undefined),
-        softDeleteRemoteRow(remote.client, "excerpts", localBefore.excerpt.id).catch(() => undefined),
-        softDeleteRemoteRow(remote.client, "tags", localBefore.tag.id).catch(() => undefined),
-        softDeleteRemoteRow(remote.client, "knowledge_tree_node", localBefore.node.id).catch(() => undefined),
+    for (const localBefore of localWorkspaces) {
+      const [remoteNode, remoteExcerpt, remoteTag, remoteExcerptTag] = await Promise.all([
+        fetchRemoteNode(remote.client, localBefore.node.id),
+        fetchRemoteExcerpt(remote.client, localBefore.excerpt.id),
+        fetchRemoteTag(remote.client, localBefore.tag.id),
+        fetchRemoteExcerptTag(remote.client, localBefore.excerptTag.id),
       ]);
+      const [localNode, localExcerpt, localTag, localExcerptTag] = await Promise.all([
+        getLocalRow<LocalKnowledgeTreeNode>(page, "nodes", localBefore.node.id),
+        getLocalRow<LocalExcerpt>(page, "excerpts", localBefore.excerpt.id),
+        getLocalRow<LocalTag>(page, "tags", localBefore.tag.id),
+        getLocalRow<LocalExcerptTag>(page, "excerptTags", localBefore.excerptTag.id),
+      ]);
+
+      expect(remoteNode).not.toBeNull();
+      expect(remoteExcerpt).not.toBeNull();
+      expect(remoteTag).not.toBeNull();
+      expect(remoteExcerptTag).not.toBeNull();
+      expectLocalNodeMatchesRemote(localBefore.node, remoteNode!);
+      expectLocalExcerptMatchesRemote(localBefore.excerpt, remoteExcerpt!);
+      expectLocalTagMatchesRemote(localBefore.tag, remoteTag!);
+      expectLocalExcerptTagMatchesRemote(localBefore.excerptTag, remoteExcerptTag!);
+
+      expect(localNode).not.toBeNull();
+      expect(localExcerpt).not.toBeNull();
+      expect(localTag).not.toBeNull();
+      expect(localExcerptTag).not.toBeNull();
+      expectSyncedClean(localNode!);
+      expectSyncedClean(localExcerpt!);
+      expectSyncedClean(localTag!);
+      expectSyncedClean(localExcerptTag!);
+      expectLocalNodeMatchesRemote(localNode!, remoteNode!);
+      expectLocalExcerptMatchesRemote(localExcerpt!, remoteExcerpt!);
+      expectLocalTagMatchesRemote(localTag!, remoteTag!);
+      expectLocalExcerptTagMatchesRemote(localExcerptTag!, remoteExcerptTag!);
+    }
+  } finally {
+    if (remote) {
+      await Promise.all(
+        localWorkspaces.flatMap((workspace) => [
+          softDeleteRemoteRow(remote!.client, "excerpt_tags", workspace.excerptTag.id).catch(() => undefined),
+          softDeleteRemoteRow(remote!.client, "excerpts", workspace.excerpt.id).catch(() => undefined),
+          softDeleteRemoteRow(remote!.client, "tags", workspace.tag.id).catch(() => undefined),
+          softDeleteRemoteRow(remote!.client, "knowledge_tree_node", workspace.node.id).catch(() => undefined),
+        ])
+      );
     }
     await cleanupWorkspace(page, prefix).catch(() => undefined);
     await remote?.client.auth.signOut().catch(() => undefined);
@@ -1125,7 +1246,7 @@ test("E2E-50 Realtime payload 会直接落本地且不会额外触发 REST 下�
   }
 });
 
-test("E2E-51 60 秒调度只上行 pending 数据且不会触发下行查询", async ({ page }) => {
+test("E2E-51 兜底调度只上行 pending 数据且不会触发下行查询", async ({ page }) => {
   test.setTimeout(75_000);
   const prefix = testPrefix("supabase-interval-push-only");
   let remote: RemoteClientSession | null = null;
@@ -1136,7 +1257,7 @@ test("E2E-51 60 秒调度只上行 pending 数据且不会触发下行查询", a
   await compressSyncInterval(page);
   page.on("request", (request) => {
     const url = request.url();
-    if (isWorkspaceRestUrl(url)) {
+    if (isWorkspaceSyncWriteUrl(url)) {
       workspaceRequests.push(url);
     }
     if (isWorkspacePullUrl(url)) {
@@ -1157,7 +1278,7 @@ test("E2E-51 60 秒调度只上行 pending 数据且不会触发下行查询", a
     await expect.poll(async () => Boolean(await fetchRemoteNode(remote!.client, nodeId)), { timeout: 15_000 }).toBe(true);
     await page.waitForTimeout(1_500);
 
-    expect(workspaceRequests.some((url) => url.includes("on_conflict=id"))).toBe(true);
+    expect(workspaceRequests.length).toBeGreaterThan(0);
     expect(pullRequests).toEqual([]);
     const localAfter = await getLocalNode(page, nodeId);
     expect(localAfter).not.toBeNull();
@@ -1165,6 +1286,110 @@ test("E2E-51 60 秒调度只上行 pending 数据且不会触发下行查询", a
   } finally {
     if (remote && nodeId) {
       await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-52 条件上行不会用本地旧版本覆盖 Supabase 新版本", async ({ page }) => {
+  test.setTimeout(90_000);
+  const prefix = testPrefix("supabase-conditional-push");
+  const nodeId = `${prefix}-node`;
+  let remote: RemoteClientSession | null = null;
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+
+    const staleTime = Date.now();
+    const remoteNode = {
+      ...buildRemoteNode(remote.userId, nodeId, prefix, "e2e-remote-newer"),
+      node_title: `${prefix} remote newer node`,
+      outline_markdown: `${prefix} remote newer outline`,
+      create_time: staleTime - 1_000,
+      update_time: staleTime + 120_000,
+    };
+    await upsertRemoteNode(remote.client, remoteNode);
+    await putLocalNode(page, {
+      id: nodeId,
+      userId: remote.userId,
+      parentId: null,
+      nodeTitle: `${prefix} local stale node`,
+      outlineMarkdown: `${prefix} local stale outline`,
+      createTime: staleTime - 2_000,
+      updateTime: staleTime,
+      isDeleted: false,
+      deviceId: "e2e-local-stale",
+      sortOrder: 2_031_616,
+      syncStatus: "pending",
+      syncError: null,
+      retryCount: 0,
+      localDirtyTime: staleTime,
+      lastSyncTime: null,
+    });
+
+    await page.reload();
+    await waitForWorkbench(page);
+
+    await expect
+      .poll(async () => (await fetchRemoteNode(remote!.client, nodeId))?.node_title ?? null, { timeout: 45_000 })
+      .toBe(remoteNode.node_title);
+    await expect
+      .poll(async () => (await getLocalNode(page, nodeId))?.nodeTitle ?? null, { timeout: 45_000 })
+      .toBe(remoteNode.node_title);
+
+    const remoteAfter = await fetchRemoteNode(remote.client, nodeId);
+    const localAfter = await getLocalNode(page, nodeId);
+    expect(remoteAfter).not.toBeNull();
+    expect(localAfter).not.toBeNull();
+    expect(remoteAfter!.update_time).toBe(remoteNode.update_time);
+    expectLocalNodeMatchesRemote(localAfter!, remoteAfter!);
+    expectSyncedClean(localAfter!);
+  } finally {
+    if (remote) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-53 本地变更会通过 dirty 调度及时上行，不等待兜底间隔", async ({ page }) => {
+  test.setTimeout(90_000);
+  const prefix = testPrefix("supabase-dirty-schedule");
+  const title = `${prefix} dirty scheduled node`;
+  let remote: RemoteClientSession | null = null;
+  let nodeId = "";
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    await waitForInitialSync(page);
+
+    await firstRealNode(page).click();
+    await expect(page.getByTestId("knowledge-tree-canvas")).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.locator("[data-node-edit-input]")).toBeVisible();
+    await page.locator("[data-node-edit-input]").fill(title);
+    await page.keyboard.press("Enter");
+
+    await expect.poll(async () => (await getLocalNodeByTitle(page, title))?.id ?? null, { timeout: 10_000 }).not.toBeNull();
+    nodeId = (await getLocalNodeByTitle(page, title))!.id;
+
+    await expect.poll(async () => Boolean(await fetchRemoteNode(remote!.client, nodeId)), { timeout: 30_000 }).toBe(true);
+    const remoteNode = await fetchRemoteNode(remote.client, nodeId);
+    const localAfter = await getLocalNode(page, nodeId);
+    expect(remoteNode).not.toBeNull();
+    expect(localAfter).not.toBeNull();
+    expectLocalNodeMatchesRemote(localAfter!, remoteNode!);
+    expectSyncedClean(localAfter!);
+  } finally {
+    if (remote && nodeId) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    if (nodeId) {
+      await deleteLocalRow(page, "nodes", nodeId).catch(() => undefined);
     }
     await cleanupWorkspace(page, prefix).catch(() => undefined);
     await remote?.client.auth.signOut().catch(() => undefined);
