@@ -15,6 +15,8 @@ import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { IconButton } from "@/shared/components";
 import { cx } from "@/shared/utils";
 
+const appIconSrc = "/icons/icon-192.png";
+
 type AvatarSize = "compact" | "expanded";
 
 const avatarSizeClassName: Record<AvatarSize, string> = {
@@ -107,7 +109,12 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
           {leftCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
         </IconButton>
         <div className="flex items-center gap-2 px-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-app-accent text-sm font-bold text-white">G</div>
+          <img
+            src={appIconSrc}
+            alt=""
+            aria-hidden="true"
+            className="h-8 w-8 shrink-0 rounded-xl object-cover"
+          />
           <div className="leading-tight">
             <div className="text-sm font-semibold text-app-text">GleanRead</div>
             <div className="text-[11px] text-app-muted">{syncMessage}</div>
