@@ -77,7 +77,18 @@ class WorkspaceSyncRepository private constructor(
             return WorkspaceSyncResult.Skipped("同步正在进行")
         }
         try {
-            val session = currentSession()
+            val session = try {
+                currentSession()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                val message = error.message ?: "登录状态不可用，请重新登录"
+                _syncState.value = _syncState.value.copy(
+                    isSyncing = false,
+                    errorMessage = message,
+                )
+                return WorkspaceSyncResult.Failure(message)
+            }
                 ?: return WorkspaceSyncResult.Skipped("未登录，已跳过云端同步")
             if (!stateStore.isCloudSyncEnabled.value) {
                 return WorkspaceSyncResult.Skipped("云同步未开启")

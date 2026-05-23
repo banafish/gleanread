@@ -4,11 +4,22 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.gleanread.android.data.auth.AuthSession
+import com.gleanread.android.data.auth.SupabaseSessionRefresher
 import com.gleanread.android.data.auth.SupabaseSessionStore
 import com.gleanread.android.data.local.ExcerptEntity
 import com.gleanread.android.data.local.KnowledgeTreeNodeEntity
 import com.gleanread.android.data.local.WorkspaceDatabase
 import com.gleanread.android.data.model.SyncStatus
+import com.gleanread.android.data.remote.SupabaseConfig
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -249,6 +260,57 @@ class WorkspaceSyncRepositoryTest {
     }
 
     @Test
+    fun `sync reports failure instead of throwing when stored refresh token is expired`() = runBlocking {
+        sessionStore.saveSession(
+            AuthSession(
+                accessToken = "expired-token",
+                refreshToken = "stale-refresh-token",
+                userId = "user-1",
+                email = "user@example.com",
+                expiresAtMillis = 1_000L,
+            ),
+        )
+        val httpClient = HttpClient(
+            MockEngine {
+                respond(
+                    content = """{"msg":"Invalid Refresh Token: Refresh Token Not Found"}""",
+                    status = HttpStatusCode.Unauthorized,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
+            install(ContentNegotiation) {
+                json(
+                    Json {
+                        ignoreUnknownKeys = true
+                        explicitNulls = false
+                    },
+                )
+            }
+        }
+        try {
+            val refresher = SupabaseSessionRefresher(
+                config = SupabaseConfig(
+                    url = "https://example.supabase.co",
+                    anonKey = "anon-key",
+                ),
+                httpClient = httpClient,
+                sessionStore = sessionStore,
+                nowMillis = { 2_000L },
+            )
+
+            val result = syncRepository(sessionRefresher = refresher).syncNow()
+
+            assertTrue(result is WorkspaceSyncResult.Failure)
+            assertTrue((result as WorkspaceSyncResult.Failure).message.isNotBlank())
+            assertNull(sessionStore.session.value)
+            assertEquals(0, remoteDataSource.fetchCount)
+        } finally {
+            httpClient.close()
+        }
+    }
+
+    @Test
     fun `manual repair sync downloads remote records missing locally outside the pull cursor`() = runBlocking {
         stateStore.saveLastPullTime("user-1", 10_000L)
         remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
@@ -455,12 +517,15 @@ class WorkspaceSyncRepositoryTest {
         assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
     }
 
-    private fun syncRepository(): WorkspaceSyncRepository {
+    private fun syncRepository(
+        sessionRefresher: SupabaseSessionRefresher? = null,
+    ): WorkspaceSyncRepository {
         return WorkspaceSyncRepository(
             database = database,
             remoteDataSource = remoteDataSource,
             sessionStore = sessionStore,
             stateStore = stateStore,
+            sessionRefresher = sessionRefresher,
         )
     }
 }

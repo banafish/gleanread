@@ -1,6 +1,7 @@
 package com.gleanread.android.data.sync
 
 import android.util.Log
+import com.gleanread.android.data.auth.AuthSession
 import com.gleanread.android.data.auth.SupabaseSessionStore
 import com.gleanread.android.data.auth.SupabaseSessionRefresher
 import io.github.jan.supabase.SupabaseClient
@@ -62,9 +63,7 @@ class WorkspaceRealtimeSyncController(
                         )
                         return@collectLatest
                     }
-                    val session = sessionRefresher?.currentSessionOrRefresh()
-                        ?: sessionStore.session.value
-                        ?: return@collectLatest
+                    val session = currentSessionForRealtime() ?: return@collectLatest
                     try {
                         subscribeForCurrentUser(
                             accessToken = session.accessToken,
@@ -84,6 +83,18 @@ class WorkspaceRealtimeSyncController(
         realtimeJob = null
         scope.launch {
             activeJob.cancelAndJoin()
+        }
+    }
+
+    private suspend fun currentSessionForRealtime(): AuthSession? {
+        return try {
+            sessionRefresher?.currentSessionOrRefresh()
+                ?: sessionStore.session.value
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Log.w(TAG, "Realtime session refresh failed.", error)
+            null
         }
     }
 

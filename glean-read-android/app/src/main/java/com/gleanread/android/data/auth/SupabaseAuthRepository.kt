@@ -343,6 +343,7 @@ class SupabaseAuthRepository private constructor(
         if (config.isConfigured && accessToken != null) {
             try {
                 httpClient.post("${config.normalizedUrl}/auth/v1/logout") {
+                    parameter("scope", "local")
                     header("apikey", config.anonKey)
                     bearerAuth(accessToken)
                 }

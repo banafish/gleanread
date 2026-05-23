@@ -235,6 +235,32 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
+    fun `signOut only logs out the current session`() = runBlocking {
+        var logoutScope = ""
+        val authClient = HttpClient(
+            MockEngine { request ->
+                logoutScope = request.url.parameters["scope"].orEmpty()
+                respond(
+                    content = "{}",
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        )
+        try {
+            repository(
+                config = SupabaseConfig(url = "https://example.supabase.co", anonKey = "anon-key"),
+                httpClient = authClient,
+            ).signOut()
+
+            assertEquals("local", logoutScope)
+            assertEquals(null, sessionStore.session.value)
+        } finally {
+            authClient.close()
+        }
+    }
+
+    @Test
     fun `hasUnsyncedChanges treats syncing and failed records as protected`() = runBlocking {
         database.tagDao().insertTags(
             listOf(

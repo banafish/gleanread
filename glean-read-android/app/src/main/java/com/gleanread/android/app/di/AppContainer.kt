@@ -35,6 +35,7 @@ import com.gleanread.android.feature.tags.TagsViewModel
 import com.gleanread.android.core.data.AppSnapshotStore
 import io.github.jan.supabase.SupabaseClient
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -77,7 +78,7 @@ class AppContainer(
 
     private val supabaseRealtimeClient: SupabaseClient? by lazy {
         SupabaseRealtimeClientFactory.create(supabaseConfig) {
-            supabaseSessionRefresher.currentSessionOrRefresh()?.accessToken.orEmpty()
+            currentRealtimeAccessToken()
         }
     }
 
@@ -170,6 +171,16 @@ class AppContainer(
             httpClient = supabaseHttpClient,
             configProvider = aiConfigRepository::currentConfig,
         )
+    }
+
+    private suspend fun currentRealtimeAccessToken(): String {
+        return try {
+            supabaseSessionRefresher.currentSessionOrRefresh()?.accessToken.orEmpty()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            ""
+        }
     }
 
     val appearancePreferencesRepository: AppearancePreferencesRepository by lazy {
