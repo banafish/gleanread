@@ -13,26 +13,33 @@ import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
+import com.gleanread.android.data.sync.LocalChangeSyncTrigger
+import com.gleanread.android.data.sync.NoOpLocalChangeSyncTrigger
 
 class KnowledgeTreeRepository internal constructor(
     private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
 ) {
     constructor(
         databaseManager: WorkspaceDatabaseManager,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
     ) : this(
         activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         deviceIdProvider = deviceIdProvider,
+        localChangeSyncTrigger = localChangeSyncTrigger,
     )
 
     internal constructor(
         database: WorkspaceDatabase,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
         ownerUserId: String = LOCAL_USER_ID,
+        localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
     ) : this(
         activeWorkspaceProvider = { singleDatabaseWorkspace(database, ownerUserId) },
         deviceIdProvider = deviceIdProvider,
+        localChangeSyncTrigger = localChangeSyncTrigger,
     )
 
     suspend fun searchSuggestions(query: String): List<LinkSuggestion> {
@@ -92,6 +99,7 @@ class KnowledgeTreeRepository internal constructor(
                 sortOrder = sortOrder,
             ),
         )
+        localChangeSyncTrigger.onLocalDataChanged()
         return nodeId
     }
 
@@ -122,6 +130,7 @@ class KnowledgeTreeRepository internal constructor(
                 sortOrder = sortOrder,
             ),
         )
+        localChangeSyncTrigger.onLocalDataChanged()
         return nodeId
     }
 
@@ -146,6 +155,7 @@ class KnowledgeTreeRepository internal constructor(
                 localDirtyTime = now,
             ),
         )
+        localChangeSyncTrigger.onLocalDataChanged()
     }
 
     suspend fun moveNode(nodeId: String, newParentId: String?) {
@@ -153,6 +163,7 @@ class KnowledgeTreeRepository internal constructor(
         val database = workspace.database
         val ownerUserId = workspace.writeUserId
         val nodeDao = database.nodeDao()
+        var changed = false
         database.withTransaction {
             val allNodes = nodeDao.getNodesOnce()
             val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
@@ -190,6 +201,10 @@ class KnowledgeTreeRepository internal constructor(
                     localDirtyTime = now,
                 ),
             )
+            changed = true
+        }
+        if (changed) {
+            localChangeSyncTrigger.onLocalDataChanged()
         }
     }
 
@@ -203,6 +218,7 @@ class KnowledgeTreeRepository internal constructor(
         val database = workspace.database
         val ownerUserId = workspace.writeUserId
         val nodeDao = database.nodeDao()
+        var changed = false
         database.withTransaction {
             val targetNode = nodeDao.findNodeById(nodeId) ?: return@withTransaction
             val siblings = nodeDao.getSiblingsOnce(targetNode.parentId)
@@ -213,6 +229,7 @@ class KnowledgeTreeRepository internal constructor(
             if (currentIndex == normalizedTargetIndex) return@withTransaction
 
             val deviceId = deviceIdProvider.currentDeviceId()
+            changed = true
             val newSortOrder = calculateSortOrderAt(
                 database = database,
                 targetIndex = normalizedTargetIndex,
@@ -236,6 +253,9 @@ class KnowledgeTreeRepository internal constructor(
                 ),
             )
         }
+        if (changed) {
+            localChangeSyncTrigger.onLocalDataChanged()
+        }
     }
 
     suspend fun deleteNodeSubtree(nodeId: String) {
@@ -246,6 +266,7 @@ class KnowledgeTreeRepository internal constructor(
         val excerptDao = database.excerptDao()
         val now = System.currentTimeMillis()
         val deviceId = deviceIdProvider.currentDeviceId()
+        var changed = false
         database.withTransaction {
             val allNodes = nodeDao.getNodesOnce()
             val targetNode = allNodes.firstOrNull { it.id == nodeId } ?: return@withTransaction
@@ -272,6 +293,7 @@ class KnowledgeTreeRepository internal constructor(
                         )
                     },
                 )
+                changed = true
             }
             if (subtreeIds.isNotEmpty()) {
                 val affectedExcerpts = excerptDao.findExcerptsByNodeIds(subtreeIds)
@@ -289,8 +311,12 @@ class KnowledgeTreeRepository internal constructor(
                             )
                         },
                     )
+                    changed = true
                 }
             }
+        }
+        if (changed) {
+            localChangeSyncTrigger.onLocalDataChanged()
         }
     }
 
@@ -313,6 +339,7 @@ class KnowledgeTreeRepository internal constructor(
                 localDirtyTime = now,
             ),
         )
+        localChangeSyncTrigger.onLocalDataChanged()
     }
 
     suspend fun moveExcerptToInbox(excerptId: String) {
@@ -338,6 +365,7 @@ class KnowledgeTreeRepository internal constructor(
                 ),
             ),
         )
+        localChangeSyncTrigger.onLocalDataChanged()
     }
 
     private fun excerptTitle(excerpt: ExcerptEntity): String {

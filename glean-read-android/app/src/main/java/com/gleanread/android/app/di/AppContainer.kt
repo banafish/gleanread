@@ -21,7 +21,9 @@ import com.gleanread.android.data.repository.SeedDataInitializer
 import com.gleanread.android.data.repository.TagRepository
 import com.gleanread.android.data.repository.WorkspaceSnapshotProvider
 import com.gleanread.android.data.sync.DeviceIdentityStore
+import com.gleanread.android.data.sync.LocalChangeSyncTrigger
 import com.gleanread.android.data.sync.SupabaseWorkspaceRemoteDataSource
+import com.gleanread.android.data.sync.WorkspaceLocalChangeSyncScheduler
 import com.gleanread.android.data.sync.WorkspaceRealtimeSyncController
 import com.gleanread.android.data.sync.WorkspaceSyncRepository
 import com.gleanread.android.data.sync.WorkspaceSyncStateStore
@@ -130,16 +132,23 @@ class AppContainer(
         )
     }
 
+    val localChangeSyncTrigger: LocalChangeSyncTrigger by lazy {
+        WorkspaceLocalChangeSyncScheduler(
+            syncRepository = workspaceSyncRepository,
+            scope = applicationScope,
+        )
+    }
+
     val excerptRepository: ExcerptRepository by lazy {
-        ExcerptRepository(databaseManager, deviceIdentityStore)
+        ExcerptRepository(databaseManager, deviceIdentityStore, localChangeSyncTrigger)
     }
 
     val tagRepository: TagRepository by lazy {
-        TagRepository(databaseManager, deviceIdentityStore)
+        TagRepository(databaseManager, deviceIdentityStore, localChangeSyncTrigger)
     }
 
     val knowledgeTreeRepository: KnowledgeTreeRepository by lazy {
-        KnowledgeTreeRepository(databaseManager, deviceIdentityStore)
+        KnowledgeTreeRepository(databaseManager, deviceIdentityStore, localChangeSyncTrigger)
     }
 
     val snapshotProvider: WorkspaceSnapshotProvider by lazy {
@@ -147,7 +156,7 @@ class AppContainer(
     }
 
     val seedDataInitializer: SeedDataInitializer by lazy {
-        SeedDataInitializer(databaseManager, deviceIdentityStore)
+        SeedDataInitializer(databaseManager, deviceIdentityStore, localChangeSyncTrigger)
     }
 
     val aiSummaryRepository: AiSummaryRepository by lazy {
@@ -155,6 +164,7 @@ class AppContainer(
             databaseManager = databaseManager,
             deviceIdProvider = deviceIdentityStore,
             outlineGenerator = openAiOutlineGenerator,
+            localChangeSyncTrigger = localChangeSyncTrigger,
         )
     }
 

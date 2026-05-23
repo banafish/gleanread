@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import com.gleanread.android.data.local.WorkspaceDatabaseManager
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
+import com.gleanread.android.data.sync.LocalChangeSyncTrigger
+import com.gleanread.android.data.sync.NoOpLocalChangeSyncTrigger
 
 /**
  * 种子数据初始化器，独立于业务 Repository。
@@ -11,6 +13,7 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class SeedDataInitializer(
     private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
 ) {
     suspend fun seedSampleData() {
         val workspace = databaseManager.activeWorkspace.value
@@ -39,5 +42,6 @@ class SeedDataInitializer(
             excerptDao.insertExcerpts(sampleData.excerpts)
             excerptTagDao.insertExcerptTags(sampleData.excerptTags)
         }
+        localChangeSyncTrigger.onLocalDataChanged()
     }
 }

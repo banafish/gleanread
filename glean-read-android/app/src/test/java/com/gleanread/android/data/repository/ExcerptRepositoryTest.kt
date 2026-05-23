@@ -163,4 +163,55 @@ class ExcerptRepositoryTest {
             secondDatabase.close()
         }
     }
+
+    @Test
+    fun `excerpt create update and delete trigger local sync`() = runBlocking {
+        val syncTrigger = FakeLocalChangeSyncTrigger()
+        val repository = ExcerptRepository(
+            database = database,
+            localChangeSyncTrigger = syncTrigger,
+        )
+
+        val excerptId = repository.createExcerpt(
+            content = "Excerpt",
+            thought = "",
+            url = null,
+            sourceTitle = null,
+            tagNames = emptySet(),
+            archiveNodeId = null,
+        )
+        repository.updateExcerpt(
+            excerptId = excerptId,
+            content = "Updated excerpt",
+            thought = "",
+            url = null,
+            sourceTitle = null,
+            tagNames = emptySet(),
+            archiveNodeId = null,
+        )
+        repository.deleteExcerpt(excerptId)
+
+        assertEquals(3, syncTrigger.changeCount)
+    }
+
+    @Test
+    fun `excerpt create does not trigger sync when content is blank`() = runBlocking {
+        val syncTrigger = FakeLocalChangeSyncTrigger()
+        val repository = ExcerptRepository(
+            database = database,
+            localChangeSyncTrigger = syncTrigger,
+        )
+
+        val excerptId = repository.createExcerpt(
+            content = "   ",
+            thought = "",
+            url = null,
+            sourceTitle = null,
+            tagNames = emptySet(),
+            archiveNodeId = null,
+        )
+
+        assertEquals("", excerptId)
+        assertEquals(0, syncTrigger.changeCount)
+    }
 }

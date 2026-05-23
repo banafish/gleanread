@@ -12,7 +12,6 @@ import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
-import io.ktor.http.HttpHeaders
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.SerialName
@@ -32,29 +31,29 @@ class SupabaseWorkspaceRemoteDataSource(
     override suspend fun upsertNodes(
         accessToken: String,
         nodes: List<RemoteKnowledgeTreeNode>,
-    ) {
-        upsert(REMOTE_TABLE_KNOWLEDGE_TREE_NODE, accessToken, nodes)
+    ): List<ConditionalPushResult> {
+        return pushConditional(RPC_SYNC_KNOWLEDGE_TREE_NODE, accessToken, nodes)
     }
 
     override suspend fun upsertTags(
         accessToken: String,
         tags: List<RemoteTag>,
-    ) {
-        upsert(REMOTE_TABLE_TAGS, accessToken, tags)
+    ): List<ConditionalPushResult> {
+        return pushConditional(RPC_SYNC_TAGS, accessToken, tags)
     }
 
     override suspend fun upsertExcerpts(
         accessToken: String,
         excerpts: List<RemoteExcerpt>,
-    ) {
-        upsert(REMOTE_TABLE_EXCERPTS, accessToken, excerpts)
+    ): List<ConditionalPushResult> {
+        return pushConditional(RPC_SYNC_EXCERPTS, accessToken, excerpts)
     }
 
     override suspend fun upsertExcerptTags(
         accessToken: String,
         relations: List<RemoteExcerptTag>,
-    ) {
-        upsert(REMOTE_TABLE_EXCERPT_TAGS, accessToken, relations)
+    ): List<ConditionalPushResult> {
+        return pushConditional(RPC_SYNC_EXCERPT_TAGS, accessToken, relations)
     }
 
     override suspend fun fetchChanges(
@@ -70,20 +69,55 @@ class SupabaseWorkspaceRemoteDataSource(
         )
     }
 
-    private suspend inline fun <reified T> upsert(
-        tableName: String,
+    override suspend fun fetchNode(
+        accessToken: String,
+        userId: String,
+        nodeId: String,
+    ): RemoteKnowledgeTreeNode? {
+        return fetchRow(REMOTE_TABLE_KNOWLEDGE_TREE_NODE, accessToken, userId, nodeId)
+    }
+
+    override suspend fun fetchTag(
+        accessToken: String,
+        userId: String,
+        tagId: String,
+    ): RemoteTag? {
+        return fetchRow(REMOTE_TABLE_TAGS, accessToken, userId, tagId)
+    }
+
+    override suspend fun fetchExcerpt(
+        accessToken: String,
+        userId: String,
+        excerptId: String,
+    ): RemoteExcerpt? {
+        return fetchRow(REMOTE_TABLE_EXCERPTS, accessToken, userId, excerptId)
+    }
+
+    override suspend fun fetchExcerptTag(
+        accessToken: String,
+        userId: String,
+        relationId: String,
+    ): RemoteExcerptTag? {
+        return fetchRow(REMOTE_TABLE_EXCERPT_TAGS, accessToken, userId, relationId)
+    }
+
+    private suspend inline fun <reified T> pushConditional(
+        rpcName: String,
         accessToken: String,
         items: List<T>,
-    ) {
-        if (items.isEmpty() || !config.isConfigured) return
-        val response = httpClient.post("${config.normalizedUrl}/rest/v1/$tableName") {
-            supabaseHeaders(accessToken)
-            header(HttpHeaders.Prefer, "resolution=merge-duplicates,return=minimal")
-            parameter("on_conflict", "id")
-            contentType(ContentType.Application.Json)
-            setBody(SupabaseUpsertJson.encodeToString(items))
+    ): List<ConditionalPushResult> {
+        if (items.isEmpty() || !config.isConfigured) return emptyList()
+        val results = mutableListOf<ConditionalPushResult>()
+        for (batch in items.chunked(RPC_PUSH_BATCH_SIZE)) {
+            val response = httpClient.post("${config.normalizedUrl}/rest/v1/rpc/$rpcName") {
+                supabaseHeaders(accessToken)
+                contentType(ContentType.Application.Json)
+                setBody(SupabaseRpcJson.encodeToString(ConditionalPushRequest(batch)))
+            }
+            response.ensureSuccess(rpcName)
+            results += response.body<List<ConditionalPushResult>>()
         }
-        response.ensureSuccess(tableName)
+        return results
     }
 
     private suspend inline fun <reified T> fetchTable(
@@ -104,6 +138,24 @@ class SupabaseWorkspaceRemoteDataSource(
         return response.body()
     }
 
+    private suspend inline fun <reified T> fetchRow(
+        tableName: String,
+        accessToken: String,
+        userId: String,
+        id: String,
+    ): T? {
+        if (!config.isConfigured) return null
+        val response = httpClient.get("${config.normalizedUrl}/rest/v1/$tableName") {
+            supabaseHeaders(accessToken)
+            parameter("select", "*")
+            parameter("user_id", "eq.$userId")
+            parameter("id", "eq.$id")
+            parameter("limit", "1")
+        }
+        response.ensureSuccess(tableName)
+        return response.body<List<T>>().firstOrNull()
+    }
+
     private fun io.ktor.client.request.HttpRequestBuilder.supabaseHeaders(accessToken: String) {
         header("apikey", config.anonKey)
         bearerAuth(accessToken)
@@ -115,7 +167,7 @@ private val SupabaseRemoteJson = Json {
     explicitNulls = false
 }
 
-private val SupabaseUpsertJson = Json {
+private val SupabaseRpcJson = Json {
     ignoreUnknownKeys = true
     explicitNulls = true
     encodeDefaults = true
@@ -138,6 +190,11 @@ private fun String.toPostgrestMessage(statusCode: Int): String {
 class SupabaseRemoteException(message: String) : RuntimeException(message)
 
 @Serializable
+private data class ConditionalPushRequest<T>(
+    @SerialName("p_rows") val rows: List<T>,
+)
+
+@Serializable
 private data class PostgrestErrorResponse(
     val code: String? = null,
     val message: String? = null,
@@ -149,3 +206,9 @@ private data class PostgrestErrorResponse(
         get() = listOfNotNull(message, errorDescription, details, hint, code)
             .firstOrNull(String::isNotBlank)
 }
+
+private const val RPC_PUSH_BATCH_SIZE = 50
+private const val RPC_SYNC_KNOWLEDGE_TREE_NODE = "sync_knowledge_tree_node_conditional"
+private const val RPC_SYNC_EXCERPTS = "sync_excerpts_conditional"
+private const val RPC_SYNC_TAGS = "sync_tags_conditional"
+private const val RPC_SYNC_EXCERPT_TAGS = "sync_excerpt_tags_conditional"

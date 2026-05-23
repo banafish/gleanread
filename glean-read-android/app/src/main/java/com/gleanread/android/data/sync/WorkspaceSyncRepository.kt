@@ -72,9 +72,15 @@ class WorkspaceSyncRepository private constructor(
         stateStore.setCloudSyncEnabled(enabled)
     }
 
-    suspend fun syncNow(repairMissingRemote: Boolean = false): WorkspaceSyncResult {
+    suspend fun syncNow(
+        repairMissingRemote: Boolean = false,
+        pullRemote: Boolean = true,
+    ): WorkspaceSyncResult {
         if (!syncMutex.tryLock()) {
-            return WorkspaceSyncResult.Skipped("同步正在进行")
+            return WorkspaceSyncResult.Skipped(
+                message = "同步正在进行",
+                reason = WorkspaceSyncSkipReason.ALREADY_RUNNING,
+            )
         }
         try {
             val session = try {
@@ -89,19 +95,30 @@ class WorkspaceSyncRepository private constructor(
                 )
                 return WorkspaceSyncResult.Failure(message)
             }
-                ?: return WorkspaceSyncResult.Skipped("未登录，已跳过云端同步")
+                ?: return WorkspaceSyncResult.Skipped(
+                    message = "未登录，已跳过云端同步",
+                    reason = WorkspaceSyncSkipReason.NO_SESSION,
+                )
             if (!stateStore.isCloudSyncEnabled.value) {
-                return WorkspaceSyncResult.Skipped("云同步未开启")
+                return WorkspaceSyncResult.Skipped(
+                    message = "云同步未开启",
+                    reason = WorkspaceSyncSkipReason.CLOUD_SYNC_DISABLED,
+                )
             }
             val activeWorkspace = activeWorkspaceProvider()
             if (activeWorkspace.userId != session.userId) {
-                return WorkspaceSyncResult.Skipped("当前数据库不属于登录账号")
+                return WorkspaceSyncResult.Skipped(
+                    message = "当前数据库不属于登录账号",
+                    reason = WorkspaceSyncSkipReason.WORKSPACE_MISMATCH,
+                )
             }
             val activeDatabase = activeWorkspace.database
             _syncState.value = _syncState.value.copy(isSyncing = true, errorMessage = null)
 
             return try {
-                pullRemoteChanges(activeDatabase, session.accessToken, session.userId)
+                if (pullRemote) {
+                    pullRemoteChanges(activeDatabase, session.accessToken, session.userId)
+                }
                 val repairSnapshot = if (repairMissingRemote) {
                     repairMissingLocalRecords(
                         database = activeDatabase,
@@ -206,21 +223,25 @@ class WorkspaceSyncRepository private constructor(
         uploadNodes(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             nodes = database.nodeDao().findNodesBySyncStatuses(statuses),
         )?.let(failures::add)
         uploadTags(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             tags = database.tagDao().findTagsBySyncStatuses(statuses),
         )?.let(failures::add)
         uploadExcerpts(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             excerpts = database.excerptDao().findExcerptsBySyncStatuses(statuses),
         )?.let(failures::add)
         uploadExcerptTags(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             relations = database.excerptTagDao().findExcerptTagsBySyncStatuses(statuses),
         )
             ?.let(failures::add)
@@ -247,24 +268,28 @@ class WorkspaceSyncRepository private constructor(
         uploadNodes(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             nodes = database.nodeDao().getAllNodesOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteNodeIds) },
         )?.let(failures::add)
         uploadTags(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             tags = database.tagDao().getAllTagsOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteTagIds) },
         )?.let(failures::add)
         uploadExcerpts(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             excerpts = database.excerptDao().getAllExcerptsOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteExcerptIds) },
         )?.let(failures::add)
         uploadExcerptTags(
             database = database,
             accessToken = accessToken,
+            userId = userId,
             relations = database.excerptTagDao().getAllExcerptTagsOnce()
                 .filter { it.shouldRepairMissingRemote(userId, remoteExcerptTagIds) },
         )?.let(failures::add)
@@ -273,10 +298,13 @@ class WorkspaceSyncRepository private constructor(
     private suspend fun uploadNodes(
         database: WorkspaceDatabase,
         accessToken: String,
+        userId: String,
         nodes: List<KnowledgeTreeNodeEntity>,
     ): String? {
         return uploadRecords(
             records = nodes,
+            getLocalId = KnowledgeTreeNodeEntity::id,
+            getLocalUpdateTime = KnowledgeTreeNodeEntity::updateTime,
             label = "知识树节点",
             markSyncing = List<KnowledgeTreeNodeEntity>::markNodesSyncing,
             updateLocalRecords = database.nodeDao()::updateNodes,
@@ -284,18 +312,27 @@ class WorkspaceSyncRepository private constructor(
                 remoteDataSource.upsertNodes(accessToken, remote)
             },
             toRemote = KnowledgeTreeNodeEntity::toRemote,
+            fetchRemoteRecord = { id -> remoteDataSource.fetchNode(accessToken, userId, id) },
+            getRemoteUpdateTime = RemoteKnowledgeTreeNode::updateTime,
+            applyRemoteRecords = { remote, now ->
+                database.nodeDao().insertNodes(remote.map { it.toEntity(SyncStatus.SYNCED, now) })
+            },
             markSynced = List<KnowledgeTreeNodeEntity>::markNodesSynced,
             markFailed = List<KnowledgeTreeNodeEntity>::markNodesFailed,
+            markConflicted = List<KnowledgeTreeNodeEntity>::markNodesConflicted,
         )
     }
 
     private suspend fun uploadTags(
         database: WorkspaceDatabase,
         accessToken: String,
+        userId: String,
         tags: List<TagEntity>,
     ): String? {
         return uploadRecords(
             records = tags,
+            getLocalId = TagEntity::id,
+            getLocalUpdateTime = TagEntity::updateTime,
             label = "标签",
             markSyncing = List<TagEntity>::markTagsSyncing,
             updateLocalRecords = database.tagDao()::updateTags,
@@ -303,18 +340,27 @@ class WorkspaceSyncRepository private constructor(
                 remoteDataSource.upsertTags(accessToken, remote)
             },
             toRemote = TagEntity::toRemote,
+            fetchRemoteRecord = { id -> remoteDataSource.fetchTag(accessToken, userId, id) },
+            getRemoteUpdateTime = RemoteTag::updateTime,
+            applyRemoteRecords = { remote, now ->
+                database.tagDao().insertTags(remote.map { it.toEntity(SyncStatus.SYNCED, now) })
+            },
             markSynced = List<TagEntity>::markTagsSynced,
             markFailed = List<TagEntity>::markTagsFailed,
+            markConflicted = List<TagEntity>::markTagsConflicted,
         )
     }
 
     private suspend fun uploadExcerpts(
         database: WorkspaceDatabase,
         accessToken: String,
+        userId: String,
         excerpts: List<ExcerptEntity>,
     ): String? {
         return uploadRecords(
             records = excerpts,
+            getLocalId = ExcerptEntity::id,
+            getLocalUpdateTime = ExcerptEntity::updateTime,
             label = "摘录",
             markSyncing = List<ExcerptEntity>::markExcerptsSyncing,
             updateLocalRecords = database.excerptDao()::updateExcerpts,
@@ -322,18 +368,27 @@ class WorkspaceSyncRepository private constructor(
                 remoteDataSource.upsertExcerpts(accessToken, remote)
             },
             toRemote = ExcerptEntity::toRemote,
+            fetchRemoteRecord = { id -> remoteDataSource.fetchExcerpt(accessToken, userId, id) },
+            getRemoteUpdateTime = RemoteExcerpt::updateTime,
+            applyRemoteRecords = { remote, now ->
+                database.excerptDao().insertExcerpts(remote.map { it.toEntity(SyncStatus.SYNCED, now) })
+            },
             markSynced = List<ExcerptEntity>::markExcerptsSynced,
             markFailed = List<ExcerptEntity>::markExcerptsFailed,
+            markConflicted = List<ExcerptEntity>::markExcerptsConflicted,
         )
     }
 
     private suspend fun uploadExcerptTags(
         database: WorkspaceDatabase,
         accessToken: String,
+        userId: String,
         relations: List<ExcerptTagEntity>,
     ): String? {
         return uploadRecords(
             records = relations,
+            getLocalId = ExcerptTagEntity::id,
+            getLocalUpdateTime = ExcerptTagEntity::updateTime,
             label = "摘录标签关系",
             markSyncing = List<ExcerptTagEntity>::markExcerptTagsSyncing,
             updateLocalRecords = database.excerptTagDao()::updateExcerptTags,
@@ -341,28 +396,82 @@ class WorkspaceSyncRepository private constructor(
                 remoteDataSource.upsertExcerptTags(accessToken, remote)
             },
             toRemote = ExcerptTagEntity::toRemote,
+            fetchRemoteRecord = { id -> remoteDataSource.fetchExcerptTag(accessToken, userId, id) },
+            getRemoteUpdateTime = RemoteExcerptTag::updateTime,
+            applyRemoteRecords = { remote, now ->
+                database.excerptTagDao().insertExcerptTags(remote.map { it.toEntity(SyncStatus.SYNCED, now) })
+            },
             markSynced = List<ExcerptTagEntity>::markExcerptTagsSynced,
             markFailed = List<ExcerptTagEntity>::markExcerptTagsFailed,
+            markConflicted = List<ExcerptTagEntity>::markExcerptTagsConflicted,
         )
     }
 
     private suspend fun <LocalRecord, RemoteRecord> uploadRecords(
         records: List<LocalRecord>,
+        getLocalId: (LocalRecord) -> String,
+        getLocalUpdateTime: (LocalRecord) -> Long,
         label: String,
         markSyncing: (List<LocalRecord>) -> List<LocalRecord>,
         updateLocalRecords: suspend (List<LocalRecord>) -> Unit,
-        uploadRemoteRecords: suspend (List<RemoteRecord>) -> Unit,
+        uploadRemoteRecords: suspend (List<RemoteRecord>) -> List<ConditionalPushResult>,
         toRemote: (LocalRecord) -> RemoteRecord,
+        fetchRemoteRecord: suspend (String) -> RemoteRecord?,
+        getRemoteUpdateTime: (RemoteRecord) -> Long,
+        applyRemoteRecords: suspend (List<RemoteRecord>, Long) -> Unit,
         markSynced: (List<LocalRecord>) -> List<LocalRecord>,
         markFailed: (List<LocalRecord>, Throwable) -> List<LocalRecord>,
+        markConflicted: (List<LocalRecord>, String) -> List<LocalRecord>,
     ): String? {
         if (records.isEmpty()) return null
         val syncing = markSyncing(records)
         updateLocalRecords(syncing)
         return try {
-            uploadRemoteRecords(syncing.map(toRemote))
-            updateLocalRecords(markSynced(syncing))
-            null
+            val results = uploadRemoteRecords(syncing.map(toRemote))
+            val resultsById = results.associateBy(ConditionalPushResult::id)
+            val applied = mutableListOf<LocalRecord>()
+            val unresolvedConflicts = mutableListOf<LocalRecord>()
+            val remoteConflictRecords = mutableListOf<RemoteRecord>()
+            val failedByMessage = linkedMapOf<String, MutableList<LocalRecord>>()
+
+            for (row in syncing) {
+                val id = getLocalId(row)
+                val result = resultsById[id]
+                when {
+                    result?.isApplied == true -> applied += row
+                    result?.isConflict == true -> {
+                        val remote = fetchRemoteRecord(id)
+                        if (remote != null && getLocalUpdateTime(row) <= getRemoteUpdateTime(remote)) {
+                            remoteConflictRecords += remote
+                        } else {
+                            unresolvedConflicts += row
+                        }
+                    }
+                    else -> {
+                        val message = result?.error ?: result?.status ?: MISSING_PUSH_RESULT_MESSAGE
+                        failedByMessage.getOrPut(message) { mutableListOf() } += row
+                    }
+                }
+            }
+
+            if (applied.isNotEmpty()) {
+                updateLocalRecords(markSynced(applied))
+            }
+            if (remoteConflictRecords.isNotEmpty()) {
+                applyRemoteRecords(remoteConflictRecords, System.currentTimeMillis())
+            }
+            if (unresolvedConflicts.isNotEmpty()) {
+                updateLocalRecords(markConflicted(unresolvedConflicts, REMOTE_CONFLICT_MESSAGE))
+            }
+            for ((message, failedRows) in failedByMessage) {
+                updateLocalRecords(markFailed(failedRows, IllegalStateException(message)))
+            }
+
+            if (failedByMessage.isNotEmpty()) {
+                IllegalStateException(PARTIAL_PUSH_FAILURE_MESSAGE).toUploadFailureMessage(label)
+            } else {
+                null
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
@@ -660,7 +769,18 @@ data class WorkspaceSyncUiState(
 sealed interface WorkspaceSyncResult {
     data class Success(val completedAt: Long) : WorkspaceSyncResult
     data class Failure(val message: String) : WorkspaceSyncResult
-    data class Skipped(val message: String) : WorkspaceSyncResult
+    data class Skipped(
+        val message: String,
+        val reason: WorkspaceSyncSkipReason = WorkspaceSyncSkipReason.OTHER,
+    ) : WorkspaceSyncResult
+}
+
+enum class WorkspaceSyncSkipReason {
+    ALREADY_RUNNING,
+    NO_SESSION,
+    CLOUD_SYNC_DISABLED,
+    WORKSPACE_MISMATCH,
+    OTHER,
 }
 
 private class WorkspaceSyncUploadException(message: String) : RuntimeException(message)
@@ -707,22 +827,54 @@ private fun List<ExcerptTagEntity>.markExcerptTagsSyncing(): List<ExcerptTagEnti
 
 private fun List<KnowledgeTreeNodeEntity>.markNodesSynced(): List<KnowledgeTreeNodeEntity> {
     val now = System.currentTimeMillis()
-    return map { it.copy(syncStatus = SyncStatus.SYNCED, lastSyncTime = now, syncError = null, retryCount = 0) }
+    return map {
+        it.copy(
+            syncStatus = SyncStatus.SYNCED,
+            lastSyncTime = now,
+            syncError = null,
+            retryCount = 0,
+            localDirtyTime = null,
+        )
+    }
 }
 
 private fun List<TagEntity>.markTagsSynced(): List<TagEntity> {
     val now = System.currentTimeMillis()
-    return map { it.copy(syncStatus = SyncStatus.SYNCED, lastSyncTime = now, syncError = null, retryCount = 0) }
+    return map {
+        it.copy(
+            syncStatus = SyncStatus.SYNCED,
+            lastSyncTime = now,
+            syncError = null,
+            retryCount = 0,
+            localDirtyTime = null,
+        )
+    }
 }
 
 private fun List<ExcerptEntity>.markExcerptsSynced(): List<ExcerptEntity> {
     val now = System.currentTimeMillis()
-    return map { it.copy(syncStatus = SyncStatus.SYNCED, lastSyncTime = now, syncError = null, retryCount = 0) }
+    return map {
+        it.copy(
+            syncStatus = SyncStatus.SYNCED,
+            lastSyncTime = now,
+            syncError = null,
+            retryCount = 0,
+            localDirtyTime = null,
+        )
+    }
 }
 
 private fun List<ExcerptTagEntity>.markExcerptTagsSynced(): List<ExcerptTagEntity> {
     val now = System.currentTimeMillis()
-    return map { it.copy(syncStatus = SyncStatus.SYNCED, lastSyncTime = now, syncError = null, retryCount = 0) }
+    return map {
+        it.copy(
+            syncStatus = SyncStatus.SYNCED,
+            lastSyncTime = now,
+            syncError = null,
+            retryCount = 0,
+            localDirtyTime = null,
+        )
+    }
 }
 
 private fun List<KnowledgeTreeNodeEntity>.markNodesFailed(error: Throwable): List<KnowledgeTreeNodeEntity> {
@@ -744,3 +896,23 @@ private fun List<ExcerptTagEntity>.markExcerptTagsFailed(error: Throwable): List
     val message = error.message ?: "同步失败"
     return map { it.copy(syncStatus = SyncStatus.FAILED, syncError = message, retryCount = it.retryCount + 1) }
 }
+
+private fun List<KnowledgeTreeNodeEntity>.markNodesConflicted(message: String): List<KnowledgeTreeNodeEntity> {
+    return map { it.copy(syncStatus = SyncStatus.CONFLICT, syncError = message, retryCount = it.retryCount + 1) }
+}
+
+private fun List<TagEntity>.markTagsConflicted(message: String): List<TagEntity> {
+    return map { it.copy(syncStatus = SyncStatus.CONFLICT, syncError = message, retryCount = it.retryCount + 1) }
+}
+
+private fun List<ExcerptEntity>.markExcerptsConflicted(message: String): List<ExcerptEntity> {
+    return map { it.copy(syncStatus = SyncStatus.CONFLICT, syncError = message, retryCount = it.retryCount + 1) }
+}
+
+private fun List<ExcerptTagEntity>.markExcerptTagsConflicted(message: String): List<ExcerptTagEntity> {
+    return map { it.copy(syncStatus = SyncStatus.CONFLICT, syncError = message, retryCount = it.retryCount + 1) }
+}
+
+private const val REMOTE_CONFLICT_MESSAGE = "Remote version is newer; local upload was stopped."
+private const val MISSING_PUSH_RESULT_MESSAGE = "Missing conditional sync result."
+private const val PARTIAL_PUSH_FAILURE_MESSAGE = "Some records were not applied."

@@ -8,6 +8,8 @@ import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
+import com.gleanread.android.data.sync.LocalChangeSyncTrigger
+import com.gleanread.android.data.sync.NoOpLocalChangeSyncTrigger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -21,24 +23,29 @@ class TagRepository internal constructor(
     private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val activeWorkspaceFlow: Flow<ActiveWorkspace>,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
 ) {
     constructor(
         databaseManager: WorkspaceDatabaseManager,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
     ) : this(
         activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         activeWorkspaceFlow = databaseManager.activeWorkspace,
         deviceIdProvider = deviceIdProvider,
+        localChangeSyncTrigger = localChangeSyncTrigger,
     )
 
     internal constructor(
         database: WorkspaceDatabase,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
         ownerUserId: String = LOCAL_USER_ID,
+        localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
     ) : this(
         activeWorkspaceProvider = { singleDatabaseWorkspace(database, ownerUserId) },
         activeWorkspaceFlow = flowOf(singleDatabaseWorkspace(database, ownerUserId)),
         deviceIdProvider = deviceIdProvider,
+        localChangeSyncTrigger = localChangeSyncTrigger,
     )
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -76,6 +83,7 @@ class TagRepository internal constructor(
                     localDirtyTime = now,
                 ),
             )
+            localChangeSyncTrigger.onLocalDataChanged()
             tagId
         } else {
             if (existing.isDeleted) {
@@ -92,6 +100,7 @@ class TagRepository internal constructor(
                         localDirtyTime = now,
                     ),
                 )
+                localChangeSyncTrigger.onLocalDataChanged()
             }
             existing.id
         }
@@ -121,5 +130,6 @@ class TagRepository internal constructor(
                 )
             },
         )
+        localChangeSyncTrigger.onLocalDataChanged()
     }
 }

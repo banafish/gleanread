@@ -16,6 +16,27 @@ data class RemoteWorkspaceSnapshot(
 )
 
 @Serializable
+data class ConditionalPushResult(
+    val id: String,
+    val status: String,
+    @SerialName("remote_update_time") val remoteUpdateTime: Long? = null,
+    val error: String? = null,
+) {
+    val isApplied: Boolean
+        get() = status == STATUS_APPLIED
+
+    val isConflict: Boolean
+        get() = status == STATUS_CONFLICT
+
+    companion object {
+        const val STATUS_APPLIED = "applied"
+        const val STATUS_CONFLICT = "conflict"
+        const val STATUS_FORBIDDEN = "forbidden"
+        const val STATUS_ERROR = "error"
+    }
+}
+
+@Serializable
 data class RemoteKnowledgeTreeNode(
     val id: String,
     @SerialName("user_id") val userId: String,

@@ -11,6 +11,8 @@ import com.gleanread.android.data.model.LOCAL_USER_ID
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
+import com.gleanread.android.data.sync.LocalChangeSyncTrigger
+import com.gleanread.android.data.sync.NoOpLocalChangeSyncTrigger
 
 /**
  * 统一的摘录 CRUD 仓库。
@@ -21,22 +23,27 @@ import com.gleanread.android.data.sync.LocalDeviceIdProvider
 class ExcerptRepository internal constructor(
     private val activeWorkspaceProvider: () -> ActiveWorkspace,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+    private val localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
 ) {
     constructor(
         databaseManager: WorkspaceDatabaseManager,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
+        localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
     ) : this(
         activeWorkspaceProvider = { databaseManager.activeWorkspace.value },
         deviceIdProvider = deviceIdProvider,
+        localChangeSyncTrigger = localChangeSyncTrigger,
     )
 
     internal constructor(
         database: WorkspaceDatabase,
         deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
         ownerUserId: String = LOCAL_USER_ID,
+        localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
     ) : this(
         activeWorkspaceProvider = { singleDatabaseWorkspace(database, ownerUserId) },
         deviceIdProvider = deviceIdProvider,
+        localChangeSyncTrigger = localChangeSyncTrigger,
     )
 
     /**
@@ -105,6 +112,7 @@ class ExcerptRepository internal constructor(
                 )
             }
         }
+        localChangeSyncTrigger.onLocalDataChanged()
         return excerptId
     }
 
@@ -224,6 +232,9 @@ class ExcerptRepository internal constructor(
 
             updated = true
         }
+        if (updated) {
+            localChangeSyncTrigger.onLocalDataChanged()
+        }
         return updated
     }
 
@@ -248,6 +259,7 @@ class ExcerptRepository internal constructor(
                 ),
             ),
         )
+        localChangeSyncTrigger.onLocalDataChanged()
     }
 
     /**

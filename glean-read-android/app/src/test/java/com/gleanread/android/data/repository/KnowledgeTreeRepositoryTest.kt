@@ -174,4 +174,38 @@ class KnowledgeTreeRepositoryTest {
         val siblings = database.nodeDao().getSiblingsOnce(rootId)
         assertEquals(listOf(child3, child1, child2), siblings.map { it.id })
     }
+
+    @Test
+    fun `tree create update move and delete trigger local sync`() = runBlocking {
+        val syncTrigger = FakeLocalChangeSyncTrigger()
+        val syncRepository = KnowledgeTreeRepository(
+            database = database,
+            localChangeSyncTrigger = syncTrigger,
+        )
+
+        val rootId = syncRepository.createRootNode("Root")
+        val childId = syncRepository.createChildNode(rootId, "Child")
+        val archiveId = syncRepository.createRootNode("Archive")
+        syncRepository.renameNode(childId, "Renamed")
+        syncRepository.moveNode(childId, archiveId)
+        syncRepository.deleteNodeSubtree(archiveId)
+
+        assertEquals(6, syncTrigger.changeCount)
+    }
+
+    @Test
+    fun `tree unchanged mutations do not trigger local sync`() = runBlocking {
+        val syncTrigger = FakeLocalChangeSyncTrigger()
+        val syncRepository = KnowledgeTreeRepository(
+            database = database,
+            localChangeSyncTrigger = syncTrigger,
+        )
+        val rootId = syncRepository.createRootNode("Root")
+
+        syncRepository.renameNode(rootId, "   ")
+        syncRepository.moveNode(rootId, rootId)
+        syncRepository.moveNodeToPosition(rootId, 0)
+
+        assertEquals(1, syncTrigger.changeCount)
+    }
 }

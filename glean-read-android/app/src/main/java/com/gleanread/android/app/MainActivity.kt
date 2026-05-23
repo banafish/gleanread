@@ -46,6 +46,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        appContainer.localChangeSyncTrigger.flushPendingChanges()
         appContainer.workspaceRealtimeSyncController.stop(lifecycleScope)
         super.onStop()
     }

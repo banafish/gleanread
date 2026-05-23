@@ -6,11 +6,14 @@ import com.gleanread.android.data.model.OutlineDraft
 import com.gleanread.android.data.model.SyncStatus
 import com.gleanread.android.data.sync.DeviceIdProvider
 import com.gleanread.android.data.sync.LocalDeviceIdProvider
+import com.gleanread.android.data.sync.LocalChangeSyncTrigger
+import com.gleanread.android.data.sync.NoOpLocalChangeSyncTrigger
 
 class AiSummaryRepository(
     private val databaseManager: WorkspaceDatabaseManager,
     private val deviceIdProvider: DeviceIdProvider = LocalDeviceIdProvider,
     private val outlineGenerator: OutlineGenerator = LocalOutlineGenerator(),
+    private val localChangeSyncTrigger: LocalChangeSyncTrigger = NoOpLocalChangeSyncTrigger,
 ) {
     suspend fun generateOutline(selectedExcerptIds: List<String>): OutlineDraft {
         val database = databaseManager.activeWorkspace.value.database
@@ -65,6 +68,9 @@ class AiSummaryRepository(
                 },
             )
             savedNodeId = resolvedNodeId
+        }
+        if (savedNodeId.isNotBlank()) {
+            localChangeSyncTrigger.onLocalDataChanged()
         }
         return savedNodeId
     }

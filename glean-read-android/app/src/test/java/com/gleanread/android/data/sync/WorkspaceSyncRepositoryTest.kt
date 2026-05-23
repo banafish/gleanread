@@ -517,6 +517,245 @@ class WorkspaceSyncRepositoryTest {
         assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
     }
 
+    @Test
+    fun `push-only sync uploads pending rows without fetching remote changes`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-push-only",
+                userId = "user-1",
+                content = "鍙笂琛岀殑鎽樺綍",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                localDirtyTime = 200L,
+            ),
+        )
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "remote-only",
+                    userId = "user-1",
+                    content = "涓嶅簲涓嬭",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 100L,
+                    updateTime = 300L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+
+        val result = syncRepository().syncNow(pullRemote = false)
+        val saved = database.excerptDao().findExcerptById("excerpt-push-only")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(0, remoteDataSource.fetchCount)
+        assertNull(database.excerptDao().findExcerptById("remote-only"))
+        assertEquals(listOf("excerpt-push-only"), remoteDataSource.uploadedExcerpts.map(RemoteExcerpt::id))
+        assertEquals(listOf(1), remoteDataSource.excerptUploadBatchSizes)
+        assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
+        assertNull(saved?.localDirtyTime)
+    }
+
+    @Test
+    fun `push-only sync batches pending rows by table`() = runBlocking {
+        database.excerptDao().insertExcerpts(
+            listOf(
+                ExcerptEntity(
+                    id = "excerpt-batch-1",
+                    userId = "user-1",
+                    content = "鎵归噺 1",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 100L,
+                    updateTime = 200L,
+                    deviceId = "device-local",
+                    syncStatus = SyncStatus.PENDING_CREATE,
+                    localDirtyTime = 200L,
+                ),
+                ExcerptEntity(
+                    id = "excerpt-batch-2",
+                    userId = "user-1",
+                    content = "鎵归噺 2",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 100L,
+                    updateTime = 201L,
+                    deviceId = "device-local",
+                    syncStatus = SyncStatus.PENDING_UPDATE,
+                    localDirtyTime = 201L,
+                ),
+            ),
+        )
+
+        val result = syncRepository().syncNow(pullRemote = false)
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals(listOf(2), remoteDataSource.excerptUploadBatchSizes)
+        assertEquals(listOf("excerpt-batch-1", "excerpt-batch-2"), remoteDataSource.uploadedExcerpts.map(RemoteExcerpt::id))
+    }
+
+    @Test
+    fun `push conflict applies fetched newer remote row`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-rpc-conflict",
+                userId = "user-1",
+                content = "local content",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                lastSyncTime = 100L,
+                localDirtyTime = 200L,
+            ),
+        )
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "excerpt-rpc-conflict",
+                    userId = "user-1",
+                    content = "remote content",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 100L,
+                    updateTime = 300L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+        remoteDataSource.excerptPushResults = listOf(
+            ConditionalPushResult(
+                id = "excerpt-rpc-conflict",
+                status = ConditionalPushResult.STATUS_CONFLICT,
+                remoteUpdateTime = 300L,
+            ),
+        )
+
+        val result = syncRepository().syncNow(pullRemote = false)
+        val saved = database.excerptDao().findExcerptById("excerpt-rpc-conflict")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals("remote content", saved?.content)
+        assertEquals(SyncStatus.SYNCED, saved?.syncStatus)
+        assertNull(saved?.localDirtyTime)
+    }
+
+    @Test
+    fun `push conflict keeps local row conflicted when fetched remote is stale`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-stale-conflict",
+                userId = "user-1",
+                content = "local wins",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 300L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                lastSyncTime = 100L,
+                localDirtyTime = 300L,
+            ),
+        )
+        remoteDataSource.remoteSnapshot = RemoteWorkspaceSnapshot(
+            nodes = emptyList(),
+            tags = emptyList(),
+            excerpts = listOf(
+                RemoteExcerpt(
+                    id = "excerpt-stale-conflict",
+                    userId = "user-1",
+                    content = "remote stale",
+                    url = null,
+                    sourceTitle = null,
+                    userThought = null,
+                    treeNodeId = null,
+                    createTime = 100L,
+                    updateTime = 200L,
+                    isDeleted = false,
+                    deviceId = "device-remote",
+                ),
+            ),
+            excerptTags = emptyList(),
+        )
+        remoteDataSource.excerptPushResults = listOf(
+            ConditionalPushResult(
+                id = "excerpt-stale-conflict",
+                status = ConditionalPushResult.STATUS_CONFLICT,
+                remoteUpdateTime = 200L,
+            ),
+        )
+
+        val result = syncRepository().syncNow(pullRemote = false)
+        val saved = database.excerptDao().findExcerptById("excerpt-stale-conflict")
+
+        assertTrue(result is WorkspaceSyncResult.Success)
+        assertEquals("local wins", saved?.content)
+        assertEquals(SyncStatus.CONFLICT, saved?.syncStatus)
+        assertTrue(saved?.syncError.orEmpty().contains("Remote version"))
+    }
+
+    @Test
+    fun `push rpc error result marks local row failed`() = runBlocking {
+        database.excerptDao().insertExcerpt(
+            ExcerptEntity(
+                id = "excerpt-rpc-error",
+                userId = "user-1",
+                content = "will fail",
+                url = null,
+                sourceTitle = null,
+                userThought = null,
+                treeNodeId = null,
+                createTime = 100L,
+                updateTime = 200L,
+                deviceId = "device-local",
+                syncStatus = SyncStatus.PENDING_UPDATE,
+                localDirtyTime = 200L,
+            ),
+        )
+        remoteDataSource.excerptPushResults = listOf(
+            ConditionalPushResult(
+                id = "excerpt-rpc-error",
+                status = ConditionalPushResult.STATUS_FORBIDDEN,
+                error = "not owner",
+            ),
+        )
+
+        val result = syncRepository().syncNow(pullRemote = false)
+        val saved = database.excerptDao().findExcerptById("excerpt-rpc-error")
+
+        assertTrue(result is WorkspaceSyncResult.Failure)
+        assertEquals(SyncStatus.FAILED, saved?.syncStatus)
+        assertTrue(saved?.syncError.orEmpty().contains("not owner"))
+    }
+
     private fun syncRepository(
         sessionRefresher: SupabaseSessionRefresher? = null,
     ): WorkspaceSyncRepository {
@@ -539,34 +778,78 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
     )
     val uploadedExcerpts = mutableListOf<RemoteExcerpt>()
     val uploadedNodes = mutableListOf<RemoteKnowledgeTreeNode>()
+    val excerptUploadBatchSizes = mutableListOf<Int>()
     val updatedAfterCalls = mutableListOf<Long?>()
+    var nodePushResults: List<ConditionalPushResult>? = null
+    var tagPushResults: List<ConditionalPushResult>? = null
+    var excerptPushResults: List<ConditionalPushResult>? = null
+    var excerptTagPushResults: List<ConditionalPushResult>? = null
     var excerptUploadError: Throwable? = null
     var fetchCount = 0
 
     override suspend fun upsertNodes(
         accessToken: String,
         nodes: List<RemoteKnowledgeTreeNode>,
-    ) {
+    ): List<ConditionalPushResult> {
         uploadedNodes += nodes
+        return nodePushResults ?: nodes.toAppliedResults(RemoteKnowledgeTreeNode::id)
     }
 
     override suspend fun upsertTags(
         accessToken: String,
         tags: List<RemoteTag>,
-    ) = Unit
+    ): List<ConditionalPushResult> {
+        return tagPushResults ?: tags.toAppliedResults(RemoteTag::id)
+    }
 
     override suspend fun upsertExcerpts(
         accessToken: String,
         excerpts: List<RemoteExcerpt>,
-    ) {
+    ): List<ConditionalPushResult> {
         excerptUploadError?.let { throw it }
+        excerptUploadBatchSizes += excerpts.size
         uploadedExcerpts += excerpts
+        return excerptPushResults ?: excerpts.toAppliedResults(RemoteExcerpt::id)
     }
 
     override suspend fun upsertExcerptTags(
         accessToken: String,
         relations: List<RemoteExcerptTag>,
-    ) = Unit
+    ): List<ConditionalPushResult> {
+        return excerptTagPushResults ?: relations.toAppliedResults(RemoteExcerptTag::id)
+    }
+
+    override suspend fun fetchNode(
+        accessToken: String,
+        userId: String,
+        nodeId: String,
+    ): RemoteKnowledgeTreeNode? {
+        return remoteSnapshot.nodes.firstOrNull { it.userId == userId && it.id == nodeId }
+    }
+
+    override suspend fun fetchTag(
+        accessToken: String,
+        userId: String,
+        tagId: String,
+    ): RemoteTag? {
+        return remoteSnapshot.tags.firstOrNull { it.userId == userId && it.id == tagId }
+    }
+
+    override suspend fun fetchExcerpt(
+        accessToken: String,
+        userId: String,
+        excerptId: String,
+    ): RemoteExcerpt? {
+        return remoteSnapshot.excerpts.firstOrNull { it.userId == userId && it.id == excerptId }
+    }
+
+    override suspend fun fetchExcerptTag(
+        accessToken: String,
+        userId: String,
+        relationId: String,
+    ): RemoteExcerptTag? {
+        return remoteSnapshot.excerptTags.firstOrNull { it.userId == userId && it.id == relationId }
+    }
 
     override suspend fun fetchChanges(
         accessToken: String,
@@ -577,6 +860,10 @@ private class FakeWorkspaceRemoteDataSource : WorkspaceRemoteDataSource {
         updatedAfterCalls += updatedAfter
         return remoteSnapshot.filterUpdatedAfter(updatedAfter)
     }
+}
+
+private fun <T> List<T>.toAppliedResults(getId: (T) -> String): List<ConditionalPushResult> {
+    return map { ConditionalPushResult(id = getId(it), status = ConditionalPushResult.STATUS_APPLIED) }
 }
 
 private fun RemoteWorkspaceSnapshot.filterUpdatedAfter(updatedAfter: Long?): RemoteWorkspaceSnapshot {
