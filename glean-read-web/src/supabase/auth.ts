@@ -176,7 +176,7 @@ export async function completeCallback(): Promise<AuthSession | null> {
 
 export async function signOut(): Promise<void> {
   if (hasSupabaseConfig && supabase) {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   }
   await setCurrentSession(null);
 }
