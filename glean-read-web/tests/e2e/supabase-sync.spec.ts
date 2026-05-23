@@ -126,7 +126,30 @@ interface LocalPendingWorkspace {
 
 type LocalStoreName = "nodes" | "excerpts" | "tags" | "excerptTags";
 
+const workspaceRestPath = /\/rest\/v1\/(knowledge_tree_node|excerpts|tags|excerpt_tags)/;
+
 test.describe.configure({ mode: "serial" });
+
+function isWorkspaceRestUrl(url: string): boolean {
+  return workspaceRestPath.test(url);
+}
+
+function isWorkspacePullUrl(url: string): boolean {
+  const decodedUrl = decodeURIComponent(url);
+  return isWorkspaceRestUrl(decodedUrl) && decodedUrl.includes("select=*") && decodedUrl.includes("update_time=gt.");
+}
+
+async function compressSyncInterval(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const originalSetInterval = window.setInterval.bind(window);
+    window.setInterval = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+      originalSetInterval(handler, timeout === 60_000 ? 1_000 : timeout, ...args)) as typeof window.setInterval;
+  });
+}
+
+async function waitForInitialSync(page: Page): Promise<void> {
+  await expect(page.getByText(/同步完成/)).toBeVisible({ timeout: 30_000 });
+}
 
 async function getCurrentLocalSession(page: Page): Promise<LocalSession | null> {
   return page.evaluate(async () => {
@@ -631,20 +654,19 @@ test("E2E-39 本地同步不会在短时间内重复刷 Supabase 请求", async 
   let nodeId = "";
   const workspaceRequests: string[] = [];
   const failedWorkspaceRequests: string[] = [];
-  const workspaceRestPath = /\/rest\/v1\/(knowledge_tree_node|excerpts|tags|excerpt_tags)/;
 
   page.on("request", (request) => {
-    if (workspaceRestPath.test(request.url())) {
+    if (isWorkspaceRestUrl(request.url())) {
       workspaceRequests.push(request.url());
     }
   });
   page.on("response", (response) => {
-    if (workspaceRestPath.test(response.url()) && response.status() >= 400) {
+    if (isWorkspaceRestUrl(response.url()) && response.status() >= 400) {
       failedWorkspaceRequests.push(`${response.status()} ${response.url()}`);
     }
   });
   page.on("requestfailed", (request) => {
-    if (workspaceRestPath.test(request.url())) {
+    if (isWorkspaceRestUrl(request.url())) {
       const errorText = request.failure()?.errorText ?? "";
       if (!errorText.includes("ERR_ABORTED")) {
         failedWorkspaceRequests.push(`${errorText} ${request.url()}`);
@@ -1049,6 +1071,98 @@ test("E2E-49 离线期间保留本地 pending，恢复在线后再上行", async
     expectSyncedClean(localAfter!);
   } finally {
     await page.context().setOffline(false).catch(() => undefined);
+    if (remote && nodeId) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-50 Realtime payload 会直接落本地且不会额外触发 REST 下行", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-realtime-payload");
+  let remote: RemoteClientSession | null = null;
+  const nodeId = `${prefix}-remote-payload-node`;
+  const pullRequests: string[] = [];
+
+  page.on("request", (request) => {
+    if (isWorkspacePullUrl(request.url())) {
+      pullRequests.push(request.url());
+    }
+  });
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    await waitForInitialSync(page);
+    pullRequests.length = 0;
+    await page.route("**/rest/v1/**", async (route) => {
+      if (isWorkspacePullUrl(route.request().url())) {
+        pullRequests.push(route.request().url());
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+
+    const remoteNode = buildRemoteNode(remote.userId, nodeId, prefix, "e2e-remote-payload");
+    await upsertRemoteNode(remote.client, remoteNode);
+
+    await expect.poll(async () => (await getLocalNode(page, nodeId))?.nodeTitle ?? null, { timeout: 30_000 }).toBe(remoteNode.node_title);
+    await page.waitForTimeout(2_500);
+
+    const localNode = await getLocalNode(page, nodeId);
+    expect(localNode).not.toBeNull();
+    expectLocalNodeMatchesRemote(localNode!, remoteNode);
+    expect(pullRequests).toEqual([]);
+  } finally {
+    if (remote) {
+      await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
+    }
+    await cleanupWorkspace(page, prefix).catch(() => undefined);
+    await remote?.client.auth.signOut().catch(() => undefined);
+  }
+});
+
+test("E2E-51 60 秒调度只上行 pending 数据且不会触发下行查询", async ({ page }) => {
+  test.setTimeout(75_000);
+  const prefix = testPrefix("supabase-interval-push-only");
+  let remote: RemoteClientSession | null = null;
+  let nodeId = "";
+  const workspaceRequests: string[] = [];
+  const pullRequests: string[] = [];
+
+  await compressSyncInterval(page);
+  page.on("request", (request) => {
+    const url = request.url();
+    if (isWorkspaceRestUrl(url)) {
+      workspaceRequests.push(url);
+    }
+    if (isWorkspacePullUrl(url)) {
+      pullRequests.push(url);
+    }
+  });
+
+  try {
+    remote = await createAuthenticatedSupabaseClient(seededUser);
+    await loginWithPassword(page, seededUser);
+    await waitForInitialSync(page);
+    workspaceRequests.length = 0;
+    pullRequests.length = 0;
+
+    const localBefore = await insertPendingLocalNode(page, prefix);
+    nodeId = localBefore.id;
+
+    await expect.poll(async () => Boolean(await fetchRemoteNode(remote!.client, nodeId)), { timeout: 15_000 }).toBe(true);
+    await page.waitForTimeout(1_500);
+
+    expect(workspaceRequests.some((url) => url.includes("on_conflict=id"))).toBe(true);
+    expect(pullRequests).toEqual([]);
+    const localAfter = await getLocalNode(page, nodeId);
+    expect(localAfter).not.toBeNull();
+    expectSyncedClean(localAfter!);
+  } finally {
     if (remote && nodeId) {
       await softDeleteRemoteNode(remote.client, nodeId).catch(() => undefined);
     }
