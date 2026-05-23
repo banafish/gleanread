@@ -77,6 +77,18 @@ interface Bridge {
   fromRemote: (item: any) => any;
 }
 
+interface SyncOptions {
+  pullRemote?: boolean;
+}
+
+interface RealtimeWorkspaceRow {
+  id?: string;
+  user_id?: string;
+  update_time?: number;
+  device_id?: string | null;
+  [key: string]: unknown;
+}
+
 const DEVICE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 function getDeviceId(): string {
@@ -230,6 +242,38 @@ async function pullBridge(
   return pulled;
 }
 
+async function applyRemoteBridgeRow(
+  bridge: Bridge,
+  remoteRow: RealtimeWorkspaceRow,
+  userId: string,
+  deviceId: string
+): Promise<boolean> {
+  if (
+    remoteRow.user_id !== userId ||
+    typeof remoteRow.id !== "string" ||
+    typeof remoteRow.update_time !== "number" ||
+    isSelfEcho(remoteRow.device_id ?? null, deviceId)
+  ) {
+    return false;
+  }
+
+  const localRow = bridge.fromRemote(remoteRow);
+  const existing = await bridge.localTable.get(localRow.id);
+  if (!shouldApplyRemoteChange(existing, { updateTime: localRow.updateTime, deviceId: localRow.deviceId })) {
+    return false;
+  }
+
+  await bridge.localTable.put({
+    ...localRow,
+    syncStatus: "synced",
+    syncError: null,
+    retryCount: 0,
+    localDirtyTime: null,
+    lastSyncTime: now(),
+  });
+  return true;
+}
+
 const bridges: Bridge[] = [
   {
     tableName: "knowledge_tree_node",
@@ -361,30 +405,33 @@ const bridges: Bridge[] = [
   },
 ];
 
-export async function runSyncOnce(sessionOverride?: AuthSession | null): Promise<SyncReport> {
+export async function runSyncOnce(sessionOverride?: AuthSession | null, options: SyncOptions = {}): Promise<SyncReport> {
   const session = await resolveSyncSession(sessionOverride);
   if ("skipped" in session) {
     return session;
   }
 
+  const pullRemote = options.pullRemote ?? true;
   const deviceId = getDeviceId();
   let pushed = 0;
   let pulled = 0;
   for (const bridge of bridges) {
     pushed += await pushBridge(bridge, session.userId, deviceId);
   }
-  for (const bridge of bridges) {
-    pulled += await pullBridge(bridge, session.userId, deviceId);
+  if (pullRemote) {
+    for (const bridge of bridges) {
+      pulled += await pullBridge(bridge, session.userId, deviceId);
+    }
   }
   return {
     pushed,
     pulled,
     skipped: false,
-    message: `同步完成：上行 ${pushed} 条，下行 ${pulled} 条。`,
+    message: pullRemote ? `同步完成：上行 ${pushed} 条，下行 ${pulled} 条。` : `同步完成：上行 ${pushed} 条。`,
   };
 }
 
-export function subscribeToRemoteChanges(userId: string, onInvalidate: () => void): () => void {
+export function subscribeToRemoteChanges(userId: string, onRemoteChange: () => void): () => void {
   if (!hasSupabaseConfig || !supabase) {
     return () => undefined;
   }
@@ -402,11 +449,15 @@ export function subscribeToRemoteChanges(userId: string, onInvalidate: () => voi
           filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          const row = (payload.new ?? payload.old) as { device_id?: string | null; user_id?: string } | null;
-          if (!row || row.user_id !== userId || row.device_id === deviceId) {
+          const row = (payload.new && Object.keys(payload.new).length > 0 ? payload.new : payload.old) as RealtimeWorkspaceRow | null;
+          if (!row) {
             return;
           }
-          onInvalidate();
+          void applyRemoteBridgeRow(bridge, row, userId, deviceId).then((applied) => {
+            if (applied) {
+              onRemoteChange();
+            }
+          }).catch(() => undefined);
         }
       )
       .subscribe()

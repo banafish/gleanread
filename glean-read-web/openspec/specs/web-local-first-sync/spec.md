@@ -30,8 +30,8 @@
 - **THEN** 系统 MUST先让界面反映新状态
 - **THEN** 持久化写入必须在后台异步完成
 
-### Requirement: 本地与云端必须通过增量同步保持一致
-系统 MUST将本地持久层作为云端同步的中间层，并通过增量方式把变更推送到 Supabase，同时拉取远端更新回本地。同步流程必须根据 `update_time`、`device_id` 和 `is_deleted` 进行判断，且必须支持断网后自动续传。
+### Requirement: 本地与云端必须通过轻量增量同步保持一致
+系统 MUST将本地持久层作为云端同步的中间层，并通过增量方式把变更推送到 Supabase。系统 MUST在登录后、页面刷新后和网络恢复后主动下行远端更新；常驻运行期间的远端更新 MUST优先使用 Supabase Realtime payload 写回本地持久层，而不是依赖固定间隔下行轮询。同步流程必须根据 `update_time`、`device_id` 和 `is_deleted` 进行判断，且必须支持断网后自动续传。
 
 #### Scenario: 上传本地变更
 - **WHEN** 本地出现待同步的新增或更新记录
@@ -40,13 +40,18 @@
 
 #### Scenario: 拉取远端变更
 - **WHEN** Supabase 中存在比本地更新的记录
-- **THEN** 系统 MUST把这些变化增量拉回本地
-- **THEN** 系统不得只依赖 Realtime 通知本身作为最终数据源
+- **THEN** 系统 MUST在登录、页面刷新或网络恢复触发的主动同步中把这些变化增量拉回本地
+- **THEN** 60 秒定时调度不得发起下行拉取
 
 #### Scenario: 断网后恢复同步
 - **WHEN** 用户离线期间产生了本地变更
 - **THEN** 系统 MUST暂存这些变更
 - **THEN** 网络恢复后必须自动继续同步
+
+#### Scenario: Realtime 应用远端变更
+- **WHEN** Supabase Realtime 收到非当前设备产生的远端行变更
+- **THEN** 系统 MUST从 Realtime payload 中读取远端行并写入本地持久层
+- **THEN** 系统 MUST刷新工作台本地视图而不发起额外下行请求
 
 ### Requirement: 同步必须处理软删除、冲突和自我回音
 系统 MUST把删除操作视为软删除，并始终保留 `is_deleted = true` 的状态用于同步与恢复；系统 MUST根据 `update_time` 处理多端冲突，并忽略由当前设备自己发出的回流变更，避免自我回音。
