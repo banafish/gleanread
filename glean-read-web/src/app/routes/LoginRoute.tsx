@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  Github,
   KeyRound,
   Mail,
   Sparkles,
@@ -10,6 +9,8 @@ import {
   ChevronRight,
   ShieldCheck,
   CheckCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthProvider";
 import { resolveLoginRoute } from "@/app/routes/routePolicy";
@@ -25,13 +26,14 @@ export function LoginRoute() {
     signInWithPassword,
     signUpWithPassword,
     sendMagicLink,
-    signInWithOAuth,
   } = useAuth();
   
   const [panel, setPanel] = useState<LoginPanel>("login");
-  const [email, setEmail] = useState("reader@gleanread.local");
-  const [password, setPassword] = useState("gleanread-demo");
-  const [confirmPassword, setConfirmPassword] = useState("gleanread-demo");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -68,19 +70,6 @@ export function LoginRoute() {
       navigate("/app", { replace: true });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "身份认证失败。");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const oauth = async (provider: "google" | "github") => {
-    setSubmitting(true);
-    setError(null);
-    try {
-      await signInWithOAuth(provider);
-      navigate("/app", { replace: true });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : `${provider} 登录失败。`);
     } finally {
       setSubmitting(false);
     }
@@ -250,13 +239,21 @@ export function LoginRoute() {
                   </span>
                   <input
                     id="password-input"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     autoComplete={panel === "signup" ? "new-password" : "current-password"}
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder="请输入登录密码"
-                    className="w-full rounded-xl border border-white/5 bg-slate-950 pl-10 pr-4 py-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    className="w-full rounded-xl border border-white/5 bg-slate-950 pl-10 pr-10 py-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3.5 text-slate-500 hover:text-slate-300 transition focus:outline-none flex items-center justify-center p-1 rounded"
+                    title={showPassword ? "隐藏密码" : "显示密码"}
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
                 </div>
               </div>
             ) : null}
@@ -270,13 +267,21 @@ export function LoginRoute() {
                   </span>
                   <input
                     id="confirm-password-input"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     autoComplete="new-password"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
                     placeholder="请再次确认登录密码"
-                    className="w-full rounded-xl border border-white/5 bg-slate-950 pl-10 pr-4 py-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                    className="w-full rounded-xl border border-white/5 bg-slate-950 pl-10 pr-10 py-2.5 text-xs text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 text-slate-500 hover:text-slate-300 transition focus:outline-none flex items-center justify-center p-1 rounded"
+                    title={showConfirmPassword ? "隐藏密码" : "显示密码"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
                 </div>
               </div>
             ) : null}
@@ -309,35 +314,6 @@ export function LoginRoute() {
             {panel === "magic" ? <Mail size={14} /> : <KeyRound size={14} />}
             {panel === "signup" ? "注册并进入大厅" : panel === "magic" ? "发送 Magic Link 登录" : "立即安全登录"}
           </button>
-
-          {/* 快捷登录线 */}
-          <div className="my-6 flex items-center gap-3 text-[10px] font-bold tracking-widest text-slate-600 uppercase">
-            <div className="h-px flex-1 bg-white/5" />
-            第三方授权登录
-            <div className="h-px flex-1 bg-white/5" />
-          </div>
-
-          {/* OAuth 登录组 */}
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => void oauth("github")}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-slate-950 text-xs font-semibold text-slate-300 transition hover:bg-slate-900 hover:text-white active:scale-97 disabled:opacity-50"
-            >
-              <Github size={15} />
-              GitHub
-            </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => void oauth("google")}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-white/5 bg-slate-950 text-xs font-semibold text-slate-300 transition hover:bg-slate-900 hover:text-white active:scale-97 disabled:opacity-50"
-            >
-              <Sparkles size={15} className="text-yellow-500" />
-              Google
-            </button>
-          </div>
 
           {/* 安卓端同步提醒 */}
           <div className="mt-8 pt-6 border-t border-white/5 flex items-start gap-2.5 text-[10px] text-slate-500">
