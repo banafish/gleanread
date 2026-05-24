@@ -83,7 +83,7 @@ export function LoginRoute() {
 
   return (
     <main className="grid min-h-screen bg-slate-950 text-slate-100 lg:grid-cols-12 overflow-hidden selection:bg-blue-500/30 selection:text-blue-200">
-      {/* 左侧：艺术级知识大脑星云区 (7格宽) */}
+      {/* 左侧：艺术级知识体系星云区 (7格宽) */}
       <section className="relative hidden lg:flex lg:col-span-7 overflow-hidden border-r border-white/5 bg-slate-950 flex-col justify-between p-12">
         {/* 背景科技网格与渐变发光 */}
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#0f172a_1px,transparent_1px),linear-gradient(to_bottom,#0f172a_1px,transparent_1px)] bg-[size:3rem_3rem] opacity-30" />
@@ -105,11 +105,11 @@ export function LoginRoute() {
             可视化知识神经元系统
           </div>
           <h1 className="text-4xl font-extrabold leading-tight tracking-tight text-white md:text-5xl">
-            连接碎片灵感，<br />
-            构建你的<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">可视化知识大脑</span>。
+            收集碎片化摘录知识，<br />
+            构建你的<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">可视化知识体系</span>。
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-slate-400">
-            一端收集，双端闪现。在 Web 桌面端横向建树、理清宏大脉络；在 Android 原生端通过极速挂件剪藏灵感。数据基于 Room + Dexie 离线优先， Supabase 静默队列自动安全同步。
+            一端收集，双端闪现。在 Web 桌面端横向建树、理清宏大脉络；在 Android 原生端通过桌面挂件和快速摘录收集知识。数据基于 Room + Dexie 离线优先， Supabase 静默队列自动安全同步。
           </p>
         </div>
 
@@ -175,9 +175,11 @@ export function LoginRoute() {
           
           {/* Logo 顶栏 */}
           <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-500 to-cyan-400 text-sm font-bold text-white shadow-lg shadow-blue-500/20">
-              G
-            </div>
+            <img
+              src="/icons/icon-192.png"
+              alt="GleanRead Logo"
+              className="h-10 w-10 rounded-xl object-contain shadow-lg shadow-blue-500/20"
+            />
             <div>
               <div className="text-base font-bold tracking-tight text-white">GleanRead 登录中心</div>
               <div className="text-xs text-slate-400">开启你的可视化高效知识沉淀</div>

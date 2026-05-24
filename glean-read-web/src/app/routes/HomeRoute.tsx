@@ -38,9 +38,11 @@ export function HomeRoute() {
       <header className="fixed top-4 inset-x-4 z-50 mx-auto max-w-7xl">
         <div className="flex h-16 items-center justify-between rounded-2xl border border-white/5 bg-slate-900/60 px-6 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-500 to-cyan-400 text-sm font-bold text-white shadow-lg shadow-blue-500/20">
-              G
-            </div>
+            <img
+              src="/icons/icon-192.png"
+              alt="GleanRead Logo"
+              className="h-9 w-9 rounded-xl object-contain shadow-lg shadow-blue-500/20"
+            />
             <span className="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
               GleanRead
             </span>
@@ -94,12 +96,12 @@ export function HomeRoute() {
           </div>
 
           <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 sm:text-6xl md:text-7xl leading-none">
-            连接碎片灵感 <br className="hidden sm:inline" />
-            构建你的<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text">可视化知识大脑</span>
+            收集碎片化摘录知识 <br className="hidden sm:inline" />
+            构建你的<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text">可视化知识体系</span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
-            GleanRead 重构了阅读思考流。在 Web 端，用横向知识树编织大纲，让碎片知识有机挂载；在 Android 原生端，随手极速收集，离线无阻碍。基于 Supabase 多端自动秒级同步，完全开源，隐私至上。
+            GleanRead 重构了阅读思考流。在 Web 端，用横向知识树编织大纲，让知识摘录有机挂载；在 Android 原生端，随手极速收集，离线无阻碍。基于 Supabase 多端自动秒级同步，完全开源，隐私至上。
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -133,7 +135,7 @@ export function HomeRoute() {
             {/* 左侧 Inbox */}
             <div className="border-r border-white/5 p-4 flex flex-col justify-between bg-slate-900/20">
               <div>
-                <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Inbox 碎片收集</span>
+                <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Inbox 摘录收集</span>
                 <div className="mt-3 space-y-2">
                   <div
                     className={`rounded-lg border p-2 transition-all duration-500 ${
@@ -213,7 +215,7 @@ export function HomeRoute() {
               {/* 模拟从 Inbox 飞到知识节点的摘录卡片 */}
               {sandboxStep === 1 && (
                 <div className="absolute left-[-20px] top-[110px] h-6 w-24 rounded border border-blue-500/60 bg-blue-950 px-2 py-1 text-[8px] text-blue-300 shadow-lg animate-ping-once transition-all duration-1000 ease-out" style={{ transform: 'translate(130px, -40px)', transition: 'all 1s ease-in-out' }}>
-                  挂载碎片中...
+                  挂载摘录中...
                 </div>
               )}
             </div>
@@ -245,7 +247,7 @@ export function HomeRoute() {
       <section id="features" className="relative py-24 px-6 max-w-7xl mx-auto">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-            极致打磨的硬核核心卖点
+            极致打磨的硬核核心功能
           </h2>
           <p className="mt-4 text-slate-400 text-sm sm:text-base">
             融合 Web 的大屏深度建树，与 Android 端的随时随地极速捕捉，为您创造全方位的无损知识链。
@@ -302,9 +304,9 @@ export function HomeRoute() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-5">
               <div>
-                <h3 className="text-lg font-bold text-white">Android 桌面小挂件与剪裁</h3>
-                <p className="mt-3 text-sm leading-relaxed text-slate-400">
-                  安卓端拥有专门设计的桌面快速捕获小部件 (Fast Capture Widget) 和底部拉起的快速记录单。随时捕获粘贴板，甚至可在系统分享中直接投递摘录，完全免开应用，省时省力。
+                <h3 className="text-lg font-bold text-white">Android 桌面小挂件与快速摘录</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-400 text-justify">
+                  在安卓端，从浏览器选中一段文字点击分享到 app 会弹出一个快速摘录弹窗，您可以即时输入自己的想法，系统会自动补全文章的来源链接和标题。在碎片化阅读时，这能帮您快速收集知识摘录；有空时，再在 web 端把这些摘录打磨成结构化的知识体系。
                 </p>
               </div>
               <div className="flex flex-col justify-center space-y-2 border-l border-white/5 pl-6">
@@ -329,9 +331,9 @@ export function HomeRoute() {
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-rose-500/10 text-rose-400 transition-transform group-hover:scale-110 group-hover:rotate-6">
               <Cpu size={24} />
             </div>
-            <h3 className="mt-5 text-lg font-bold text-white">AI 批量生成与综合树</h3>
+            <h3 className="mt-5 text-lg font-bold text-white">AI 总结知识摘录形成知识大纲</h3>
             <p className="mt-3 text-sm leading-relaxed text-slate-400">
-              本地/云端 LLM 大模型双向整合。AI 批量大纲工作流可将杂乱无序的 Inbox 摘录智能分析并秒级提取，利用 AI 综合知识树自动合并同类节点，完成逻辑整理。
+              深度融合 AI 大模型，一键对 Inbox 中杂乱分散的知识摘录进行提炼与逻辑总结。AI 会自动过滤噪音、提炼核心论点，生成清晰的知识大纲，并直接挂载作为您横向知识树节点的大纲内容。
             </p>
             <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-rose-400 font-medium">
               一键精炼化零为整
@@ -518,9 +520,11 @@ export function HomeRoute() {
                     );
                   })}
                 </div>
-                <div className="absolute inset-0 m-auto h-8 w-8 rounded-lg bg-gradient-to-tr from-blue-500 to-cyan-400 border-2 border-white flex items-center justify-center text-[10px] font-bold text-white shadow">
-                  G
-                </div>
+                <img
+                  src="/icons/icon-192.png"
+                  alt="G"
+                  className="absolute inset-0 m-auto h-8 w-8 rounded-lg border-2 border-white bg-white shadow object-contain"
+                />
               </div>
               <span className="text-[11px] text-slate-400 font-medium tracking-wide">扫码极速下载安卓原生 APK</span>
             </div>
