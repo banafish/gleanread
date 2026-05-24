@@ -452,7 +452,7 @@ function KnowledgeTreeGraphInner() {
   ]);
 
   return (
-    <div ref={canvasRef} className="knowledge-tree-canvas h-full min-h-0 overflow-hidden outline-none" data-testid="knowledge-tree-canvas" tabIndex={-1}>
+    <div ref={canvasRef} className="knowledge-tree-canvas relative h-full min-h-0 overflow-hidden outline-none" data-testid="knowledge-tree-canvas" tabIndex={-1}>
       <ReactFlow
         className="knowledge-tree-flow"
         nodes={graphData.nodes}
@@ -496,6 +496,22 @@ function KnowledgeTreeGraphInner() {
           onViewportChange={setViewport}
         />
       </ReactFlow>
+
+      {/* 快捷键说明 */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-6 px-5 py-2.5 rounded-full border border-app-border bg-app-surface/90 shadow-panel backdrop-blur-md select-none text-xs">
+        <div className="flex items-center gap-2">
+          <kbd className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-md border border-app-border bg-app-surface2/60 text-app-muted shadow-sm">Tab</kbd>
+          <span className="text-app-muted font-medium">添加子节点</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <kbd className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-md border border-app-border bg-app-surface2/60 text-app-muted shadow-sm">Enter</kbd>
+          <span className="text-app-muted font-medium">添加同级节点</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <kbd className="px-2 py-0.5 text-[10px] font-mono font-medium rounded-md border border-app-border bg-app-surface2/60 text-app-muted shadow-sm">Space</kbd>
+          <span className="text-app-muted font-medium">详情</span>
+        </div>
+      </div>
     </div>
   );
 }
