@@ -17,12 +17,27 @@ import {
   Code,
   Lock,
   GitBranch,
+  Home as HomeIcon,
+  Tag as TagIcon,
+  Settings as SettingsIcon,
+  Search,
+  MoreVertical,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Filter,
+  Folder,
+  User,
+  Sun,
+  Moon,
+  Paintbrush,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthProvider";
 
 export function HomeRoute() {
   const { session } = useAuth();
   const [sandboxStep, setSandboxStep] = useState(0);
+  const [activePhoneTab, setActivePhoneTab] = useState<"stream" | "tree" | "tags" | "settings">("tree");
 
   // 迷你工作台动态交互沙盒演示逻辑
   useEffect(() => {
@@ -381,7 +396,25 @@ export function HomeRoute() {
             <div className="absolute top-[10%] h-[360px] w-[240px] rounded-full bg-cyan-500/20 blur-[60px]" />
             
             {/* 手机容器 */}
-            <div className="relative z-10 w-[270px] h-[540px] rounded-[48px] border-[10px] border-slate-800 bg-slate-950 shadow-2xl overflow-hidden shadow-black ring-1 ring-white/10">
+            <div className="relative z-10 w-[270px] h-[540px] rounded-[48px] border-[10px] border-slate-800 bg-[#0C0F17] shadow-2xl overflow-hidden shadow-black ring-1 ring-white/10 select-none">
+              {/* 局部微动画与局部样式定义，确保四屏切换动画丝滑并消除滚动条 */}
+              <style>{`
+                @keyframes phoneFadeIn {
+                  from { opacity: 0; transform: translateY(4px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                .animate-phoneFadeIn {
+                  animation: phoneFadeIn 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+                }
+                .scrollbar-none::-webkit-scrollbar {
+                  display: none;
+                }
+                .scrollbar-none {
+                  -ms-overflow-style: none;
+                  scrollbar-width: none;
+                }
+              `}</style>
+
               {/* 听筒 & 摄像头 (Dynamic Island 占位) */}
               <div className="absolute top-3 left-1/2 -translate-x-1/2 h-4 w-20 rounded-full bg-slate-900 z-30 flex items-center justify-center">
                 <span className="h-1.5 w-1.5 rounded-full bg-slate-800/80 mr-2" />
@@ -389,45 +422,352 @@ export function HomeRoute() {
               </div>
 
               {/* 模拟手机系统界面：Compose 原生 Material You 页面 */}
-              <div className="h-full w-full bg-cyan-950/15 pt-8 px-4 flex flex-col justify-between font-sans">
-                {/* 顶部模拟 AppBar */}
-                <div className="flex items-center justify-between border-b border-white/5 pb-2.5">
-                  <div>
-                    <span className="text-[8px] font-mono text-slate-500 block">LOCAL-FIRST</span>
-                    <span className="text-[12px] font-extrabold text-white">GleanRead App</span>
-                  </div>
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-                </div>
+              <div className="h-full w-full pt-8 flex flex-col justify-between font-sans text-slate-200 relative overflow-hidden bg-[#0C0F17]">
+                
+                {/* 屏幕核心内容滚动区 */}
+                <div className="flex-1 overflow-y-auto px-3.5 py-2.5 space-y-3.5 scrollbar-none pb-20" style={{ scrollbarWidth: "none" }}>
+                  {activePhoneTab === "tree" && (
+                    <div className="space-y-3.5 animate-phoneFadeIn">
+                      {/* AppBar */}
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-[14px] font-bold text-white tracking-wide">知识体系</span>
+                        <div className="flex items-center gap-3.5 text-slate-300">
+                          <Search size={14} className="cursor-pointer hover:text-white" />
+                          <MoreVertical size={14} className="cursor-pointer hover:text-white" />
+                        </div>
+                      </div>
 
-                {/* 模拟 Inbox 摘录流 */}
-                <div className="flex-1 py-4 space-y-3 overflow-hidden">
-                  <span className="text-[9px] font-bold text-cyan-400 block tracking-wider uppercase">Inbox 快摘列表</span>
-                  <div className="rounded-xl border border-white/5 bg-slate-900/40 p-2.5 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] text-cyan-300 font-mono">2026-05-24</span>
-                      <span className="text-[7px] bg-slate-800 px-1 rounded text-slate-400">已同步</span>
+                      {/* 卡片 1 (展开状态) */}
+                      <div className="bg-[#1A1F2C] rounded-2xl p-3 space-y-2.5 border border-white/5 text-left shadow-sm">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-100">
+                          <div className="flex items-center gap-1.5">
+                            <ChevronDown size={12} className="text-slate-400" />
+                            <span>🧠 个人成长</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-400">
+                            <span>0条</span>
+                            <MoreVertical size={10} className="opacity-80" />
+                          </div>
+                        </div>
+                        {/* 子大纲 */}
+                        <div className="pl-3.5 space-y-2 border-l border-slate-700/50 ml-1.5">
+                          <div className="flex items-center justify-between text-[10px] text-slate-300">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-1 w-1 rounded-full bg-slate-400" />
+                              <span>⏱️ 时间管理</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <span>0条</span>
+                              <MoreVertical size={9} />
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between text-[10px] text-slate-300">
+                            <div className="flex items-center gap-1.5">
+                              <span className="h-1 w-1 rounded-full bg-slate-400" />
+                              <span>📖 阅读方法</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <span>2条</span>
+                              <MoreVertical size={9} />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 卡片 2 (折叠状态) */}
+                      <div className="bg-[#1A1F2C] rounded-2xl p-3 flex items-center justify-between border border-white/5 text-left shadow-sm">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-100">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 ml-1 mr-1" />
+                          <span>💻 技术开发</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-400 text-[10px]">
+                          <span>0条</span>
+                          <MoreVertical size={10} className="opacity-80" />
+                        </div>
+                      </div>
+
+                      {/* 卡片 3 (折叠状态) */}
+                      <div className="bg-[#1A1F2C] rounded-2xl p-3 flex items-center justify-between border border-white/5 text-left shadow-sm">
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-100">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400 ml-1 mr-1" />
+                          <span>💰 投资理财</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-400 text-[10px]">
+                          <span>0条</span>
+                          <MoreVertical size={10} className="opacity-80" />
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-slate-200 leading-tight">“在 Compose UI 原生手势中，双端数据基于 Supabase 队列进行秒级状态迁移...”</p>
-                    <div className="text-[7px] text-slate-500 truncate">Source: openspec/specs/local-store</div>
+                  )}
+
+                  {activePhoneTab === "stream" && (
+                    <div className="space-y-3.5 animate-phoneFadeIn">
+                      {/* 搜索过滤框 */}
+                      <div className="py-0.5 space-y-2 text-left">
+                        <div className="flex h-7.5 items-center justify-between rounded-full bg-[#1A1F2C] px-3.5 border border-white/5">
+                          <span className="text-[10px] text-slate-500">搜索摘录、想法或标...</span>
+                          <Filter size={11} className="text-slate-400" />
+                        </div>
+                        <span className="text-[8px] text-slate-500 block pl-1">长按卡片可进入多选</span>
+                      </div>
+
+                      {/* 摘录卡片 1 */}
+                      <div className="bg-[#1A1F2C] rounded-2xl p-3 space-y-2.5 border border-white/5 text-left shadow-sm">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[8px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-300 font-bold">📖 阅读方法</span>
+                          <span className="text-[8px] text-slate-400">#学习方法</span>
+                        </div>
+                        <p className="text-[10px] text-slate-200 leading-relaxed font-normal">
+                          费曼技巧的核心就是用最简单的语言把复杂概念解释给外行听。
+                        </p>
+                        <div className="bg-[#121622] rounded-xl p-2 text-[9px] text-slate-400 leading-normal border border-white/5">
+                          适合和 <span className="text-blue-400 font-semibold cursor-pointer">[[📖 阅读方法]]</span> 互相链接。
+                        </div>
+                        <div className="flex items-center justify-between text-[8px] text-slate-500 pt-1.5 border-t border-white/5">
+                          <span>🔗 学习方法卡片</span>
+                          <span>5月19日</span>
+                        </div>
+                      </div>
+
+                      {/* 摘录卡片 2 */}
+                      <div className="bg-[#1A1F2C] rounded-2xl p-3 space-y-2.5 border border-white/5 text-left shadow-sm">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[8px] bg-slate-800/80 px-1.5 py-0.5 rounded text-slate-300 font-bold">📖 阅读方法</span>
+                          <span className="text-[8px] text-slate-400">#学习方法</span>
+                        </div>
+                        <p className="text-[10px] text-slate-200 leading-relaxed font-normal">
+                          SQ3R阅读法包含纵览、提问、阅读、背诵和复习。
+                        </p>
+                        <div className="bg-[#121622] rounded-xl p-2 text-[9px] text-slate-400 leading-normal border border-white/5">
+                          <span className="text-blue-400 font-semibold cursor-pointer">[[📖 阅读方法]]</span> 里可以引用这一条。
+                        </div>
+                        <div className="flex items-center justify-between text-[8px] text-slate-500 pt-1.5 border-t border-white/5">
+                          <span>🔗 阅读方法实践</span>
+                          <span>5月19日</span>
+                        </div>
+                      </div>
+
+                      {/* 摘录卡片 3 (底部裁切效果) */}
+                      <div className="bg-[#1A1F2C] rounded-2xl p-3 space-y-2 border border-white/5 text-left shadow-sm opacity-40">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[8px] bg-red-900/60 px-1.5 py-0.5 rounded text-red-300 font-bold">Inbox</span>
+                          <span className="text-[8px] text-slate-400">#方法论 #知识管理</span>
+                        </div>
+                        <p className="text-[10px] text-slate-200 leading-relaxed line-clamp-1">
+                          卡片盒笔记法强调原子化记录，每张卡片只写一个不可分割的概念。
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {activePhoneTab === "tags" && (
+                    <div className="space-y-4 animate-phoneFadeIn">
+                      {/* AppBar */}
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-[14px] font-bold text-white tracking-wide">标签</span>
+                        <Search size={14} className="text-slate-300 cursor-pointer" />
+                      </div>
+
+                      {/* 标签列表 */}
+                      <div className="space-y-4">
+                        {/* 组 1 */}
+                        <div className="space-y-2 text-left">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
+                            <Folder size={11} className="text-slate-400 fill-slate-400/20" />
+                            <span>Uncategorized (44)</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1.5">
+                            {["#知识管理 15", "#效率工具 12", "#方法论 10", "#学习方法 7"].map((tag, idx) => (
+                              <span key={idx} className="text-[8px] bg-[#1E293B]/60 text-blue-300 border border-blue-500/10 px-2 py-0.5 rounded-full font-bold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 组 2 */}
+                        <div className="space-y-2 text-left">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
+                            <Folder size={11} className="text-slate-400 fill-slate-400/20" />
+                            <span>技术 (25)</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1.5">
+                            {["#后端 15", "#前端 10"].map((tag, idx) => (
+                              <span key={idx} className="text-[8px] bg-[#1E293B]/60 text-blue-300 border border-blue-500/10 px-2 py-0.5 rounded-full font-bold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 组 3 */}
+                        <div className="space-y-2 text-left">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
+                            <Folder size={11} className="text-slate-400 fill-slate-400/20" />
+                            <span>AI (18)</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1.5">
+                            {["#大模型 18"].map((tag, idx) => (
+                              <span key={idx} className="text-[8px] bg-[#1E293B]/60 text-blue-300 border border-blue-500/10 px-2 py-0.5 rounded-full font-bold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 组 4 */}
+                        <div className="space-y-2 text-left">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
+                            <Folder size={11} className="text-slate-400 fill-slate-400/20" />
+                            <span>无分类 (8)</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1.5">
+                            {["#随想 8"].map((tag, idx) => (
+                              <span key={idx} className="text-[8px] bg-[#1E293B]/60 text-blue-300 border border-blue-500/10 px-2 py-0.5 rounded-full font-bold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* 组 5 */}
+                        <div className="space-y-2 text-left">
+                          <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-300">
+                            <Folder size={11} className="text-slate-400 fill-slate-400/20" />
+                            <span>阅读 (5)</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 pl-1.5">
+                            {["#心理学 5"].map((tag, idx) => (
+                              <span key={idx} className="text-[8px] bg-[#1E293B]/60 text-blue-300 border border-blue-500/10 px-2 py-0.5 rounded-full font-bold">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activePhoneTab === "settings" && (
+                    <div className="space-y-4.5 animate-phoneFadeIn">
+                      {/* AppBar */}
+                      <div className="flex items-center py-1">
+                        <span className="text-[14px] font-bold text-white tracking-wide">设置</span>
+                      </div>
+
+                      {/* 个人中心登录卡片 */}
+                      <div className="flex flex-col items-center text-center p-3.5 space-y-3 bg-[#1A1F2C] border border-white/5 rounded-2xl shadow-sm">
+                        <div className="relative h-11 w-11 rounded-full bg-slate-800/80 flex items-center justify-center border border-white/5">
+                          <div className="h-9 w-9 rounded-full bg-slate-700/40 flex items-center justify-center">
+                            <User size={18} className="text-slate-400" />
+                          </div>
+                        </div>
+                        <p className="text-[9.5px] text-slate-300 leading-normal px-1 font-medium text-center">
+                          登录解锁完整体验，开启云端同步，实现多设备数据自动同步
+                        </p>
+                        <button className="w-full py-1.5 rounded-full bg-[#8AB4F8] text-slate-900 text-[10px] font-bold shadow-md shadow-blue-500/10 transition-all hover:brightness-105 active:scale-[0.98]">
+                          登录 / 注册
+                        </button>
+                      </div>
+
+                      {/* 外观设置 */}
+                      <div className="text-left space-y-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 block px-1 tracking-wider">外观</span>
+                        <div className="bg-[#1A1F2C] rounded-2xl p-1.5 grid grid-cols-3 gap-1 border border-white/5">
+                          <div className="flex flex-col items-center gap-1 py-1.5 rounded-xl cursor-pointer hover:bg-white/5 text-[8px] text-slate-400 transition-all">
+                            <Sun size={11} />
+                            <span>浅色</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1 py-1.5 rounded-xl bg-blue-500/20 border border-blue-500/20 text-[8px] text-blue-200 transition-all font-bold">
+                            <Moon size={11} />
+                            <span>深色</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1 py-1.5 rounded-xl cursor-pointer hover:bg-white/5 text-[8px] text-slate-400 transition-all">
+                            <Paintbrush size={11} />
+                            <span>跟随系统</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 主题颜色设置 */}
+                      <div className="text-left space-y-1.5">
+                        <span className="text-[10px] font-bold text-slate-400 block px-1 tracking-wider">主题颜色</span>
+                        <div className="bg-[#1A1F2C] rounded-2xl p-2.5 border border-white/5 shadow-sm">
+                          <div className="grid grid-cols-4 gap-2 text-center">
+                            {/* 动态 */}
+                            <div className="flex flex-col items-center gap-1 cursor-pointer">
+                              <div className="h-6.5 w-6.5 flex items-center justify-center relative scale-[1.05]">
+                                <svg viewBox="0 0 24 24" className="h-full w-full text-[#8AB4F8] fill-current">
+                                  <path d="M12 2a1.5 1.5 0 0 1 1.06.44l1.06 1.06 1.48-.25a1.5 1.5 0 0 1 1.72 1.25l.25 1.48 1.06 1.06a1.5 1.5 0 0 1 0 2.12l-1.06 1.06-.25 1.48a1.5 1.5 0 0 1-1.25 1.72l-1.48.25-1.06 1.06a1.5 1.5 0 0 1-2.12 0l-1.06-1.06-1.48-.25a1.5 1.5 0 0 1-1.72-1.25l-.25-1.48-1.06-1.06a1.5 1.5 0 0 1 0-2.12l1.06-1.06.25-1.48a1.5 1.5 0 0 1 1.25-1.72l1.48-.25 1.06-1.06A1.5 1.5 0 0 1 12 2z" />
+                                </svg>
+                                <span className="absolute text-[8px] font-bold text-slate-900">✓</span>
+                              </div>
+                              <span className="text-[8px] text-[#8AB4F8] font-bold mt-0.5">动态</span>
+                            </div>
+                            {/* 海洋 */}
+                            <div className="flex flex-col items-center gap-1 cursor-pointer group">
+                              <div className="h-6.5 w-6.5 rounded-full bg-[#1E5D7A] border border-white/5 transition-transform group-hover:scale-105" />
+                              <span className="text-[8px] text-slate-400 mt-0.5">海洋</span>
+                            </div>
+                            {/* 紫色 */}
+                            <div className="flex flex-col items-center gap-1 cursor-pointer group">
+                              <div className="h-6.5 w-6.5 rounded-full bg-[#7D52B3] border border-white/5 transition-transform group-hover:scale-105" />
+                              <span className="text-[8px] text-slate-400 mt-0.5">紫色</span>
+                            </div>
+                            {/* 森林 */}
+                            <div className="flex flex-col items-center gap-1 cursor-pointer group">
+                              <div className="h-6.5 w-6.5 rounded-full bg-[#3B7A1E] border border-white/5 transition-transform group-hover:scale-105" />
+                              <span className="text-[8px] text-slate-400 mt-0.5">森林</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 悬浮 FAB 按钮 (根据 Tab 状态渲染，在设置页隐藏) */}
+                {activePhoneTab !== "settings" && (
+                  <button className="absolute bottom-[58px] right-4 h-9.5 w-9.5 rounded-2xl bg-[#1E4E79] text-white flex items-center justify-center shadow-lg shadow-black/40 border border-white/5 cursor-pointer transition-transform hover:scale-105 active:scale-95 z-20 animate-phoneFadeIn">
+                    <Plus size={16} strokeWidth={2.5} />
+                  </button>
+                )}
+
+                {/* 底部 M3 NavigationBar (Dock 栏) */}
+                <div className="absolute bottom-0 inset-x-0 h-[52px] bg-[#0F121A] border-t border-white/5 flex items-center justify-around px-1 pb-1.5 z-20">
+                  {/* 摘录流 */}
+                  <div className="flex flex-col items-center cursor-pointer group select-none flex-1" onClick={() => setActivePhoneTab("stream")}>
+                    <div className={`px-4.5 py-0.5 rounded-full flex items-center justify-center transition-all ${activePhoneTab === "stream" ? "bg-[#2C3B4E] text-[#D2E4F9]" : "text-[#A0AAB8] group-hover:text-slate-200"}`}>
+                      <HomeIcon size={12} strokeWidth={2} />
+                    </div>
+                    <span className={`text-[7.5px] mt-0.5 font-bold tracking-wider ${activePhoneTab === "stream" ? "text-white" : "text-[#A0AAB8]"}`}>摘录流</span>
                   </div>
 
-                  <div className="rounded-xl border border-white/5 bg-slate-900/40 p-2.5 space-y-1.5 opacity-60">
-                    <div className="h-2 w-1/3 rounded bg-slate-800" />
-                    <div className="h-3.5 rounded bg-slate-800/50" />
+                  {/* 知识树 */}
+                  <div className="flex flex-col items-center cursor-pointer group select-none flex-1" onClick={() => setActivePhoneTab("tree")}>
+                    <div className={`px-4.5 py-0.5 rounded-full flex items-center justify-center transition-all ${activePhoneTab === "tree" ? "bg-[#2C3B4E] text-[#D2E4F9]" : "text-[#A0AAB8] group-hover:text-slate-200"}`}>
+                      <GitBranch size={12} strokeWidth={2} />
+                    </div>
+                    <span className={`text-[7.5px] mt-0.5 font-bold tracking-wider ${activePhoneTab === "tree" ? "text-white" : "text-[#A0AAB8]"}`}>知识树</span>
+                  </div>
+
+                  {/* 标签 */}
+                  <div className="flex flex-col items-center cursor-pointer group select-none flex-1" onClick={() => setActivePhoneTab("tags")}>
+                    <div className={`px-4.5 py-0.5 rounded-full flex items-center justify-center transition-all ${activePhoneTab === "tags" ? "bg-[#2C3B4E] text-[#D2E4F9]" : "text-[#A0AAB8] group-hover:text-slate-200"}`}>
+                      <TagIcon size={12} strokeWidth={2} />
+                    </div>
+                    <span className={`text-[7.5px] mt-0.5 font-bold tracking-wider ${activePhoneTab === "tags" ? "text-white" : "text-[#A0AAB8]"}`}>标签</span>
+                  </div>
+
+                  {/* 设置 */}
+                  <div className="flex flex-col items-center cursor-pointer group select-none flex-1" onClick={() => setActivePhoneTab("settings")}>
+                    <div className={`px-4.5 py-0.5 rounded-full flex items-center justify-center transition-all ${activePhoneTab === "settings" ? "bg-[#2C3B4E] text-[#D2E4F9]" : "text-[#A0AAB8] group-hover:text-slate-200"}`}>
+                      <SettingsIcon size={12} strokeWidth={2} />
+                    </div>
+                    <span className={`text-[7.5px] mt-0.5 font-bold tracking-wider ${activePhoneTab === "settings" ? "text-white" : "text-[#A0AAB8]"}`}>设置</span>
                   </div>
                 </div>
 
-                {/* 底部模拟快速捕获输入框 */}
-                <div className="border-t border-white/5 py-3 bg-slate-950/80 -mx-4 px-4 space-y-2">
-                  <div className="rounded-lg bg-cyan-900/20 border border-cyan-500/20 p-1.5 flex items-center justify-between">
-                    <span className="text-[9px] text-cyan-200/70">剪贴板中检测到链接...</span>
-                    <span className="text-[8px] bg-cyan-500 text-white font-bold px-1.5 py-0.5 rounded">快速剪藏</span>
-                  </div>
-                  <div className="flex h-8 items-center justify-between rounded-xl bg-slate-900 px-3 border border-white/5">
-                    <span className="text-[9px] text-slate-500">输入想法或网址...</span>
-                    <div className="h-4 w-4 rounded-full bg-blue-500 flex items-center justify-center text-white text-[8px] font-bold">+</div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
