@@ -111,6 +111,9 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.1.2")
     
+    // Security
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    
     // Coil 3
     implementation("io.coil-kt.coil3:coil-compose:3.4.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.4.0")

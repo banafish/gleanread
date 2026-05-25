@@ -1,6 +1,8 @@
 package com.gleanread.android.data.auth
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -8,10 +10,22 @@ import kotlinx.coroutines.flow.asStateFlow
 class SupabaseSessionStore(
     context: Context,
 ) {
-    private val preferences = context.applicationContext.getSharedPreferences(
-        PREFERENCES_NAME,
-        Context.MODE_PRIVATE,
-    )
+    private val preferences = run {
+        try {
+            val masterKey = MasterKey.Builder(context.applicationContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                context.applicationContext,
+                PREFERENCES_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+        }
+    }
     private val _session = MutableStateFlow(readSession())
 
     val session: StateFlow<AuthSession?> = _session.asStateFlow()
