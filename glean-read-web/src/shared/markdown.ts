@@ -7,6 +7,19 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
+function isSafeUrl(url: string): boolean {
+  const normalized = url.trim().toLowerCase();
+  // Allow safe protocols (http, https, mailto, tel), absolute paths starting with /, relative paths
+  if (/^(https?:\/\/|\/|\.\/|\.\.\/|mailto:|tel:)/i.test(normalized)) {
+    return true;
+  }
+  // If there's no colon, it has no scheme/protocol, meaning it is a relative path and safe
+  if (!normalized.includes(":")) {
+    return true;
+  }
+  return false;
+}
+
 function applyInlineMarkdown(text: string): string {
   const escaped = escapeHtml(text);
   return escaped
@@ -14,7 +27,20 @@ function applyInlineMarkdown(text: string): string {
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/(^|[^*])\*(?!\s)(.+?)(?!\s)\*(?!\*)/g, "$1<em>$2</em>")
     .replace(/`(.+?)`/g, "<code>$1</code>")
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" rel="noreferrer noopener" target="_blank">$1</a>');
+    .replace(/\[(.+?)\]\((.+?)\)/g, (_, label, href) => {
+      // Decode escaped HTML entities in href to prevent bypasses like "javascript&colon;..."
+      const decodedHref = href
+        .replaceAll("&amp;", "&")
+        .replaceAll("&quot;", '"')
+        .replaceAll("&#39;", "'")
+        .replaceAll("&lt;", "<")
+        .replaceAll("&gt;", ">");
+      if (isSafeUrl(decodedHref)) {
+        return `<a href="${href}" rel="noreferrer noopener" target="_blank">${label}</a>`;
+      }
+      // For unsafe links, fall back to showing just the text label to prevent XSS execution
+      return label;
+    });
 }
 
 export function markdownToHtml(markdown: string): string {

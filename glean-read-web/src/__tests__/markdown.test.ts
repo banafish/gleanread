@@ -25,3 +25,16 @@ test("Markdown 预览支持扩展快捷语法", () => {
   assert.match(html, /<input type="checkbox" disabled> 待处理/);
   assert.match(html, /<hr>/);
 });
+
+test("Markdown 链接支持安全协议，并防范 javascript: 等协议 XSS", () => {
+  const safeHtml = markdownToHtml("[谷歌](https://google.com) 和 [邮箱](mailto:test@example.com) 以及 [相对路径](/dashboard)");
+  assert.match(safeHtml, /<a href="https:\/\/google.com" rel="noreferrer noopener" target="_blank">谷歌<\/a>/);
+  assert.match(safeHtml, /<a href="mailto:test@example.com" rel="noreferrer noopener" target="_blank">邮箱<\/a>/);
+  assert.match(safeHtml, /<a href="\/dashboard" rel="noreferrer noopener" target="_blank">相对路径<\/a>/);
+
+  const unsafeHtml = markdownToHtml("[恶意链接](javascript:alert(1)) 和 [数据链接](data:text/html,hack)");
+  assert.equal(unsafeHtml.includes("javascript:"), false);
+  assert.equal(unsafeHtml.includes("data:"), false);
+  assert.match(unsafeHtml, /恶意链接/);
+  assert.match(unsafeHtml, /数据链接/);
+});
