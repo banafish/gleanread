@@ -82,7 +82,7 @@ export function LoginRoute() {
   ] as const;
 
   return (
-    <main className="grid min-h-screen bg-slate-950 text-slate-100 lg:grid-cols-12 overflow-hidden selection:bg-blue-500/30 selection:text-blue-200">
+    <main className="grid min-h-screen bg-slate-950 text-slate-100 lg:grid-cols-12 overflow-y-auto lg:overflow-hidden selection:bg-blue-500/30 selection:text-blue-200">
       {/* 左侧：艺术级知识体系星云区 (7格宽) */}
       <section className="relative hidden lg:flex lg:col-span-7 overflow-hidden border-r border-white/5 bg-slate-950 flex-col justify-between p-12">
         {/* 背景科技网格与渐变发光 */}
@@ -169,9 +169,18 @@ export function LoginRoute() {
 
       {/* 右侧：极简高级磨砂登录面板 (5格宽) */}
       <section className="flex min-h-screen lg:col-span-5 items-center justify-center p-6 sm:p-10 relative bg-slate-950">
+        {/* 移动端悬浮返回首页按钮 */}
+        <Link
+          to="/"
+          className="absolute top-4 left-4 z-20 lg:hidden inline-flex items-center gap-1.5 rounded-xl border border-white/5 bg-slate-900/60 px-3.5 py-1.5 text-xs font-semibold text-slate-400 backdrop-blur-md shadow-lg shadow-black/10 transition hover:bg-slate-800 hover:text-white hover:scale-102 active:scale-98"
+        >
+          <ArrowLeft size={13} />
+          返回主页
+        </Link>
+
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgb(6,182,212,0.06),transparent_40%)]" />
         
-        <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/5 bg-slate-900/40 p-8 shadow-2xl backdrop-blur-xl shadow-black/40">
+        <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/5 bg-slate-900/40 p-6 sm:p-8 shadow-2xl backdrop-blur-xl shadow-black/40">
           
           {/* Logo 顶栏 */}
           <div className="mb-8 flex items-center gap-3">

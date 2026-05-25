@@ -83,27 +83,28 @@ export function HomeRoute() {
             <a href="#download" className="transition hover:text-white">开源与下载</a>
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3">
             <a
               href="https://github.com/banafish/glean-read"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center h-9 w-9 rounded-xl border border-white/5 bg-slate-800/40 text-slate-400 transition hover:bg-slate-800 hover:text-white"
+              className="hidden sm:flex items-center justify-center h-9 w-9 rounded-xl border border-white/5 bg-slate-800/40 text-slate-400 transition hover:bg-slate-800 hover:text-white"
               title="GitHub 仓库"
             >
               <Github size={18} />
             </a>
             <Link
               to="/login"
-              className="text-sm font-medium text-slate-300 transition hover:text-white px-3 py-1.5"
+              className="text-sm font-medium text-slate-300 transition hover:text-white px-2.5 sm:px-3 py-1.5"
             >
               登录
             </Link>
             <Link
               to={session ? "/app" : "/login"}
-              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:opacity-95 active:scale-95"
+              className="inline-flex h-9 items-center justify-center gap-1 sm:gap-1.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-3 sm:px-4 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:opacity-95 active:scale-95 whitespace-nowrap"
             >
-              免费开始
+              <span className="hidden sm:inline">免费开始</span>
+              <span className="sm:hidden">开始</span>
               <ArrowRight size={13} />
             </Link>
           </div>
@@ -123,9 +124,11 @@ export function HomeRoute() {
             本地优先视觉知识工作台
           </div>
 
-          <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 sm:text-6xl md:text-7xl leading-none">
-            收集碎片化摘录知识 <br className="hidden sm:inline" />
-            构建你的<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text">可视化知识体系</span>
+          <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-white via-slate-100 to-slate-400 sm:text-6xl md:text-7xl leading-tight sm:leading-none">
+            <span className="inline-block">收集碎片化摘录知识</span> <br />
+            <span className="inline-block">
+              构建你的<span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text">可视化知识体系</span>
+            </span>
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
@@ -159,9 +162,9 @@ export function HomeRoute() {
             <span className="ml-2 text-[10px] text-slate-500 font-mono">glean-read-workbench.io</span>
           </div>
 
-          <div className="grid h-[280px] grid-cols-[180px_1fr_240px] overflow-hidden bg-slate-950/80 rounded-b-xl border border-white/5">
+          <div className="grid h-[280px] grid-cols-1 md:grid-cols-[180px_1fr_240px] overflow-hidden bg-slate-950/80 rounded-b-xl border border-white/5">
             {/* 左侧 Inbox */}
-            <div className="border-r border-white/5 p-4 flex flex-col justify-between bg-slate-900/20">
+            <div className="hidden md:flex border-r border-white/5 p-4 flex-col justify-between bg-slate-900/20">
               <div>
                 <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">Inbox 摘录收集</span>
                 <div className="mt-3 space-y-2">
@@ -249,7 +252,7 @@ export function HomeRoute() {
             </div>
 
             {/* 右侧 Tiptap 编辑器大纲 */}
-            <div className="border-l border-white/5 p-4 flex flex-col justify-between bg-slate-900/20">
+            <div className="hidden md:flex border-l border-white/5 p-4 flex-col justify-between bg-slate-900/20">
               <div>
                 <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">大纲沉淀编辑器</span>
                 <div className="mt-3 space-y-3 font-mono">
@@ -337,7 +340,7 @@ export function HomeRoute() {
                   在安卓端，从浏览器选中一段文字点击分享到 app 会弹出一个快速摘录弹窗，您可以即时输入自己的想法，系统会自动补全文章的来源链接和标题。在碎片化阅读时，这能帮您快速收集知识摘录；有空时，再在 web 端把这些摘录打磨成结构化的知识体系。
                 </p>
               </div>
-              <div className="flex flex-col justify-center space-y-2 border-l border-white/5 pl-6">
+              <div className="flex flex-col justify-center space-y-2 border-t border-white/5 pt-6 sm:border-t-0 sm:border-l sm:pl-6 sm:pt-0 mt-6 sm:mt-0">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <CheckCircle2 size={14} className="text-emerald-400" />
                   智能提取网页标题 URL
