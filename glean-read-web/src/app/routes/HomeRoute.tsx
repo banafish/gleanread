@@ -39,6 +39,19 @@ export function HomeRoute() {
   const [sandboxStep, setSandboxStep] = useState(0);
   const [activePhoneTab, setActivePhoneTab] = useState<"stream" | "tree" | "tags" | "settings">("tree");
 
+  const apkDownloadUrl = import.meta.env.VITE_APK_DOWNLOAD_URL || '/download/glean-read.apk';
+
+  // 智能拼接成绝对路径，以供手机扫码下载
+  const getAbsoluteApkUrl = (url: string) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    return `${origin}${cleanUrl}`;
+  };
+  const absoluteApkUrl = getAbsoluteApkUrl(apkDownloadUrl);
+
   // 迷你工作台动态交互沙盒演示逻辑
   useEffect(() => {
     const timer = setInterval(() => {
@@ -798,7 +811,7 @@ export function HomeRoute() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="/download/glean-read.apk"
+                  href={apkDownloadUrl}
                   className="inline-flex h-12 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-6 text-sm font-semibold text-white shadow-xl shadow-blue-500/20 transition hover:opacity-95 hover:shadow-blue-500/30 active:scale-[0.98]"
                 >
                   <Download size={16} />
@@ -838,28 +851,14 @@ export function HomeRoute() {
 
             {/* 右侧二维码与极客徽章 */}
             <div className="lg:col-span-5 flex flex-col items-center justify-center border-t lg:border-t-0 lg:border-l border-white/5 pt-8 lg:pt-0 lg:pl-8 space-y-4">
-              <div className="relative p-2.5 bg-white rounded-2xl shadow-xl shadow-black/40">
-                {/* 纯 CSS 模拟二维码 */}
-                <div className="h-32 w-32 border-4 border-slate-950 flex flex-wrap p-1 gap-1 bg-white">
-                  {[...Array(64)].map((_, i) => {
-                    const isCorner =
-                      (i < 3 && i % 8 < 3) || // top-left
-                      (i > 55 && i % 8 < 3) || // bottom-left
-                      (i < 3 && i % 8 > 4); // top-right
-                    return (
-                      <div
-                        key={i}
-                        className={`h-3 w-3 rounded-[1px] ${
-                          isCorner
-                            ? "bg-slate-950"
-                            : i % 3 === 0 || i % 7 === 0
-                            ? "bg-slate-950"
-                            : "bg-transparent"
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
+              <div className="relative p-2.5 bg-white rounded-2xl shadow-xl shadow-black/40 flex items-center justify-center">
+                {/* 动态生成真正的二维码 */}
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(absoluteApkUrl)}`}
+                  alt="GleanRead APK QR Code"
+                  className="h-32 w-32"
+                  crossOrigin="anonymous"
+                />
                 <img
                   src="/icons/icon-192.png"
                   alt="G"
