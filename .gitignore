@@ -31,11 +31,6 @@ glean-read-android/**/*.keystore
 glean-read-android/google-services.json
 glean-read-android/app/release/
 
-# --- Server (glean-read-server / Maven / Spring) ---
-glean-read-server/.mvn/
-glean-read-server/*.log
-glean-read-server/*.zip
-glean-read-server/*.tar.gz
 
 # --- Maven settings ---
 .m2/
