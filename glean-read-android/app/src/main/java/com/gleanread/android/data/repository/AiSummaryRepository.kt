@@ -21,7 +21,16 @@ class AiSummaryRepository(
         val excerpts = excerptDao.getExcerptsOnce()
             .filter { selectedExcerptIds.contains(it.id) }
             .sortedByDescending { it.createTime }
-        return outlineGenerator.generate(excerpts.map { it.content })
+        return outlineGenerator.generate(
+            excerpts.map {
+                AiExcerptInput(
+                    content = it.content,
+                    userThought = it.userThought,
+                    sourceTitle = it.sourceTitle,
+                    url = it.url,
+                )
+            }
+        )
     }
 
     suspend fun saveAiSummary(

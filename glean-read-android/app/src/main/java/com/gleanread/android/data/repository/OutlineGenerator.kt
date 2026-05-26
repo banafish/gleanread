@@ -2,19 +2,27 @@ package com.gleanread.android.data.repository
 
 import com.gleanread.android.data.model.OutlineDraft
 
+data class AiExcerptInput(
+    val content: String,
+    val userThought: String? = null,
+    val sourceTitle: String? = null,
+    val url: String? = null,
+)
+
 fun interface OutlineGenerator {
-    suspend fun generate(excerpts: List<String>): OutlineDraft
+    suspend fun generate(excerpts: List<AiExcerptInput>): OutlineDraft
 }
 
 class LocalOutlineGenerator : OutlineGenerator {
-    override suspend fun generate(excerpts: List<String>): OutlineDraft {
-        val topic = excerpts.firstOrNull()
+    override suspend fun generate(excerpts: List<AiExcerptInput>): OutlineDraft {
+        val topic = excerpts.firstOrNull()?.content
             ?.split(' ', '，', '。', '、')
             ?.firstOrNull { it.isNotBlank() }
             ?.take(TOPIC_MAX_LENGTH)
             ?: DEFAULT_TOPIC
 
-        val bullets = excerpts.take(BULLET_MAX_COUNT).mapIndexed { index, text ->
+        val bullets = excerpts.take(BULLET_MAX_COUNT).mapIndexed { index, item ->
+            val text = item.content
             "${index + 1}. ${text.take(BULLET_TEXT_MAX_LENGTH).trim()}${if (text.length > BULLET_TEXT_MAX_LENGTH) "..." else ""}"
         }
 
