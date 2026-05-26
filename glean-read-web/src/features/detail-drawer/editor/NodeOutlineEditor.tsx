@@ -22,10 +22,17 @@ import { cx } from "@/shared/utils";
 import { AiConfigDialog } from "../components/AiConfigDialog";
 import { getAiConfig, generateOutline } from "../utils/aiConfig";
 
+export interface ExcerptInput {
+  content: string;
+  userThought?: string | null;
+  sourceTitle?: string | null;
+  url?: string | null;
+}
+
 interface NodeOutlineEditorProps {
   nodeId: string;
   value: string;
-  excerpts?: string[];
+  excerpts?: ExcerptInput[];
   onSave: (markdown: string) => Promise<void>;
 }
 

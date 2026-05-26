@@ -152,7 +152,14 @@ function extractTitleFromMarkdown(markdown: string): string {
   return "AI 总结";
 }
 
-export async function generateOutline(excerpts: string[]): Promise<{ title: string; markdown: string }> {
+export async function generateOutline(
+  excerpts: Array<{
+    content: string;
+    userThought?: string | null;
+    sourceTitle?: string | null;
+    url?: string | null;
+  }>
+): Promise<{ title: string; markdown: string }> {
   if (excerpts.length === 0) {
     return { title: "AI 总结", markdown: "" };
   }
@@ -160,17 +167,28 @@ export async function generateOutline(excerpts: string[]): Promise<{ title: stri
   const config = getAiConfig();
   const excerptText = excerpts
     .slice(0, 20)
-    .map((text, index) => `${index + 1}. ${text.trim()}`)
-    .join("\n");
+    .map((e, index) => {
+      let item = `【摘录 ${index + 1}】\n原文：${e.content.trim()}`;
+      if (e.userThought?.trim()) {
+        item += `\n思考：${e.userThought.trim()}`;
+      }
+      if (e.sourceTitle?.trim() || e.url?.trim()) {
+        const source = [e.sourceTitle?.trim(), e.url?.trim()].filter(Boolean).join(" - ");
+        item += `\n来源：${source}`;
+      }
+      return item;
+    })
+    .join("\n\n");
 
   const messages = [
     {
       role: "system",
-      content: "你是一个帮助用户整理阅读摘录的知识管理助手。请用中文输出 Markdown 大纲，内容要可直接编辑并挂载到知识树节点。",
+      content:
+        "你是一个极其专业且敏锐的知识提取与大纲整理专家，担任用户的“第二大脑”知识管理助手。请用中文输出 Markdown 大纲，内容必须结构清晰、见解深刻、排版优雅，可直接编辑并挂载到知识树节点。",
     },
     {
       role: "user",
-      content: `请基于以下摘录生成一份结构清晰的知识大纲：\n\n${excerptText}\n\n要求：\n- 使用 Markdown 标题和项目符号。\n- 先给出一个简短主题标题。\n- 提炼核心观点、关系和可行动的后续整理建议。\n- 不要编造摘录中没有的事实。`,
+      content: `请基于以下阅读摘录（部分摘录附带了用户的【思考】和【来源】）生成一份结构清晰的知识大纲：\n\n[摘录列表]\n${excerptText}\n[/摘录列表]\n\n【生成规则与要求】：\n1. **结构化层次**：使用标准的 Markdown 标题（#、##、###）和项目符号（-）来展现清晰的逻辑大纲。\n2. **大纲结构框架**：\n   - **# 主题标题**：提炼一个能概括这批摘录核心本质的简明标题。\n   - **## 核心概念与背景**：简要阐述这批摘录所涉及的核心概念、定义或基本背景。\n   - **## 关键观点与深度提炼**：将零散观点进行分类合并，归纳为 2-3 个清晰的主题论点。在每个论点下，提炼核心见解，并结合摘录原文中的具体细节或论据进行结构化展开。**必须充分结合并呼应用户的【思考】**，把用户的感悟、痛点和思考火花融入到对应的论点分析中。\n   - **## 知识关联与启发**（可选）：指出摘录之间的递进、因果、对比或潜在冲突等逻辑联系，并对【思考】中提出的疑问进行提炼和解答。\n   - **## 下一步行动建议**：为用户提供 1-2 条切实可行的后续整理、学习或实践的“行动指南”。\n3. **知识溯源（可选）**：在大纲的具体观点或细节展开处，如适用，可使用简洁的括号或引用，在末尾简要标注其【来源】（如：来源：xxx）。\n4. **严谨性**：仅基于上述摘录内容与思考进行提炼和推导，严禁编造任何未提及的外部事实。\n5. **纯净输出**：直接以 Markdown 一级标题（# ）开始输出大纲内容，绝对不要包含任何前言（如“好的，这是为您整理的...”）、问候语、结语或解释性文段。`,
     },
   ];
 
