@@ -324,6 +324,7 @@ export function DetailDrawer() {
               key={selectedNode.id}
               nodeId={selectedNode.id}
               value={selectedNode.outlineMarkdown}
+              excerpts={feed.map((e) => e.content)}
               onSave={async (markdown) => {
                 if (!session?.userId) {
                   return;

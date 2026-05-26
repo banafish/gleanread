@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
+  AlertCircle,
   Bold,
   Code,
   Eye,
@@ -9,17 +10,22 @@ import {
   List,
   ListChecks,
   ListOrdered,
+  Loader2,
   Minus,
   PencilLine,
   Quote,
+  Sparkles,
   Strikethrough,
 } from "lucide-react";
 import { markdownToHtml } from "@/shared/markdown";
 import { cx } from "@/shared/utils";
+import { AiConfigDialog } from "../components/AiConfigDialog";
+import { getAiConfig, generateOutline } from "../utils/aiConfig";
 
 interface NodeOutlineEditorProps {
   nodeId: string;
   value: string;
+  excerpts?: string[];
   onSave: (markdown: string) => Promise<void>;
 }
 
@@ -118,7 +124,7 @@ function insertBlock(content: string, start: number, end: number, block: string,
   };
 }
 
-export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorProps) {
+export function NodeOutlineEditor({ nodeId, value, excerpts = [], onSave }: NodeOutlineEditorProps) {
   const [draft, setDraft] = useState(value);
   const [saving, setSaving] = useState(false);
   const [slashOpen, setSlashOpen] = useState(false);
@@ -127,6 +133,38 @@ export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorPr
   const loadedNodeId = useRef(nodeId);
   const lastSavedValue = useRef(value);
   const previewHtml = useMemo(() => markdownToHtml(draft), [draft]);
+
+  const [generating, setGenerating] = useState(false);
+  const [aiConfigOpen, setAiConfigOpen] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  const handleAiSummary = async () => {
+    if (generating) return;
+
+    if (!excerpts || excerpts.length === 0) {
+      setAiError("当前节点没有挂载任何摘录，无法生成大纲。请先在此节点挂载摘录。");
+      return;
+    }
+
+    const config = getAiConfig();
+    if (!config.baseUrl.trim() || !config.token.trim() || !config.model.trim()) {
+      setAiConfigOpen(true);
+      return;
+    }
+
+    setGenerating(true);
+    setAiError(null);
+    try {
+      const result = await generateOutline(excerpts);
+      setDraft(result.markdown);
+      setMode("preview");
+      await onSave(result.markdown);
+    } catch (error: any) {
+      setAiError(error?.message || "AI 总结大纲失败，请重试。");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   useEffect(() => {
     if (loadedNodeId.current !== nodeId) {
@@ -355,6 +393,27 @@ export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorPr
           )}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            data-testid="outline-ai-summary-btn"
+            disabled={generating}
+            onClick={handleAiSummary}
+            className={cx(
+              "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-xs font-semibold transition border",
+              generating
+                ? "border-app-border bg-app-surface2 text-app-muted cursor-not-allowed"
+                : "border-purple-500/30 bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 hover:border-purple-500/50"
+            )}
+            title="一键 AI 总结大纲"
+          >
+            {generating ? (
+              <Loader2 size={13} className="animate-spin text-purple-500" />
+            ) : (
+              <Sparkles size={13} className="text-purple-500" />
+            )}
+            {generating ? "AI 总结中..." : "AI 总结"}
+          </button>
+
           <span className="text-xs text-app-muted" data-testid="outline-save-status">
             {saving ? "保存中" : "已就绪"}
           </span>
@@ -372,6 +431,22 @@ export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorPr
           </EditorButton>
         </div>
       </div>
+      
+      {aiError && (
+        <div className="flex items-center justify-between bg-red-500/5 border-b border-red-500/20 px-3 py-2 text-xs text-red-600 dark:text-red-400">
+          <span className="flex items-center gap-1.5">
+            <AlertCircle size={14} className="shrink-0 text-red-500" />
+            {aiError}
+          </span>
+          <button
+            type="button"
+            className="text-app-muted hover:text-red-500 text-sm font-semibold transition px-1"
+            onClick={() => setAiError(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {slashOpen ? (
         <div
           className="absolute right-3 top-12 z-10 w-44 rounded-xl border border-app-border bg-app-surface p-2 shadow-2xl"
@@ -440,6 +515,7 @@ export function NodeOutlineEditor({ nodeId, value, onSave }: NodeOutlineEditorPr
           onKeyDown={handleSourceKeyDown}
         />
       )}
+      <AiConfigDialog open={aiConfigOpen} onClose={() => setAiConfigOpen(false)} />
     </div>
   );
 }

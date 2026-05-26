@@ -7,6 +7,7 @@ import {
   PanelLeftOpen,
   PanelRightOpen,
   Search,
+  Sparkles,
   Sun,
   Trash2,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { useAuth } from "@/app/providers/AuthProvider";
 import { useWorkbenchStore } from "@/features/workbench/workbenchStore";
 import { IconButton } from "@/shared/components";
 import { cx } from "@/shared/utils";
+import { AiConfigDialog } from "@/features/detail-drawer/components/AiConfigDialog";
 
 const appIconSrc = "/icons/icon-192.png";
 
@@ -72,6 +74,7 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
   const setSearchOpen = useWorkbenchStore((state) => state.setSearchOpen);
   const setTrashOpen = useWorkbenchStore((state) => state.setTrashOpen);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [aiConfigOpen, setAiConfigOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -189,6 +192,18 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
               </button>
               <button
                 type="button"
+                data-testid="ai-settings-trigger"
+                className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-app-text transition hover:bg-app-surface2"
+                onClick={() => {
+                  setMenuOpen(false);
+                  setAiConfigOpen(true);
+                }}
+              >
+                <Sparkles size={15} />
+                AI 配置
+              </button>
+              <button
+                type="button"
                 className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-app-text transition hover:bg-app-surface2 hover:text-app-danger"
                 onClick={() => {
                   setMenuOpen(false);
@@ -202,6 +217,7 @@ export function WorkbenchTopBar({ syncMessage }: { syncMessage: string }) {
           </div>
         ) : null}
       </div>
+      <AiConfigDialog open={aiConfigOpen} onClose={() => setAiConfigOpen(false)} />
     </header>
   );
 }
