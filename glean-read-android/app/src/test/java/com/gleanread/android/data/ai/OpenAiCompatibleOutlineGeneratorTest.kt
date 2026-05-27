@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import com.gleanread.android.data.repository.AiExcerptInput
 
 class OpenAiCompatibleOutlineGeneratorTest {
     @Test
@@ -60,8 +61,12 @@ class OpenAiCompatibleOutlineGeneratorTest {
             },
         )
         val generator = generator(httpClient)
-
-        val draft = generator.generate(listOf("第一条摘录", "第二条摘录"))
+        val draft = generator.generate(
+            listOf(
+                AiExcerptInput(content = "第一条摘录"),
+                AiExcerptInput(content = "第二条摘录")
+            )
+        )
         val payload = Json.parseToJsonElement(requestBody).jsonObject
         val messages = payload.getValue("messages").jsonArray
 
@@ -88,9 +93,8 @@ class OpenAiCompatibleOutlineGeneratorTest {
             httpClient = httpClient,
             configProvider = { AiConfig() },
         )
-
         val error = runCatching {
-            generator.generate(listOf("摘录"))
+            generator.generate(listOf(AiExcerptInput(content = "摘录")))
         }.exceptionOrNull()
 
         assertTrue(error is AiOutlineException)
@@ -111,9 +115,8 @@ class OpenAiCompatibleOutlineGeneratorTest {
             },
         )
         val generator = generator(httpClient)
-
         val error = runCatching {
-            generator.generate(listOf("摘录"))
+            generator.generate(listOf(AiExcerptInput(content = "摘录")))
         }.exceptionOrNull()
 
         assertTrue(error is AiOutlineException)
@@ -133,9 +136,8 @@ class OpenAiCompatibleOutlineGeneratorTest {
             },
         )
         val generator = generator(httpClient)
-
         val error = runCatching {
-            generator.generate(listOf("摘录"))
+            generator.generate(listOf(AiExcerptInput(content = "摘录")))
         }.exceptionOrNull()
 
         assertTrue(error is AiOutlineException)

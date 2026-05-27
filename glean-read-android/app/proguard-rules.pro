@@ -56,3 +56,6 @@
 -keepclassmembers class * {
     @kotlinx.serialization.Serializable *;
 }
+
+# --- ErrorProne Annotations (used by Tink etc.) ---
+-dontwarn com.google.errorprone.annotations.**
