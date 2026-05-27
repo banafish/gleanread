@@ -131,8 +131,8 @@ export function HomeRoute() {
             </span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-slate-400 sm:text-lg">
-            GleanRead 重构了阅读思考流。在 Web 端，用横向知识树编织大纲，让知识摘录有机挂载；在 Android 原生端，随手极速收集，离线无阻碍。基于 Supabase 多端自动秒级同步，完全开源，隐私至上。
+          <p className="mx-auto mt-6 max-w-3xl text-base leading-relaxed text-slate-400 sm:text-lg">
+            你是否也在排队或坐地铁的碎片时间里，读完深度技术文章却什么都没留下？<strong className="text-slate-200">GleanRead 为“碎片化阅读，体系化积累”而生</strong>。在移动端长按一键分享快速摘录，不打断阅读；在 Web 端大屏工作台，将摘录有机挂载至可视化知识树，构建属于你的认知图谱。
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -269,6 +269,91 @@ export function HomeRoute() {
                 </div>
               </div>
               <div className="text-[9px] text-slate-600 font-mono">双绑定自动同步</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 💡 开发初衷与痛点共鸣 (Philosophy & Pain Point Section) */}
+      <section className="relative py-20 px-6 max-w-6xl mx-auto">
+        {/* 背景轻微发光 */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[350px] w-[500px] rounded-full bg-blue-600/5 blur-[100px] pointer-events-none" />
+
+        <div className="relative z-10 rounded-3xl border border-white/5 bg-slate-900/30 p-8 md:p-12 backdrop-blur-md shadow-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+            {/* 左侧：感性的痛点共鸣 */}
+            <div className="lg:col-span-5 flex flex-col justify-center space-y-6">
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/5 px-4 py-1.5 text-xs font-medium text-blue-400 w-fit">
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
+                为什么开发 GleanRead？
+              </div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl leading-tight">
+                解决“看完就忘”的<br />
+                <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">碎片化知识焦虑</span>
+              </h2>
+              <div className="space-y-4 text-slate-400 text-sm leading-relaxed text-justify">
+                <p>
+                  你是否也经常在<strong className="text-slate-200">排队、坐地铁、等咖啡</strong>的碎片化时间里，用手机刷着一篇篇深度技术好文？
+                </p>
+                <p>
+                  然而，关掉浏览器或微信的瞬间，当时的惊叹和思考便消散殆尽。碎片化阅读让我们觉得“在学习”，却什么也没能留在大脑深处。
+                </p>
+                <p className="text-slate-300 font-medium">
+                  “知识不应该只是从大脑皮层划过，而需要有机地编织进你的认知图谱。”
+                </p>
+              </div>
+            </div>
+
+            {/* 右侧：GleanRead 提供的“不打断、重积累”的优雅工作流 */}
+            <div className="lg:col-span-7 flex flex-col justify-center gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                
+                {/* 场景 1: 碎片时间极速收集 */}
+                <div className="group relative rounded-2xl border border-white/5 bg-slate-950/40 p-6 transition-all duration-300 hover:border-cyan-500/20 hover:bg-slate-900/40 hover:-translate-y-0.5">
+                  <div className="absolute top-4 right-4 text-[10px] font-mono text-slate-600">01 / MOBILE</div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 mb-4 transition-transform group-hover:scale-105">
+                    <Smartphone size={20} />
+                  </div>
+                  <h3 className="text-base font-bold text-white">长按分享，不打断阅读</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-400 text-justify">
+                    在浏览器或微信看文章时，长按选中见解文字，在系统弹窗中选择“分享到 App”。这会快速拉起一个极简的摘录弹窗，支持即时记录你的灵感和想法，同时<strong className="text-cyan-400/90 font-medium">自动抓取文章的 URL 和标题</strong>，即刻打包收纳，全程无感、绝不打断你当下的阅读节奏。
+                  </p>
+                </div>
+
+                {/* 场景 2: 完整时间体系建树 */}
+                <div className="group relative rounded-2xl border border-white/5 bg-slate-950/40 p-6 transition-all duration-300 hover:border-blue-500/20 hover:bg-slate-900/40 hover:-translate-y-0.5">
+                  <div className="absolute top-4 right-4 text-[10px] font-mono text-slate-600">02 / WEB</div>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 mb-4 transition-transform group-hover:scale-105">
+                    <Layers size={20} />
+                  </div>
+                  <h3 className="text-base font-bold text-white">大块空闲，体系化沉淀</h3>
+                  <p className="mt-2 text-xs leading-relaxed text-slate-400 text-justify">
+                    当你拥有大片完整的空闲时间，打开电脑，登录 Web 端工作台。所有散落在移动端收集的碎片摘录，都已在 Inbox 备好。一键将它们拖拽、挂载到你的<strong className="text-blue-400/90 font-medium">横向可视化知识树（思维导图）</strong>上，将碎片化阅读，蜕变升级为体系化的沉淀。
+                  </p>
+                </div>
+
+              </div>
+
+              {/* 总结条 */}
+              <div className="rounded-2xl border border-white/5 bg-gradient-to-r from-blue-500/5 to-cyan-500/5 p-4.5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400">
+                    <Sparkles size={16} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">告别划过，沉淀体系</h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">碎片化随手收集 ➜ 体系化大屏建树</p>
+                  </div>
+                </div>
+                <Link
+                  to="/login"
+                  className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 px-4 text-xs font-semibold text-white transition active:scale-[0.98] whitespace-nowrap border border-white/5"
+                >
+                  立即体验
+                  <ArrowRight size={12} />
+                </Link>
+              </div>
+
             </div>
           </div>
         </div>
