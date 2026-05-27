@@ -16,6 +16,16 @@ if (localPropertiesFile.exists()) {
     localPropertiesFile.inputStream().use { localProperties.load(it) }
 }
 
+// 语义化版本（SemVer）配置，versionCode 由此自动生成
+// 映射公式: versionCode = MAJOR * 1000000 + MINOR * 10000 + PATCH * 100 + STAGE
+val versionMajor = 1
+val versionMinor = 0
+val versionPatch = 0
+val buildStage = 0 // 0 为正式 release，1~99 可用于灰度或内部测试构建的递增
+
+val computedVersionCode = versionMajor * 1000000 + versionMinor * 10000 + versionPatch * 100 + buildStage
+val computedVersionName = "$versionMajor.$versionMinor.$versionPatch"
+
 android {
     namespace = "com.gleanread.android"
     compileSdk = 36
@@ -33,8 +43,8 @@ android {
         applicationId = "com.gleanread.android"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = computedVersionCode
+        versionName = computedVersionName
         vectorDrawables.useSupportLibrary = true
         buildConfigField("String", "SUPABASE_URL", "\"https://fnbyzxkjeeevttuvussm.supabase.co\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"sb_publishable_RAZZmIfjBM2ExLzp7gy6gQ_FOp2OXLp\"")
