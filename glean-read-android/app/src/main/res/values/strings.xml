@@ -245,4 +245,21 @@
 
     <string name="richtext_open_link_action">打开 %1$s</string>
     <string name="richtext_suggestion_title">联想结果</string>
+
+    <!-- 关于页面相关 -->
+    <string name="settings_about_title">关于</string>
+    <string name="settings_about_body">了解 GleanRead、查看版权信息与服务条款。</string>
+    <string name="settings_about_app_version">当前版本 %1$s</string>
+    <string name="about_title">关于</string>
+    <string name="about_website">官网</string>
+    <string name="about_feedback">反馈建议</string>
+    <string name="about_source_code">源代码</string>
+    <string name="about_app_description">GleanRead 是一款知识摘录与知识管理工具，帮助您收集、整理、提炼和结构化您的阅读摘录与心得，打造个人专属的知识体系。</string>
+    <string name="about_copyright">© 2026 GleanRead Team. All rights reserved.</string>
+    <string name="about_terms_of_service">服务条款</string>
+    <string name="about_privacy_policy">隐私政策</string>
+    <string name="about_open_source_licenses">开源许可</string>
+    <string name="about_check_updates">检查更新</string>
+    <string name="about_check_updates_latest">当前已是最新版本</string>
+    <string name="about_version">版本 %1$s</string>
 </resources>

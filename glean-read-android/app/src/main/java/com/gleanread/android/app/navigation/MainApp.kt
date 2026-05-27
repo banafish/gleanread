@@ -79,6 +79,7 @@ import com.gleanread.android.feature.tags.TagsRoute
 import com.gleanread.android.feature.tags.TagsViewModel
 import com.gleanread.android.feature.tags.component.AddTagDialog
 import com.gleanread.android.feature.settings.auth.AuthRoute
+import com.gleanread.android.feature.about.AboutRoute
 
 object MainRoutes {
     const val Feed = "feed"
@@ -86,6 +87,7 @@ object MainRoutes {
     const val Tags = "tags"
     const val Settings = "settings"
     const val Auth = "auth"
+    const val About = "about"
     const val AiSummary = "ai-summary"
     const val NewExcerptPattern = "new-excerpt?archiveNodeId={archiveNodeId}"
     const val ExcerptPattern = "excerpt/{excerptId}"
@@ -305,12 +307,18 @@ fun MainApp() {
                     }
                     composable(MainRoutes.Settings) {
                         SettingsRoute(
-                            onNavigateToAuth = { navController.navigate(MainRoutes.Auth) }
+                            onNavigateToAuth = { navController.navigate(MainRoutes.Auth) },
+                            onNavigateToAbout = { navController.navigate(MainRoutes.About) }
                         )
                     }
                     composable(MainRoutes.Auth) {
                         AuthRoute(
                             onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable(MainRoutes.About) {
+                        AboutRoute(
+                            onBack = { navController.popBackStack() }
                         )
                     }
                     composable(MainRoutes.AiSummary) {

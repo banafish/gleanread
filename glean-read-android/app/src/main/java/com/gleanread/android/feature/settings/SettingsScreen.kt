@@ -56,6 +56,7 @@ import com.gleanread.android.feature.settings.component.AiConfigSection
 import com.gleanread.android.feature.settings.component.AppearanceSection
 import com.gleanread.android.feature.settings.component.SyncSection
 import com.gleanread.android.feature.settings.component.UserAvatarSection
+import com.gleanread.android.feature.settings.component.AboutSection
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +81,8 @@ fun SettingsScreen(
     onSaveAiConfig: (AiConfig) -> Unit = {},
     onTestAiConnection: (AiConfig) -> Unit = {},
     onClearAiConnectionMessage: () -> Unit = {},
+    versionName: String = "1.0",
+    onNavigateToAbout: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -178,6 +181,11 @@ fun SettingsScreen(
             AccessibilitySection(
                 isAccessibilityEnabled = isAccessibilityEnabled,
                 onOpenAccessibilitySettings = onOpenAccessibilitySettings,
+            )
+
+            AboutSection(
+                versionName = versionName,
+                onNavigateToAbout = onNavigateToAbout,
             )
 
             if (uiState.isLoggedIn) {
@@ -321,6 +329,8 @@ private fun SettingsScreenPreview() {
             onUseCloudData = {},
             onDismissOwnershipDialog = {},
             onClearMessage = {},
+            versionName = "1.0",
+            onNavigateToAbout = {},
         )
     }
 }

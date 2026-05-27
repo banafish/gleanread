@@ -23,7 +23,8 @@ import com.gleanread.android.platform.page_context.PageContextAccessibilityState
 
 @Composable
 fun SettingsRoute(
-    onNavigateToAuth: () -> Unit = {}
+    onNavigateToAuth: () -> Unit = {},
+    onNavigateToAbout: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val appContainer = context.appContainer
@@ -33,6 +34,14 @@ fun SettingsRoute(
     }
     val viewModel: SettingsViewModel = viewModel(factory = appContainer.settingsViewModelFactory)
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val versionName = remember(context) {
+        try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            packageInfo.versionName ?: "1.0"
+        } catch (e: Exception) {
+            "1.0"
+        }
+    }
     var isAccessibilityEnabled by remember(context) {
         mutableStateOf(PageContextAccessibilityState.isEnabled(context))
     }
@@ -75,6 +84,8 @@ fun SettingsRoute(
         onSaveAiConfig = viewModel::saveAiConfig,
         onTestAiConnection = viewModel::testAiConnection,
         onClearAiConnectionMessage = viewModel::clearAiConnectionMessage,
+        versionName = versionName,
+        onNavigateToAbout = onNavigateToAbout,
     )
 }
 
