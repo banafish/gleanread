@@ -15,7 +15,10 @@
 
 **Glean Read** is a **local-first, cross-platform intelligent reading excerpt and knowledge crystallization system** designed for highly efficient, deep readers.
 
-We aim to solve the pain points of "collecting but never reading" and "reading but instantly forgetting" in the era of information fragmentation. Through seamless synergy between the **mobile client (Android)** and the **web client (Web)**, Glean Read allows you to capture inspiration and highlights anytime, anywhere. Powered by **Large Language Models (LLMs)**, it intelligently synthesizes unstructured snippets into structured **"Intelligent Knowledge Trees"**, empowering a seamless leap from fragmented information to a systematic knowledge base.
+We aim to solve the pain points of "collecting but never reading" and "reading but instantly forgetting" in the era of information fragmentation. In scenarios like standing in lines, taking the subway, or waiting for coffee, we constantly read technical articles on our phones, yet most knowledge briefly passes through our minds and is soon forgotten. To address this exact pain point, Glean Read establishes an elegant workflow of **"Seamless Excerpting on the Go, Systematic Organizing on Web"**:
+- **Mobile Side (Android)**: When reading on a browser or WeChat, simply select a paragraph of text, tap "Share to App", and a lightweight dialog will pop up. You can write down your instant thoughts and save it to Inbox **without interrupting your reading flow**, while the app **automatically captures the article's URL and title**.
+- **Web Side (Web)**: When you have dedicated blocks of free time, open the Web workspace on a desktop. You can easily drag and drop the scattered excerpts in your Inbox to **organize them onto a visual horizontal knowledge tree (mind map)**. Combined with an outline composer and **Large Language Models (LLMs)** for auto-synthesis, it seamlessly structures raw highlights into a cohesive, long-term personal knowledge base.
+
 
 ---
 
