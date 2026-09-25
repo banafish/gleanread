@@ -32,9 +32,16 @@
             </intent-filter>
         </activity>
 
+        <!--
+            taskAffinity="" + excludeFromRecents：浏览器 deep link / 微信气泡均以 NEW_TASK 拉起，
+            默认亲和性（包名）会并入 App 已有后台任务并把主界面带到前台，打断阅读；
+            置空亲和性后弹窗运行在独立的临时任务中，关闭后直接回到来源 App，且不在最近任务残留。
+        -->
         <activity
             android:name=".feature.capture.fast_capture.FastCaptureActivity"
             android:exported="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
