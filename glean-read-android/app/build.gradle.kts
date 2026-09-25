@@ -19,7 +19,7 @@ if (localPropertiesFile.exists()) {
 // 语义化版本（SemVer）配置，versionCode 由此自动生成
 // 映射公式: versionCode = MAJOR * 1000000 + MINOR * 10000 + PATCH * 100 + STAGE
 val versionMajor = 1
-val versionMinor = 0
+val versionMinor = 1
 val versionPatch = 0
 val buildStage = 0 // 0 为正式 release，1~99 可用于灰度或内部测试构建的递增
 
