@@ -51,6 +51,10 @@ This system strictly adheres to modern UI design aesthetics. The mobile app deep
   - Capture excerpts instantly using the system-wide share sheet or global app widgets.
   - You can copy a piece of text in the browser or WeChat official account, and then share it to the APP through the system sharing function, which will pop up the excerpt dialog and quickly extract the content to GleanRead, without interrupting the current reading process.
   - Automatically parse URLs to fetch metadata, main body text, and auto-populate context.
+- 🌐 **Browser Capture Userscript**
+  - Companion userscript suite (located in [`browser-scripts/`](./browser-scripts/README_EN.md)) fully compatible with X-Browser, Microsoft Edge, Mozilla Firefox, Lemur Browser, Kiwi, and more.
+  - Select text on any webpage to trigger a lightweight floating "摘" (Capture) button, immediately invoking Android's quick capture dialog via Deep Link (`gleanread://capture`).
+  - Page URL, title, and selected text are packaged and delivered atomically without waiting for background scraping; operates in an isolated temporary task so closing it returns you right back to reading without interrupting flow.
 - 🌳 **AI-Powered Intelligent Knowledge Tree**
   - Leverage LLMs to model semantic relations of raw excerpts and assemble them into a structured outline.
   - Interactive nodes supporting drag-and-drop reorganization, relationship graphs, and sub-tree archiving.
@@ -116,6 +120,10 @@ graph TD
 
 ```text
 glean-read/
+├── browser-scripts/       # Browser userscript capture extensions & multi-browser setup guides
+│   ├── glean-web-capture.user.js  # Tampermonkey / Violentmonkey capture script
+│   ├── README.md          # Userscript documentation (Chinese)
+│   └── README_EN.md       # Userscript documentation (English)
 ├── glean-read-android/    # Android client codebase (Jetpack Compose module)
 │   ├── app/               # Main application module
 │   └── gradle/            # Gradle dependency configurations
@@ -158,6 +166,11 @@ Set up the required environment variable:
 $env:JAVA_HOME="E:\program\jdk21"
 ```
 Open the `glean-read-android` folder using Android Studio. Wait for the Gradle Sync to complete, then deploy the `app` module to an emulator or physical device.
+
+### 4. Install Browser Capture Userscript (Recommended)
+To enable instant highlight capture in mobile or desktop browsers, refer to [`browser-scripts/README_EN.md`](./browser-scripts/README_EN.md):
+- Install Tampermonkey in X-Browser, Edge, Firefox, Lemur Browser, or Kiwi and import `glean-web-capture.user.js`.
+- Select any web text and click the floating "摘" button to atomically transfer URL, title, and excerpt directly into Android's quick capture dialog.
 
 ---
 

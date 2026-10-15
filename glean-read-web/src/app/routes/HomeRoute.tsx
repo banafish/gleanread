@@ -31,6 +31,9 @@ import {
   Sun,
   Moon,
   Paintbrush,
+  Globe,
+  ExternalLink,
+  MousePointerClick,
 } from "lucide-react";
 import { useAuth } from "@/app/providers/AuthProvider";
 
@@ -78,6 +81,7 @@ export function HomeRoute() {
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
             <a href="#features" className="transition hover:text-white">核心功能</a>
+            <a href="#browser-capture" className="transition hover:text-white">划词插件</a>
             <a href="#android" className="transition hover:text-white">安卓原生端</a>
             <a href="#sync" className="transition hover:text-white">多端同步</a>
             <a href="#download" className="transition hover:text-white">开源与下载</a>
@@ -453,6 +457,186 @@ export function HomeRoute() {
             </p>
             <div className="mt-4 inline-flex items-center gap-1.5 text-xs text-rose-400 font-medium">
               一键精炼化零为整
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 浏览器划词摘录插件与详细使用指引板块 */}
+      <section id="browser-capture" className="relative py-24 px-6 max-w-7xl mx-auto border-t border-white/5">
+        {/* 背景光晕 */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[450px] w-[600px] rounded-full bg-cyan-500/5 blur-[120px] pointer-events-none" />
+
+        {/* 标题与概览 */}
+        <div className="relative z-10 text-center max-w-3xl mx-auto mb-16">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/5 px-4 py-1.5 text-xs font-semibold text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.1)]">
+            <Globe size={13} />
+            浏览器生态赋能 / Userscript 划词插件
+          </div>
+          <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+            网页划词极速摘录插件 <br />
+            <span className="bg-gradient-to-r from-cyan-400 via-blue-400 to-indigo-400 bg-clip-text text-transparent">
+              随时随地，网页一键“摘”入知识库
+            </span>
+          </h2>
+          <p className="mt-4 text-slate-400 text-sm sm:text-base leading-relaxed">
+            告别在浏览器与笔记软件之间来回切换的繁琐复制！只需一个轻量的 Userscript（油猴）脚本，即可在 Edge、Firefox、Chrome、X浏览器、狐猴等浏览器中划选文本，通过 Deep Link 一键直达 Android 快摘弹窗。URL、标题与选中文本原子级打包送达，阅读心流永不中断。
+          </p>
+        </div>
+
+        {/* 三大硬核特性网格 */}
+        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 backdrop-blur transition-all duration-300 hover:border-cyan-500/20 hover:bg-slate-900/60">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 mb-4">
+              <Zap size={20} />
+            </div>
+            <h3 className="text-base font-bold text-white">原子级数据送达</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              当前网页 URL、页面标题与选中文本装载在启动 Intent 里原子化一次性送达，零网络请求延迟，不依赖无障碍后台抓取，不受 ROM 激进冻结策略影响。
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 backdrop-blur transition-all duration-300 hover:border-blue-500/20 hover:bg-slate-900/60">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 mb-4">
+              <CheckCircle2 size={20} />
+            </div>
+            <h3 className="text-base font-bold text-white">独立任务免打扰</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              快摘弹窗以独立临时 Task 运行，不在最近任务列表中残留，关闭弹窗后立即无缝返回原网页继续阅读，绝不拉起后台 GleanRead 主界面打断思路。
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/5 bg-slate-900/40 p-6 backdrop-blur transition-all duration-300 hover:border-indigo-500/20 hover:bg-slate-900/60">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400 mb-4">
+              <MousePointerClick size={20} />
+            </div>
+            <h3 className="text-base font-bold text-white">全平台广泛兼容</h3>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              全面适配 Tampermonkey 与 Violentmonkey，无论是手机端触控长按还是桌面端鼠标划词，自适应选区避让系统菜单，浮现「摘」轻量圆钮。
+            </p>
+          </div>
+        </div>
+
+        {/* 详细使用指引卡片 */}
+        <div className="relative z-10 rounded-3xl border border-white/5 bg-slate-900/40 p-8 md:p-10 backdrop-blur shadow-2xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-white/5">
+            <div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Code className="text-cyan-400" size={20} />
+                四步极速上手指引
+              </h3>
+              <p className="text-xs text-slate-400 mt-1">
+                适配主流浏览器（Edge、Firefox、Chrome、X浏览器、狐猴浏览器、Kiwi 等）
+              </p>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              脚本版本: v1.0.4 · 开源免费
+            </div>
+          </div>
+
+          {/* 步骤流 */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 my-8">
+            {/* Step 1 */}
+            <div className="relative rounded-2xl border border-white/5 bg-slate-950/60 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-xs font-bold text-cyan-300">
+                  01
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">准备管理器</span>
+              </div>
+              <h4 className="text-sm font-bold text-white">安装脚本管理器</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                <strong className="text-slate-300">Edge / Firefox / Kiwi / 狐猴</strong>：在扩展商店安装 Tampermonkey 或 Violentmonkey。<br />
+                <strong className="text-slate-300">X浏览器</strong>：无需安装扩展，原生支持用户脚本。
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="relative rounded-2xl border border-white/5 bg-slate-950/60 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/20 text-xs font-bold text-blue-300">
+                  02
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">导入脚本</span>
+              </div>
+              <h4 className="text-sm font-bold text-white">导入并启用脚本</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                在管理器中点击“新建脚本”，将 <code className="text-cyan-300 bg-slate-800/80 px-1 py-0.5 rounded text-[11px]">glean-web-capture.user.js</code> 全文粘贴并保存，确认规则匹配所有网页（<code className="text-slate-300 text-[10px]">@match *://*/*</code>）。
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="relative rounded-2xl border border-white/5 bg-slate-950/60 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/20 text-xs font-bold text-indigo-300">
+                  03
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">划词选择</span>
+              </div>
+              <h4 className="text-sm font-bold text-white">选中文本浮出圆钮</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                打开任意网页，长按（触屏）或鼠标划选见解文字，松手后选区右下方将自动浮现极简「摘」圆钮（内置防抖，避让系统菜单）。
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="relative rounded-2xl border border-white/5 bg-slate-950/60 p-5 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20 text-xs font-bold text-emerald-300">
+                  04
+                </span>
+                <span className="text-[10px] text-slate-500 font-mono">直达快摘</span>
+              </div>
+              <h4 className="text-sm font-bold text-white">一键直达快摘弹窗</h4>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                点击「摘」圆钮，直接拉起 GleanRead 快摘弹窗。来源 URL 和标题已自动填充，随时随地写下灵感，一键保存归档至 Inbox！
+              </p>
+            </div>
+          </div>
+
+          {/* 协议与调优提示框 */}
+          <div className="rounded-2xl border border-white/5 bg-slate-950/40 p-4.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-xs text-slate-400">
+            <div className="space-y-1">
+              <span className="font-semibold text-slate-200">💡 浏览器跳转协议小贴士：</span>
+              <p className="text-[11px] leading-relaxed">
+                Chromium 系列（Edge、Chrome、X浏览器、Kiwi）默认使用 Chromium 标准 Intent URI（带包名防劫持）；若在 <strong className="text-cyan-300">Firefox</strong> 移动端遇到无法拉起，仅需在脚本顶部将 <code className="text-slate-200">useIntentUri</code> 设为 <code className="text-cyan-300">false</code> 切换为 Scheme 直跳即可。
+              </p>
+            </div>
+          </div>
+
+          {/* 行动按钮区：明确指引到 GitHub README */}
+          <div className="mt-8 pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+              <span className="text-slate-300 font-medium">支持浏览器：</span>
+              <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-300 border border-white/5">Edge</span>
+              <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-300 border border-white/5">Firefox</span>
+              <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-300 border border-white/5">Chrome</span>
+              <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-300 border border-white/5">X 浏览器</span>
+              <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-300 border border-white/5">狐猴浏览器</span>
+              <span className="rounded-md bg-slate-800/80 px-2 py-0.5 text-[11px] text-slate-300 border border-white/5">Kiwi</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+              <a
+                href="https://github.com/banafish/glean-read/blob/main/browser-scripts/README.md"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 px-5 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:opacity-95 hover:shadow-cyan-500/30 active:scale-[0.98] w-full sm:w-auto"
+              >
+                <Github size={15} />
+                查看 GitHub 详细指引 (README)
+                <ExternalLink size={13} />
+              </a>
+              <a
+                href="https://github.com/banafish/glean-read/blob/main/browser-scripts/glean-web-capture.user.js"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-white/10 bg-slate-950 px-4 text-xs font-semibold text-slate-300 transition hover:bg-slate-900 hover:text-white active:scale-[0.98] w-full sm:w-auto"
+              >
+                <Code size={15} />
+                获取脚本源码
+              </a>
             </div>
           </div>
         </div>
@@ -970,6 +1154,7 @@ export function HomeRoute() {
 
           <div className="flex gap-6 text-slate-400">
             <a href="#features" className="hover:text-white transition">核心功能</a>
+            <a href="#browser-capture" className="hover:text-white transition">划词插件</a>
             <a href="#android" className="hover:text-white transition">Android原生端</a>
             <a href="#download" className="hover:text-white transition">APK下载</a>
             <a href="https://github.com/banafish/glean-read" target="_blank" rel="noreferrer" className="hover:text-white transition">GitHub仓库</a>

@@ -51,6 +51,10 @@
   - 支持应用内/全局小部件（Widget）以及系统分享链快速捕捉。
   - 您可以在浏览器或者微信公众号，复制一段文字，然后通过系统分享功能分享到APP，拉起摘录弹窗，将内容快速摘录到 GleanRead 中，不打断当前的阅读流程。
   - 智能解析 URL，自动提取网页元数据、正文内容并智能填充摘录上下文。
+- 🌐 **浏览器划词摘录插件 (Browser Capture Userscript)**
+  - 配套提供全平台适用的 Userscript 插件（见 [`browser-scripts/`](./browser-scripts/README.md)），支持 X浏览器、Microsoft Edge、Mozilla Firefox、狐猴浏览器、Kiwi 等。
+  - 在网页选中文本后自动浮现「摘」圆钮，一键通过 Deep Link (`gleanread://capture`) 直接唤起 Android 端的极速摘录弹窗。
+  - 网页 URL、页面标题与选中文本随启动 Intent 原子化送达，免等待后台爬取；快摘弹窗运行于独立临时任务中，关闭后秒回网页阅读，绝不拉起主界面，不打断阅读心流。
 - 🌳 **AI 辅助智能知识树 (AI Synthesis Tree)**
   - 运用 LLM 对无序摘录进行多维度语义建模，一键将碎片化高亮聚合成系统化的知识大纲。
   - 内置节点拖拽重组（Reorder）、关系图谱（Relationship Graph）及层级浏览，支持深度编辑与树节点归档。
@@ -116,6 +120,10 @@ graph TD
 
 ```text
 glean-read/
+├── browser-scripts/       # 浏览器划词摘录 Userscript 插件及各浏览器配置指引
+│   ├── glean-web-capture.user.js  # 油猴/Tampermonkey 划词摘录脚本
+│   ├── README.md          # 浏览器脚本详细使用说明 (中文)
+│   └── README_EN.md       # Browser scripts guide (English)
 ├── glean-read-android/    # Android 客户端 (Jetpack Compose 模块)
 │   ├── app/               # 安卓主应用模块
 │   └── gradle/            # Gradle 依赖配置
@@ -158,6 +166,11 @@ npm run dev
 $env:JAVA_HOME="E:\program\jdk21"
 ```
 使用 Android Studio 打开 `glean-read-android` 文件夹。等待 Gradle Sync 完成后，直接运行 `app` 模块到模拟器或真机。
+
+### 4. 安装浏览器划词摘录插件（推荐）
+若需要在手机或桌面浏览器上实现划词快速摘录，请参考 [`browser-scripts/README.md`](./browser-scripts/README.md)：
+- 在 X浏览器、Edge、Firefox、狐猴浏览器或 Kiwi 中安装 Tampermonkey 并导入 `glean-web-capture.user.js`。
+- 在网页中选中文本即可点击浮动的「摘」圆钮，一键将 URL、标题与文字原子直达 Android 快摘弹窗。
 
 ---
 
